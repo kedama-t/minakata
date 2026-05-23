@@ -230,24 +230,28 @@ minakata/
 
 ### 5.3 MCP サーバー(`@minakata/mcp`)
 
-| 領域           | 選定                                                                                       | 備考                                          |
-| -------------- | ------------------------------------------------------------------------------------------ | --------------------------------------------- |
-| MCP SDK        | [`@modelcontextprotocol/sdk`](https://github.com/modelcontextprotocol/typescript-sdk) v1.x | v2 は様子見                                   |
-| トランスポート | Streamable HTTP                                                                            | SSE は非推奨                                  |
-| HTTP 統合      | [`@modelcontextprotocol/hono`](https://github.com/modelcontextprotocol/typescript-sdk)     | Host header 検証込み                          |
-| スキーマ       | Zod(`core` と共有)                                                                         | tool の `inputSchema` / `outputSchema` に流用 |
-| 認証           | Bearer Token(MVP)→ JWT/OAuth(将来)                                                         |                                               |
-| 検証           | [MCP Inspector](https://github.com/modelcontextprotocol/inspector)                         | Hermes 接続前の確認                           |
+| 領域           | 選定                                                                                                                                                                          | 備考                                          |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| MCP SDK        | [`@modelcontextprotocol/sdk`](https://github.com/modelcontextprotocol/typescript-sdk) v1.x                                                                                    | v2 は様子見                                   |
+| トランスポート | Streamable HTTP                                                                                                                                                               | SSE は非推奨                                  |
+| HTTP 統合      | SDK 同梱の `WebStandardStreamableHTTPServerTransport` を Hono に手動マウント(`packages/mcp/src/hono.ts`)。Host header 検証と Bearer Token 認証はアプリ側で実装               | `@modelcontextprotocol/hono` は未リリース     |
+| スキーマ       | Zod(`core` と共有)                                                                                                                                                            | tool の `inputSchema` / `outputSchema` に流用 |
+| 認証           | Bearer Token(MVP)→ JWT/OAuth(将来)                                                                                                                                            |                                               |
+| 検証           | [MCP Inspector](https://github.com/modelcontextprotocol/inspector)                                                                                                            | Hermes 接続前の確認                           |
 
-**公開するツール群(概略 — 詳細は別ドキュメント)**:
+**公開するツール群(概略 — 詳細は `packages/mcp/src/tools.ts`)**:
 
-| カテゴリ       | ツール例                                                                                 |
-| -------------- | ---------------------------------------------------------------------------------------- |
-| 記事           | `minakata.search`, `read_article`, `create_article`, `update_article`, `archive_article` |
-| メッセージバス | `minakata.poll_messages`, `claim_message`, `post_agent_response`                         |
-| タスクキュー   | `minakata.poll_tasks`, `claim_task`, `complete_task`, `fail_task`, `enqueue_task`        |
-| 検索           | `minakata.fulltext_search`, `similar_articles`, `by_tag`                                 |
-| メンテナンス   | `minakata.snapshot_db`, `git_push`, `reindex`                                            |
+| カテゴリ       | ツール例                                                                                                                      |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| 記事           | `minakata.read_article`, `create_article`, `update_article`, `list_articles`                                                  |
+| アーカイブ承認 | `minakata.archive_article`, `unarchive_article`, `approve_archive`, `reject_archive`, `list_archive_proposals`                |
+| メッセージバス | `minakata.poll_messages`, `claim_message`, `post_agent_response`                                                              |
+| タスクキュー   | `minakata.poll_tasks`(claim 兼用), `complete_task`, `fail_task`, `enqueue_task`                                              |
+| 検索           | `minakata.fulltext_search`, `similar_articles`, `by_tag`                                                                      |
+| レビュー       | `minakata.propose_update`, `approve_review`, `reject_review`, `list_pending_reviews`, `add_review_comment`                    |
+| メンテナンス   | `minakata.snapshot_db`, `recompute_freshness`                                                                                 |
+| 方針 / コメント | `minakata.get_research_policy`, `update_research_policy`, `add_article_comment`, `list_article_comments`, `resolve_article_comment` |
+| スキル提案     | `minakata.propose_skill`, `approve_skill`, `reject_skill`, `list_skill_proposals`                                             |
 
 **起動形態**:
 
