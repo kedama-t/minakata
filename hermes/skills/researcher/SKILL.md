@@ -34,8 +34,9 @@ permitted_tools:
 
 ## 出典管理(US-5.1 横断要件)
 
-- すべての `update_article` / `create_article` 呼び出しで `sources` フィールドに `{url, fetched_at, used_in_sections}` を必ず含める
-- リサーチ方針(`minakata.get_research_policy`)に「出典必須セクション」が指定されていれば、本文末尾に出典セクションを書く
+- `minakata.create_article` には `sources: [{url, fetched_at, used_in_sections?}, ...]` を必ず渡す
+- 既存記事に追記するときは `minakata.update_article` の `add_sources` に同じ形式で渡す(既存 sources の末尾に append される)
+- リサーチ方針(`minakata.get_research_policy`)に「出典必須セクション」が指定されていれば、本文末尾に出典セクションも書く
 
 ## プロンプトインジェクション対策(tech-stack.md §8.1)
 

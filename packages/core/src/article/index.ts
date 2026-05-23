@@ -42,6 +42,8 @@ export interface CreateArticleInput {
   tags?: string[] | undefined
   topic_id?: string | null | undefined
   summary?: string | undefined
+  /** 出典(US-5.1 横断要件)。新規作成時から含めることが推奨 */
+  sources?: ArticleFrontmatter['sources'] | undefined
   author: string
 }
 
@@ -126,7 +128,7 @@ export class ArticleService {
       source,
       tags: input.tags ?? [],
       topic_id: input.topic_id ?? null,
-      sources: [],
+      sources: input.sources ?? [],
       created_at: ts,
       updated_at: ts,
       last_researched_at: ts,

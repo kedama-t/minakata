@@ -93,6 +93,66 @@ describe('ArticleService', () => {
     cleanup()
   })
 
+  test('create で sources を受け、frontmatter / Markdown に反映される', async () => {
+    const { db, articles, cleanup } = setup()
+    const created = await articles.create({
+      title: 'with-sources',
+      slug: 'with-sources',
+      body: 'body',
+      author: 'agent:researcher',
+      sources: [
+        {
+          url: 'https://example.com/a',
+          fetched_at: '2026-05-23T00:00:00.000Z',
+          archive_url: null,
+          used_in_sections: ['intro'],
+        },
+      ],
+    })
+    expect(created.frontmatter.sources).toHaveLength(1)
+    expect(created.frontmatter.sources[0]?.url).toBe('https://example.com/a')
+    // 再読み込みでも frontmatter から復元されること
+    const read = articles.read(created.frontmatter.id)
+    expect(read?.frontmatter.sources).toHaveLength(1)
+    db.close()
+    cleanup()
+  })
+
+  test('update で add_sources を append できる', async () => {
+    const { db, articles, cleanup } = setup()
+    const created = await articles.create({
+      title: 't',
+      slug: 'src-update',
+      body: 'body',
+      author: 'agent:researcher',
+      sources: [
+        {
+          url: 'https://example.com/a',
+          fetched_at: '2026-05-23T00:00:00.000Z',
+          archive_url: null,
+          used_in_sections: ['intro'],
+        },
+      ],
+    })
+    await articles.update({
+      id: created.frontmatter.id,
+      author: 'agent:researcher',
+      add_sources: [
+        {
+          url: 'https://example.com/b',
+          fetched_at: '2026-05-23T01:00:00.000Z',
+          archive_url: null,
+          used_in_sections: ['details'],
+        },
+      ],
+    })
+    const read = articles.read(created.frontmatter.id)
+    expect(read?.frontmatter.sources).toHaveLength(2)
+    expect(read?.frontmatter.sources[1]?.url).toBe('https://example.com/b')
+    db.close()
+    cleanup()
+  })
+
   test('create / update / read は SHA-256 hex(64文字)の content_hash を返す', async () => {
     const { db, articles, cleanup } = setup()
     const created = await articles.create({
