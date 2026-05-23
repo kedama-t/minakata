@@ -3,6 +3,7 @@
  * loader / action はここから `getServices()` で取得。
  */
 import {
+  ArchiveProposalService,
   ArticleService,
   AuditService,
   AuthService,
@@ -34,6 +35,7 @@ export interface Services {
   policy: PolicyService
   comments: CommentService
   skills: SkillProposalService
+  archives: ArchiveProposalService
 }
 
 let cached: Services | null = null
@@ -62,6 +64,7 @@ export function getServices(): Services {
     policy: new PolicyService(db),
     comments: new CommentService(db),
     skills: new SkillProposalService(db, skillsDir),
+    archives: new ArchiveProposalService(db, articles),
   }
   return cached
 }

@@ -1,4 +1,5 @@
 import type {
+  ArchiveProposalService,
   ArticleService,
   AuditService,
   CommentService,
@@ -26,4 +27,5 @@ export interface McpServices {
   policy: PolicyService
   comments: CommentService
   skills: SkillProposalService
+  archives: ArchiveProposalService
 }

@@ -157,21 +157,86 @@ export function registerArticleTools(
   server.registerTool(
     'minakata.archive_article',
     {
-      description: '記事をアーカイブする(自動更新対象外に)。admin 承認ゲートは MCP 側で実装予定',
+      description:
+        'アーカイブを「提案」する(§6 承認ゲート)。即時 archive は行わず、admin が approve_archive で承認したときに反映する。同じ記事に既に proposed がある場合は既存提案 ID を返す',
       inputSchema: {
         id: z.string(),
         author: z.string().default('agent:freshness'),
+        reason: z.string().optional(),
       },
     },
     async (args) => {
-      await s.articles.archive(args.id, args.author)
+      const proposal = s.archives.propose({
+        article_id: args.id,
+        proposed_by: ctx.agent ?? args.author,
+        ...(args.reason !== undefined && { reason: args.reason }),
+      })
       s.audit.log({
         actor: ctx.agent ?? args.author,
         tool_name: 'minakata.archive_article',
         target_article_id: args.id,
+        metadata: { proposal_id: proposal.id, reason: args.reason ?? '' },
       })
-      return ok({ id: args.id, archived: true })
+      return ok({
+        id: args.id,
+        proposal_id: proposal.id,
+        status: 'pending_approval',
+        proposed_at: proposal.created_at,
+      })
     },
+  )
+
+  server.registerTool(
+    'minakata.approve_archive',
+    {
+      description: 'アーカイブ提案を admin が承認し、記事を archived に遷移させる',
+      inputSchema: { proposal_id: z.string(), reviewer_id: z.string() },
+    },
+    async (args) => {
+      const before = s.archives.get(args.proposal_id)
+      await s.archives.approve(args.proposal_id, args.reviewer_id)
+      s.audit.log({
+        actor: `user:${args.reviewer_id}`,
+        tool_name: 'minakata.approve_archive',
+        target_article_id: before?.article_id ?? null,
+        metadata: { proposal_id: args.proposal_id },
+      })
+      return ok({ proposal_id: args.proposal_id, status: 'approved' })
+    },
+  )
+
+  server.registerTool(
+    'minakata.reject_archive',
+    {
+      description: 'アーカイブ提案を却下する(admin)。記事は archived にならず published のまま',
+      inputSchema: {
+        proposal_id: z.string(),
+        reviewer_id: z.string(),
+        reason: z.string().min(1),
+      },
+    },
+    async (args) => {
+      const before = s.archives.get(args.proposal_id)
+      s.archives.reject(args.proposal_id, args.reviewer_id, args.reason)
+      s.audit.log({
+        actor: `user:${args.reviewer_id}`,
+        tool_name: 'minakata.reject_archive',
+        target_article_id: before?.article_id ?? null,
+        metadata: { proposal_id: args.proposal_id, reason: args.reason },
+      })
+      return ok({ proposal_id: args.proposal_id, status: 'rejected' })
+    },
+  )
+
+  server.registerTool(
+    'minakata.list_archive_proposals',
+    {
+      description: 'アーカイブ提案一覧(admin 画面で利用)',
+      inputSchema: {
+        status: z.enum(['proposed', 'approved', 'rejected']).optional(),
+      },
+    },
+    async (args) => ok({ proposals: s.archives.list(args.status) }),
   )
 
   server.registerTool(

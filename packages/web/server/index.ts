@@ -34,6 +34,7 @@ export default createHonoServer({
         policy: services.policy,
         comments: services.comments,
         skills: services.skills,
+        archives: services.archives,
       },
       allowedHosts: process.env.MCP_ALLOWED_HOSTS?.split(',').filter(Boolean) ?? [],
     })
