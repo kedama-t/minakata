@@ -74,7 +74,8 @@ export function registerArticleTools(
   server.registerTool(
     'minakata.update_article',
     {
-      description: '既存記事を更新する。30% 超変更時の保留は M2 で実装(現状は直接反映)',
+      description:
+        '既存記事を更新する。body を渡した場合は ReviewService.proposeUpdate を経由し、変更率がしきい値(既定 30%)を超えると pending_approval で保留される(US-6.2)。body 以外のフィールドだけの場合は直接反映する。',
       inputSchema: {
         id: z.string(),
         body: z.string().optional(),
@@ -85,30 +86,71 @@ export function registerArticleTools(
         last_researched_at: z.string().datetime().optional(),
         cost_usd: z.number().nonnegative().optional(),
         author: z.string().default('agent:researcher'),
+        /** 0..1。デフォルト 0.3。0 にすると常に保留、1 にすると常に直接反映(テスト・移行用) */
+        review_threshold: z.number().min(0).max(1).optional(),
       },
     },
     async (args) => {
       const before = s.articles.read(args.id)
-      const updated = await s.articles.update({
-        id: args.id,
-        body: args.body,
-        title: args.title,
-        tags: args.tags,
-        status: args.status,
-        summary: args.summary,
-        last_researched_at: args.last_researched_at,
-        cost_usd: args.cost_usd,
-        author: args.author,
-      })
+      // body 提案は ReviewService 経由で 30% ゲートを通す
+      if (args.body !== undefined) {
+        const proposal = await s.reviews.proposeUpdate({
+          article_id: args.id,
+          proposed_body: args.body,
+          author: args.author,
+          ...(args.review_threshold !== undefined && { threshold: args.review_threshold }),
+          ...(args.cost_usd !== undefined && { cost_usd: args.cost_usd }),
+        })
+        if (proposal.kind === 'pending') {
+          s.audit.log({
+            actor: ctx.agent ?? args.author,
+            tool_name: 'minakata.update_article',
+            target_article_id: args.id,
+            before_hash: before?.content_hash ?? null,
+            cost_usd: args.cost_usd ?? 0,
+            metadata: {
+              result: 'pending_approval',
+              review_id: proposal.review_id,
+              change_pct: proposal.change_pct,
+            },
+          })
+          return ok({
+            id: args.id,
+            status: 'pending_approval',
+            review_id: proposal.review_id,
+            change_pct: proposal.change_pct,
+          })
+        }
+        // applied:本文の反映は完了済。残りのメタデータがあれば追加で更新する
+      }
+      const hasMeta =
+        args.title !== undefined ||
+        args.tags !== undefined ||
+        args.status !== undefined ||
+        args.summary !== undefined ||
+        args.last_researched_at !== undefined
+      const updated =
+        hasMeta || args.body === undefined
+          ? await s.articles.update({
+              id: args.id,
+              title: args.title,
+              tags: args.tags,
+              status: args.status,
+              summary: args.summary,
+              last_researched_at: args.last_researched_at,
+              cost_usd: args.body === undefined ? args.cost_usd : undefined,
+              author: args.author,
+            })
+          : s.articles.read(args.id)
       s.audit.log({
         actor: ctx.agent ?? args.author,
         tool_name: 'minakata.update_article',
         target_article_id: args.id,
         before_hash: before?.content_hash ?? null,
-        after_hash: updated.content_hash,
+        after_hash: updated?.content_hash ?? null,
         cost_usd: args.cost_usd ?? 0,
       })
-      return ok({ id: updated.frontmatter.id })
+      return ok({ id: args.id, status: 'applied' })
     },
   )
 

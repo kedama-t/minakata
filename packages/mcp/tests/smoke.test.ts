@@ -96,6 +96,81 @@ describe('mountMcp', () => {
     cleanup()
   })
 
+  test('update_article は 30% 超変更時に pending_approval で保留する(US-6.2)', async () => {
+    const { services, cleanup } = buildServices()
+    const app = new Hono()
+    mountMcp(app, { token: 't', services })
+    const call = async (method: string, params: unknown, id: number) => {
+      const res = await app.request('/mcp', {
+        method: 'POST',
+        headers: {
+          authorization: 'Bearer t',
+          'content-type': 'application/json',
+          accept: 'application/json, text/event-stream',
+        },
+        body: JSON.stringify({ jsonrpc: '2.0', id, method, params }),
+      })
+      return (await res.json()) as { result?: { structuredContent?: Record<string, unknown> } }
+    }
+    await call(
+      'initialize',
+      {
+        protocolVersion: '2025-06-18',
+        clientInfo: { name: 'test', version: '0.0.1' },
+        capabilities: {},
+      },
+      0,
+    )
+
+    const created = await call(
+      'tools/call',
+      {
+        name: 'minakata.create_article',
+        arguments: {
+          title: 'T',
+          slug: 'gate-test',
+          body: 'short original',
+          author: 'agent:researcher',
+        },
+      },
+      1,
+    )
+    const newId = (created.result?.structuredContent as { id: string }).id
+
+    // 大幅書き換え(30% 超)を試す
+    const updated = await call(
+      'tools/call',
+      {
+        name: 'minakata.update_article',
+        arguments: {
+          id: newId,
+          body: 'completely different body text that exceeds threshold by far',
+          author: 'agent:researcher',
+        },
+      },
+      2,
+    )
+    const result = updated.result?.structuredContent as {
+      id: string
+      status: string
+      review_id?: string
+    }
+    expect(result.status).toBe('pending_approval')
+    expect(result.review_id).toMatch(/^[0-9A-Z]{26}$/)
+
+    // 記事の本文はまだ書き換わらず、status だけ pending_approval
+    const article = services.articles.read(newId)
+    expect(article?.body.trim()).toBe('short original')
+    expect(article?.frontmatter.status).toBe('pending_approval')
+
+    // 保留中のレビューが 1 件あること
+    const pending = services.reviews.listPending()
+    expect(pending.length).toBe(1)
+    expect(pending[0]?.article_id).toBe(newId)
+
+    cleanup()
+  })
+
   test('create_article / update_article の audit log は SHA-256 hex で hash を記録する', async () => {
     const { services, cleanup } = buildServices()
     const app = new Hono()

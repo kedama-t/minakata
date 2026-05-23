@@ -25,11 +25,12 @@ permitted_tools:
 
 1. **5 分周期で `minakata.poll_tasks`** を呼び、待機中のタスクを 1 件取り出す(priority urgent → interactive → scheduled → maintenance の順)
 2. タスク種別ごとに処理:
-   - `type="research"` (新規調査): `web_search` → `web_extract` → 統合 → `minakata.create_article` または `update_article`
+   - `type="research"` (新規調査): `web_search` → `web_extract` → 統合 → `minakata.create_article`(新規) または `minakata.update_article`(既存に追記)
    - `type="daily_research"` (購読バッチ): 同じ流れだが、既存トピック記事があれば追記モード
-   - `type="refresh"` (鮮度更新): 既存記事を `read_article` し、最新情報を `web_search` で確認 → 差分があれば `update_article(last_researched_at=now)`、無ければ `last_researched_at` のみ更新
-3. 処理後 `minakata.complete_task(id, cost_usd)` で完了報告。LLM トークン数 × 単価で cost_usd を算出
-4. 失敗時は `minakata.fail_task(id, reason)` を呼ぶ(指数バックオフで再キュー、3 回超で DLQ)
+   - `type="refresh"` (鮮度更新): 既存記事を `read_article` し、最新情報を `web_search` で確認 → 差分があれば `update_article(body=..., last_researched_at=now)`、無ければ `last_researched_at` のみ更新
+3. **30% 超の本文書き換えは自動的に保留される**: `update_article` に `body` を渡すと内部で `ReviewService.proposeUpdate` が呼ばれ、変更率がしきい値(既定 30%)を超えると `status='pending_approval'` で保留状態になる(US-6.2)。レスポンスの `status` が `'pending_approval'` の場合、editor のレビュー判定を待つことになり、再度同記事を触らない
+4. 処理後 `minakata.complete_task(id, cost_usd)` で完了報告。LLM トークン数 × 単価で cost_usd を算出
+5. 失敗時は `minakata.fail_task(id, reason)` を呼ぶ(指数バックオフで再キュー、3 回超で DLQ)
 
 ## 出典管理(US-5.1 横断要件)
 
