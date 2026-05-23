@@ -1,7 +1,18 @@
-import { Form, redirect } from 'react-router'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { redirect, useFetcher, useRevalidator } from 'react-router'
 import { requireEditor } from '../lib/auth.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/chat.ts'
+
+interface DisplayMessage {
+  id: string
+  role: 'user' | 'agent'
+  content: string
+  is_final: boolean
+  created_at: string
+  /** SSE で受信したストリーミング中フラグ。loader 由来は false */
+  streaming?: boolean
+}
 
 export async function loader({ request, params }: Route.LoaderArgs) {
   const user = requireEditor(request)
@@ -32,7 +43,113 @@ export async function action({ request, params }: Route.ActionArgs) {
 }
 
 export default function Chat({ loaderData }: Route.ComponentProps) {
-  const { session, messages } = loaderData
+  const { session, messages: initialMessages } = loaderData
+  const fetcher = useFetcher<typeof action>()
+  const revalidator = useRevalidator()
+  const [liveMessages, setLiveMessages] = useState<DisplayMessage[]>([])
+  const formRef = useRef<HTMLFormElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // 入力中チャンクは agent message id をキーに連結する
+  useEffect(() => {
+    const source = new EventSource(`/chat/${session.id}/stream`)
+    let activeAgentId: string | null = null
+
+    source.onmessage = (event) => {
+      let payload: {
+        type: string
+        id?: string
+        content?: string
+        is_final?: boolean
+        created_at?: string
+      }
+      try {
+        payload = JSON.parse(event.data)
+      } catch {
+        return
+      }
+      if (payload.type !== 'agent' || !payload.id) return
+      const id = payload.id
+      const content = payload.content ?? ''
+      const isFinal = payload.is_final ?? false
+      const createdAt = payload.created_at ?? new Date().toISOString()
+
+      setLiveMessages((prev) => {
+        // ストリーミング中の同じ論理応答(activeAgentId)に追加チャンクを連結する
+        if (!isFinal && activeAgentId) {
+          return prev.map((m) =>
+            m.id === activeAgentId ? { ...m, content: m.content + content } : m,
+          )
+        }
+        // 新しい論理応答の最初のチャンク or is_final=true の単発応答
+        const existing = prev.find((m) => m.id === id)
+        if (existing) {
+          return prev.map((m) =>
+            m.id === id
+              ? { ...m, content: m.content + content, is_final: isFinal, streaming: !isFinal }
+              : m,
+          )
+        }
+        return [
+          ...prev,
+          {
+            id,
+            role: 'agent',
+            content,
+            is_final: isFinal,
+            created_at: createdAt,
+            streaming: !isFinal,
+          },
+        ]
+      })
+      if (isFinal) {
+        activeAgentId = null
+        // 確定したのを機にサーバ側の messages テーブルからも再取得しておく(整合性のため)
+        revalidator.revalidate()
+      } else if (!activeAgentId) {
+        activeAgentId = id
+      }
+    }
+
+    source.onerror = () => {
+      // ブラウザは EventSource の自動再接続を行う。明示的にログだけ残す
+      console.warn('[chat] SSE connection error; browser will retry')
+    }
+
+    return () => {
+      source.close()
+    }
+  }, [session.id, revalidator])
+
+  // loader メッセージ + SSE 経由のメッセージをマージ(id 衝突は loader 側を優先)
+  const merged = useMemo<DisplayMessage[]>(() => {
+    const loaderIds = new Set(initialMessages.map((m) => m.id))
+    const fromLoader: DisplayMessage[] = initialMessages.map((m) => ({
+      id: m.id,
+      role: m.role,
+      content: m.content,
+      is_final: m.is_final,
+      created_at: m.created_at,
+    }))
+    const fromSse = liveMessages.filter((m) => !loaderIds.has(m.id))
+    return [...fromLoader, ...fromSse].sort((a, b) => a.created_at.localeCompare(b.created_at))
+  }, [initialMessages, liveMessages])
+
+  // 新着メッセージ / ストリーミングチャンク到着で一番下にスクロール
+  // biome-ignore lint/correctness/useExhaustiveDependencies: merged の更新タイミングがそのままスクロール契機
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    el.scrollTop = el.scrollHeight
+  }, [merged])
+
+  // ユーザー送信が完了したらフォームをクリア
+  useEffect(() => {
+    if (fetcher.state === 'idle' && fetcher.data && 'ok' in fetcher.data && fetcher.data.ok) {
+      formRef.current?.reset()
+    }
+  }, [fetcher.state, fetcher.data])
+
   return (
     <div className="max-w-3xl mx-auto p-6 flex flex-col h-[calc(100vh-80px)]">
       <h1 className="text-xl font-bold mb-2">
@@ -47,40 +164,47 @@ export default function Chat({ loaderData }: Route.ComponentProps) {
           {session.kind}
         </span>
       </h1>
-      <div className="flex-1 overflow-y-auto bg-white rounded border p-4 space-y-3">
-        {messages.length === 0 && (
+      <div
+        ref={containerRef}
+        className="flex-1 overflow-y-auto bg-white rounded border p-4 space-y-3"
+      >
+        {merged.length === 0 && (
           <p className="text-sm text-slate-500">
             メッセージはまだありません。下のフォームから依頼を送信してください。
           </p>
         )}
-        {messages.map((m) => (
+        {merged.map((m) => (
           <div key={m.id} className={m.role === 'user' ? 'text-right' : ''}>
             <span
-              className={`inline-block px-3 py-2 rounded ${
+              className={`inline-block px-3 py-2 rounded whitespace-pre-wrap ${
                 m.role === 'user' ? 'bg-blue-100' : 'bg-slate-100'
               }`}
             >
               {m.content}
+              {m.streaming && <span className="text-slate-400 animate-pulse"> ▍</span>}
             </span>
           </div>
         ))}
-        <p className="text-xs text-slate-400">
-          ※
-          エージェント応答はバックグラウンドで届きます。ページをリロードしてください(リアルタイム反映は
-          SSE で実装予定)。
-        </p>
       </div>
-      <Form method="post" className="mt-3 flex gap-2">
+      <fetcher.Form ref={formRef} method="post" className="mt-3 flex gap-2">
         <input
           name="content"
           required
           className="flex-1 px-3 py-2 border rounded"
           placeholder="例: React Router v7 framework mode について調べて"
+          disabled={fetcher.state !== 'idle'}
         />
-        <button type="submit" className="bg-blue-600 text-white px-4 rounded">
+        <button
+          type="submit"
+          className="bg-blue-600 text-white px-4 rounded disabled:opacity-50"
+          disabled={fetcher.state !== 'idle'}
+        >
           送信
         </button>
-      </Form>
+      </fetcher.Form>
+      {fetcher.data && 'error' in fetcher.data && fetcher.data.error && (
+        <p className="text-red-600 text-xs mt-1">{fetcher.data.error}</p>
+      )}
     </div>
   )
 }
