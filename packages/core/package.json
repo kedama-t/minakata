@@ -1,0 +1,41 @@
+{
+  "name": "@minakata/core",
+  "version": "0.1.0-mvp",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./db": "./src/db/index.ts",
+    "./schema": "./src/schema/index.ts",
+    "./article": "./src/article/index.ts",
+    "./search": "./src/search/index.ts",
+    "./embedding": "./src/embedding/index.ts",
+    "./message": "./src/message/index.ts",
+    "./task": "./src/task/index.ts",
+    "./auth": "./src/auth/index.ts",
+    "./audit": "./src/audit/index.ts",
+    "./review": "./src/review/index.ts",
+    "./maintenance": "./src/maintenance/index.ts"
+  },
+  "scripts": {
+    "build": "bun build ./src/index.ts --outdir ./dist --target bun",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.0.0",
+    "gray-matter": "^4.0.3",
+    "ulid": "^2.3.0",
+    "pino": "^9.5.0",
+    "simple-git": "^3.27.0",
+    "proper-lockfile": "^4.1.2",
+    "sqlite-vec": "^0.1.6",
+    "@node-rs/argon2": "^2.0.0",
+    "@oslojs/jwt": "^0.3.0",
+    "@oslojs/encoding": "^1.1.0",
+    "@huggingface/transformers": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/proper-lockfile": "^4.1.4"
+  }
+}

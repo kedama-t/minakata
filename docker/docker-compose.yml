@@ -1,0 +1,63 @@
+# `docker compose -f docker/docker-compose.yml up -d` で起動する想定
+# tech-stack.md §5.9 を参照
+name: minakata
+
+services:
+  minakata:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.minakata
+    image: minakata:dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../data:/app/data
+      - ../models:/app/.cache/huggingface
+    environment:
+      MCP_TOKEN: "${MCP_TOKEN}"
+      DATABASE_URL: "file:/app/data/minakata.db"
+      ARTICLES_ROOT: "/app/data/articles"
+      HF_HOME: "/app/.cache/huggingface"
+      PORT: "3000"
+      # MCP の DNS rebinding 対策。本番では Hermes コンテナの hostname と Caddy 経由の公開ホストを指定
+      MCP_ALLOWED_HOSTS: "${MCP_ALLOWED_HOSTS:-minakata,localhost,localhost:3000}"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+
+  hermes:
+    # 公式イメージが正式に公開され次第差し替える。MVP では `--profile agent` で起動。
+    # minakata 単体は agent 無しでも UI 起動する(MCP は手動 enqueue/curl で叩ける)。
+    image: nousresearch/hermes-agent:latest
+    profiles: ["agent"]
+    volumes:
+      - ../hermes:/root/.hermes
+    environment:
+      OPENAI_API_BASE: "https://opencode.ai/zen/v1"
+      OPENAI_API_KEY: "${OPENCODE_API_KEY}"
+      FIRECRAWL_API_KEY: "${FIRECRAWL_API_KEY}"
+      MINAKATA_MCP_URL: "http://minakata:3000/mcp"
+      MINAKATA_MCP_TOKEN: "${MCP_TOKEN}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+    depends_on:
+      minakata:
+        condition: service_healthy
+      searxng:
+        condition: service_started
+    restart: unless-stopped
+
+  searxng:
+    image: searxng/searxng:latest
+    volumes:
+      - ../searxng:/etc/searxng
+    environment:
+      INSTANCE_NAME: "minakata-search"
+      SEARXNG_SECRET: "${SEARXNG_SECRET}"
+    # Hermes コンテナからのみ docker network 経由でアクセスする想定
+    expose:
+      - "8080"
+    restart: unless-stopped

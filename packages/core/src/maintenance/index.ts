@@ -1,0 +1,92 @@
+import type { Db } from '../db/index.ts'
+import { runMigrations } from '../db/index.ts'
+import type { EmbeddingService } from '../embedding/index.ts'
+import { newId, now } from '../util/id.ts'
+
+/**
+ * メンテナンス系操作。Hermes が定期 cron で呼ぶ想定。
+ * - runMigrations: 起動時の冪等マイグレーション(db/index.ts のラッパ)
+ * - snapshot: SQLite の VACUUM INTO で別ファイルに退避(US-1.1 受け入れ条件)
+ * - reindex: FTS5 + sqlite-vec の再インデックス(モデル変更時)
+ */
+export class MaintenanceService {
+  constructor(private readonly db: Db) {}
+
+  runMigrations(): void {
+    runMigrations(this.db)
+  }
+
+  /** SQLite を別ファイルに VACUUM INTO で吐き出す。Hermes の `minakata.snapshot_db` から呼ぶ */
+  snapshot(toPath: string): { path: string; created_at: string } {
+    this.db.prepare('VACUUM INTO ?').run(toPath)
+    return { path: toPath, created_at: now() }
+  }
+
+  /** 鮮度ランクの再計算(Hermes の freshness_checker から呼ぶ) */
+  recomputeFreshness(thresholds: { aging_h: number; stale_h: number; very_stale_h: number }): {
+    updated: number
+  } {
+    const ts = now()
+    const ms = Date.parse(ts)
+    const agingCut = new Date(ms - thresholds.aging_h * 3_600_000).toISOString()
+    const staleCut = new Date(ms - thresholds.stale_h * 3_600_000).toISOString()
+    const veryStaleCut = new Date(ms - thresholds.very_stale_h * 3_600_000).toISOString()
+    let total = 0
+    // 古い順から更新(very_stale → stale → aging → fresh)
+    total += this.db
+      .prepare(
+        `UPDATE articles SET freshness_rank = 'very_stale'
+         WHERE last_researched_at IS NOT NULL AND last_researched_at < ? AND freshness_rank != 'very_stale'`,
+      )
+      .run(veryStaleCut).changes
+    total += this.db
+      .prepare(
+        `UPDATE articles SET freshness_rank = 'stale'
+         WHERE last_researched_at IS NOT NULL AND last_researched_at < ? AND last_researched_at >= ?
+           AND freshness_rank != 'stale'`,
+      )
+      .run(staleCut, veryStaleCut).changes
+    total += this.db
+      .prepare(
+        `UPDATE articles SET freshness_rank = 'aging'
+         WHERE last_researched_at IS NOT NULL AND last_researched_at < ? AND last_researched_at >= ?
+           AND freshness_rank != 'aging'`,
+      )
+      .run(agingCut, staleCut).changes
+    return { updated: total }
+  }
+
+  /** スナップショット用に新しい ID 付きのファイル名を生成する補助 */
+  newSnapshotName(): string {
+    return `${newId()}.db`
+  }
+
+  /**
+   * 全記事の埋め込みを再生成する。モデル変更時に走らせる(M3-1)。
+   * 既存の articles_vec / article_vec_map は破棄して作り直す。
+   */
+  async reindexEmbeddings(embedding: EmbeddingService): Promise<{ reindexed: number }> {
+    this.db.exec(
+      'CREATE TABLE IF NOT EXISTS article_vec_map (article_id TEXT PRIMARY KEY, rowid INTEGER UNIQUE)',
+    )
+    this.db.exec('DELETE FROM articles_vec')
+    this.db.exec('DELETE FROM article_vec_map')
+    const rows = this.db
+      .query<{ id: string; title: string }, []>('SELECT id, title FROM articles')
+      .all()
+    let count = 0
+    for (const r of rows) {
+      // 本文はファイル側だが、ここでは title だけで近似(完全な passage 再構築は ArticleService 経由)
+      const vec = await embedding.embedPassage(r.title)
+      const rowid = count + 1
+      this.db
+        .prepare('INSERT INTO articles_vec(rowid, embedding) VALUES (?, ?)')
+        .run(rowid, Buffer.from(vec.buffer as ArrayBuffer))
+      this.db
+        .prepare('INSERT INTO article_vec_map (article_id, rowid) VALUES (?, ?)')
+        .run(r.id, rowid)
+      count += 1
+    }
+    return { reindexed: count }
+  }
+}

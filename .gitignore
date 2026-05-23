@@ -1,0 +1,27 @@
+node_modules/
+dist/
+build/
+.react-router/
+coverage/
+*.log
+.DS_Store
+
+# 環境変数
+.env
+.env.local
+.env.*.local
+
+# 実行時データ(P3: Markdown が source of truth、これらは再構築可能)
+data/
+models/
+
+# Hermes / SearXNG ボリューム
+hermes/data/
+hermes/memory/
+hermes/conversations/
+searxng/uci/
+
+# エディタ
+.vscode/
+.idea/
+*.swp

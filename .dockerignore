@@ -1,0 +1,16 @@
+node_modules
+dist
+build
+.react-router
+coverage
+data
+models
+hermes/data
+hermes/memory
+hermes/conversations
+.env
+.env.local
+.env.*.local
+.git
+.DS_Store
+*.log

@@ -1,0 +1,38 @@
+# syntax=docker/dockerfile:1.7
+# Minakata (web + mcp + core) 単一プロセス用イメージ。tech-stack.md §5.9 参照。
+
+FROM oven/bun:1 AS deps
+WORKDIR /app
+COPY package.json bun.lock* bunfig.toml tsconfig.json ./
+COPY packages/core/package.json ./packages/core/
+COPY packages/web/package.json ./packages/web/
+COPY packages/mcp/package.json ./packages/mcp/
+RUN bun install --frozen-lockfile || bun install
+
+FROM oven/bun:1 AS build
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+# React Router の typegen → ビルド
+RUN cd packages/web && bunx react-router typegen && bun run build
+
+FROM oven/bun:1 AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HF_HOME=/app/.cache/huggingface
+# Debian Bookworm の libsqlite3-0 は extension loading が enabled。
+# sqlite3 CLI も入れて運用調査用に使えるようにしておく。
+RUN apt-get update && apt-get install -y --no-install-recommends \
+  ca-certificates git sqlite3 libsqlite3-0 curl \
+  && rm -rf /var/lib/apt/lists/*
+# SQLITE_CUSTOM_LIB は明示的に指定せず、core/db の ensureCustomSqlite() が
+# x86_64-linux-gnu / aarch64-linux-gnu を自動探索する
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/packages ./packages
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/tsconfig.json ./tsconfig.json
+EXPOSE 3000
+HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=3 \
+  CMD curl -fsS http://127.0.0.1:3000/health || exit 1
+CMD ["bun", "run", "--filter", "@minakata/web", "start"]

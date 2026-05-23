@@ -1,0 +1,22 @@
+# Minakata 専用 SearXNG 設定
+# tech-stack.md §5.6 を参照
+use_default_settings: true
+
+general:
+  instance_name: "minakata-search"
+
+search:
+  # Hermes は JSON で取得する。html も残しておくとデバッグしやすい
+  formats:
+    - html
+    - json
+  autocomplete: ""
+  default_lang: "auto"
+
+server:
+  secret_key: "${SEARXNG_SECRET}"
+  # Hermes コンテナからの自動リクエストを許容するためレートリミッタを切る
+  limiter: false
+  # 外部からの直接アクセスは docker network で遮断する想定
+  public_instance: false
+  image_proxy: false
