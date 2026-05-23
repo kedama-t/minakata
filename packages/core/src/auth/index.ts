@@ -69,6 +69,37 @@ export class AuthService {
     return { id, email: input.email, role: input.role, created_at }
   }
 
+  /**
+   * 既存ユーザーのロールを変更する(US-1.2)。
+   * - 自分自身を admin から降格しようとした場合は AuthError('self_demote')
+   * - 最後の admin を降格しようとした場合は AuthError('last_admin')
+   *   (admin が誰も居なくなると承認ゲートが詰まるため)
+   */
+  updateRole(input: { user_id: string; role: Role; actor_user_id: string }): User {
+    const target = this.db
+      .query<{ id: string; email: string; role: Role; created_at: string }, [string]>(
+        'SELECT id, email, role, created_at FROM users WHERE id = ?',
+      )
+      .get(input.user_id)
+    if (!target) throw new AuthError('not_found', 'User not found')
+    if (target.role === input.role) return target
+    if (target.role === 'admin') {
+      if (input.actor_user_id === target.id && input.role !== 'admin') {
+        throw new AuthError('self_demote', 'Cannot demote yourself')
+      }
+      const others = this.db
+        .query<{ c: number }, [string]>(
+          "SELECT COUNT(*) AS c FROM users WHERE role = 'admin' AND id != ?",
+        )
+        .get(target.id)
+      if ((others?.c ?? 0) === 0) {
+        throw new AuthError('last_admin', 'Cannot demote the last admin')
+      }
+    }
+    this.db.prepare('UPDATE users SET role = ? WHERE id = ?').run(input.role, target.id)
+    return { id: target.id, email: target.email, role: input.role, created_at: target.created_at }
+  }
+
   findUserByEmail(email: string): User | null {
     const r = this.db
       .query<{ id: string; email: string; role: Role; created_at: string }, [string]>(
