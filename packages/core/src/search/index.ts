@@ -2,6 +2,18 @@ import type { SQLQueryBindings } from 'bun:sqlite'
 import type { Db } from '../db/index.ts'
 import type { ArticleSourceKind, ArticleStatus } from '../schema/index.ts'
 
+/**
+ * 検索スニペットの一区間。
+ * - `text`: 表示するプレーンテキスト(エスケープ不要)
+ * - `mark`: 一致部分。UI 側で <mark> 等のハイライトを当てる
+ *
+ * 生 HTML 文字列は持たせない(`dangerouslySetInnerHTML` を排除し XSS を防ぐ)。
+ */
+export interface SnippetSegment {
+  text: string
+  mark: boolean
+}
+
 export interface SearchHit {
   id: string
   slug: string
@@ -9,8 +21,32 @@ export interface SearchHit {
   status: ArticleStatus
   source: ArticleSourceKind
   tags: string[]
-  snippet: string
+  snippet: SnippetSegment[]
   updated_at: string
+}
+
+/**
+ * 通常テキストに現れない制御文字 (U+0001 / U+0002) でハイライト範囲を囲み、
+ * パース後に React の `<mark>` JSX として描画する。これで HTML 文字列を一切
+ * ユーザー出力に通さず XSS を防ぐ。
+ */
+export const SNIPPET_MARK_START = String.fromCharCode(0x01)
+export const SNIPPET_MARK_END = String.fromCharCode(0x02)
+
+export function parseSnippetSegments(raw: string): SnippetSegment[] {
+  if (!raw) return []
+  const segments: SnippetSegment[] = []
+  const pattern = new RegExp(`${SNIPPET_MARK_START}([\\s\\S]*?)${SNIPPET_MARK_END}`, 'g')
+  let last = 0
+  let m: RegExpExecArray | null = pattern.exec(raw)
+  while (m !== null) {
+    if (m.index > last) segments.push({ text: raw.slice(last, m.index), mark: false })
+    segments.push({ text: m[1] ?? '', mark: true })
+    last = m.index + m[0].length
+    m = pattern.exec(raw)
+  }
+  if (last < raw.length) segments.push({ text: raw.slice(last), mark: false })
+  return segments
 }
 
 export interface FulltextOptions {
@@ -39,17 +75,19 @@ export class SearchService {
       conditions.push("a.status != 'archived'")
     }
     params.push(limit)
+    // FTS5 snippet() の境界マーカーを HTML タグ ('<mark>') ではなく制御文字に
+    // することで、出力を後段の React で安全に分解できるようにする
     const rows = this.db
       .query<RawHit, SQLQueryBindings[]>(
         `SELECT a.id, a.slug, a.title, a.status, a.source, a.tags_json, a.updated_at,
-                snippet(articles_fts, 2, '<mark>', '</mark>', '...', 16) AS snippet
+                snippet(articles_fts, 2, ?, ?, '...', 16) AS snippet
          FROM articles_fts
          JOIN articles a ON a.id = articles_fts.article_id
          WHERE ${conditions.join(' AND ')}
          ORDER BY a.updated_at DESC
          LIMIT ?`,
       )
-      .all(...params)
+      .all(SNIPPET_MARK_START, SNIPPET_MARK_END, ...params)
     return rows.map(toHit)
   }
 
@@ -133,7 +171,7 @@ function toHit(r: RawHit): SearchHit {
     status: r.status,
     source: r.source,
     tags: JSON.parse(r.tags_json) as string[],
-    snippet: r.snippet,
+    snippet: parseSnippetSegments(r.snippet),
     updated_at: r.updated_at,
   }
 }

@@ -44,10 +44,20 @@ export default function Search({ loaderData }: Route.ComponentProps) {
               {h.title}
             </a>
             <span className="ml-2 text-xs text-slate-500">{h.status}</span>
-            {h.snippet && (
-              // FTS5 snippet には <mark> が含まれる
-              // biome-ignore lint/security/noDangerouslySetInnerHtml: snippet は DB 由来でユーザー入力は事前 escape 不要(FTS5 が囲み)
-              <p className="text-sm mt-1" dangerouslySetInnerHTML={{ __html: h.snippet }} />
+            {h.snippet.length > 0 && (
+              <p className="text-sm mt-1">
+                {h.snippet.map((seg, i) =>
+                  seg.mark ? (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: snippet segments are positional
+                    <mark key={i} className="bg-yellow-200">
+                      {seg.text}
+                    </mark>
+                  ) : (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: snippet segments are positional
+                    <span key={i}>{seg.text}</span>
+                  ),
+                )}
+              </p>
             )}
           </li>
         ))}

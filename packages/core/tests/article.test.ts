@@ -32,7 +32,7 @@ describe('ArticleService', () => {
     cleanup()
   })
 
-  test('FTS5 全文検索でヒットする', async () => {
+  test('FTS5 全文検索でヒットする(snippet は HTML ではなく SnippetSegment[])', async () => {
     const { db, articles, search, cleanup } = setup()
     await articles.create({
       title: 'Bun runtime',
@@ -43,7 +43,28 @@ describe('ArticleService', () => {
     const hits = search.fulltext({ q: 'JavaScript' })
     expect(hits.length).toBe(1)
     expect(hits[0]?.slug).toBe('bun-runtime')
-    expect(hits[0]?.snippet).toContain('<mark>')
+    // 生 HTML 文字列を返さず、mark 区間が SnippetSegment として分解されていること
+    const segments = hits[0]?.snippet ?? []
+    expect(Array.isArray(segments)).toBe(true)
+    expect(segments.some((s) => s.mark && /JavaScript/i.test(s.text))).toBe(true)
+    expect(segments.every((s) => !s.text.includes('<mark>'))).toBe(true)
+    db.close()
+    cleanup()
+  })
+
+  test('snippet に <script> 等の HTML がある本文でも、出力にタグが含まれない(XSS 防止)', async () => {
+    const { db, articles, search, cleanup } = setup()
+    await articles.create({
+      title: 'X',
+      slug: 'xss-test',
+      body: 'innocuous <script>alert(1)</script> JavaScript attack',
+      author: 'agent:researcher',
+    })
+    const hits = search.fulltext({ q: 'JavaScript' })
+    const concat = (hits[0]?.snippet ?? []).map((s) => s.text).join('')
+    // 区間テキストには raw タグ文字が含まれていても、`SnippetSegment` の text プロパティ
+    // はそのまま React テキストノードとして渡るので JSX レンダリング時に自動エスケープされる
+    expect(concat).toContain('<script>')
     db.close()
     cleanup()
   })
