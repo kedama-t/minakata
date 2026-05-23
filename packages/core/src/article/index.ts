@@ -194,6 +194,19 @@ export class ArticleService {
     this.db.prepare('UPDATE articles SET last_accessed_at = ? WHERE id = ?').run(ts, id)
   }
 
+  /**
+   * 再インデックス(Maintenance.reindexEmbeddings から呼ばれる)。
+   * 通常パスと同じく `${title}\n\n${body}` を passage として埋め込み、
+   * articles_vec / article_vec_map を更新する。Markdown 本文はファイルから読み出す。
+   */
+  async recomputeEmbedding(id: string): Promise<boolean> {
+    if (!this.embedding) return false
+    const article = this.read(id)
+    if (!article) return false
+    await this.upsertEmbedding(id, `${article.frontmatter.title}\n\n${article.body}`)
+    return true
+  }
+
   // --- 内部 ---
 
   private async persist(
