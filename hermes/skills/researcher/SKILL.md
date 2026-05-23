@@ -6,13 +6,13 @@ schedule:
 model: "opencode/go-research"  # OpenCode Go プラン内のオープンモデル(夜間バッチでも回せる量)
 permitted_tools:
   - minakata.poll_tasks
-  - minakata.claim_task
   - minakata.complete_task
   - minakata.fail_task
   - minakata.read_article
   - minakata.create_article
   - minakata.update_article
   - minakata.fulltext_search
+  - minakata.get_research_policy
   - web_search
   - web_extract
 ---
@@ -23,7 +23,7 @@ permitted_tools:
 
 ## 行動ルール
 
-1. **5 分周期で `minakata.poll_tasks`** を呼び、待機中のタスクを 1 件取り出す(priority urgent → interactive → scheduled → maintenance の順)
+1. **5 分周期で `minakata.poll_tasks`** を呼び、待機中のタスクを 1 件取り出す(priority urgent → interactive → scheduled → maintenance の順)。`poll_tasks` は内部で claim まで完了するので、別の `claim_task` ツールは存在しない
 2. タスク種別ごとに処理:
    - `type="research"` (新規調査): `web_search` → `web_extract` → 統合 → `minakata.create_article`(新規) または `minakata.update_article`(既存に追記)
    - `type="daily_research"` (購読バッチ): 同じ流れだが、既存トピック記事があれば追記モード
