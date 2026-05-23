@@ -1,5 +1,6 @@
 import { Form } from 'react-router'
 import { requireEditor, requireUser } from '../lib/auth.ts'
+import { ArticleMarkdown } from '../lib/markdown.tsx'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/article.ts'
 
@@ -92,7 +93,7 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
       {article.frontmatter.summary && (
         <div className="bg-slate-100 p-3 rounded mb-6 text-sm">{article.frontmatter.summary}</div>
       )}
-      <div className="whitespace-pre-wrap leading-relaxed">{article.body}</div>
+      <ArticleMarkdown source={article.body} />
       {article.frontmatter.sources.length > 0 && (
         <section className="mt-8 border-t pt-4">
           <h2 className="text-lg font-bold mb-2">出典</h2>
