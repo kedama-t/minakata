@@ -153,6 +153,25 @@ describe('ArticleService', () => {
     cleanup()
   })
 
+  test('list は last_accessed_at を返す(US-7.2 archive 判定に必要)', async () => {
+    const { db, articles, cleanup } = setup()
+    const a = await articles.create({
+      title: 't',
+      slug: 'la',
+      body: 'body',
+      author: 'agent:researcher',
+    })
+    // 作成直後は last_accessed_at は null
+    const before = articles.list().find((x) => x.id === a.frontmatter.id)
+    expect(before?.last_accessed_at).toBeNull()
+
+    await articles.touchAccessed(a.frontmatter.id)
+    const after = articles.list().find((x) => x.id === a.frontmatter.id)
+    expect(after?.last_accessed_at).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+    db.close()
+    cleanup()
+  })
+
   test('create / update / read は SHA-256 hex(64文字)の content_hash を返す', async () => {
     const { db, articles, cleanup } = setup()
     const created = await articles.create({
