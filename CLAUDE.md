@@ -4,7 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## リポジトリの現状
 
-設計フェーズ。`docs/` 配下に仕様書のみが存在し、実装(`packages/`, `docker/`, `hermes/` 等)はまだ作成されていない。新規にコードを書く際は、まず仕様書を参照し、設計と整合性のとれた構造で作ること。
+`0.1.0-mvp` 実装中。`packages/` (`core` / `web` / `mcp`)、`docker/`、`hermes/skills/` までは骨格が動き、`bun test` / `bun run typecheck` / `bun run lint` は通る状態。MVP 受け入れ条件まではまだ複数の不整合があり、GitHub Issue に追跡されている。
+
+主要エントリ:
+
+- `packages/web/server/index.ts` — Hono サーバー兼 MCP マウント
+- `packages/web/app/routes/` — React Router v7 のルート(SSR + loader/action)
+- `packages/mcp/src/tools.ts` — 全 MCP ツールの登録
+- `packages/core/src/` — ドメインサービス (`article` / `auth` / `audit` / `message` / `task` / `search` / `review` / `policy` / `comment` / `skill` / `maintenance` / `embedding`)
+- `hermes/skills/<name>/SKILL.md` — Hermes subagent 定義 (`dialogue` / `researcher` / `daily_research` / `freshness_checker` / `changelog_writer`)
+
+実装を変更する前に、必読の仕様書と既存 Issue(`gh issue list`) を確認すること。
 
 ## 必読の仕様書(変更前に必ず参照)
 
@@ -26,16 +36,16 @@ Minakata は「エージェントハーネスによる自動情報収集シス�
 - **埋め込み生成はローカル**(P11): Transformers.js + `multilingual-e5-base` を `core` プロセス内で実行。外部 API には送らない
 - **生成系 LLM は OpenCode Zen 経由**(P7): Hermes コンテナのみが API キーを保持。Minakata 側からは見えない
 
-### パッケージ構成(予定)
+### パッケージ構成(現状)
 
 ```
 packages/
 ├── core/   # ドメインロジック共有ライブラリ(依存なし)
 ├── web/    # React Router v7 + Hono(BFF 兼用)
-└── mcp/    # MCP サーバー(初期は web と同一プロセスで /mcp にマウント)
+└── mcp/    # MCP サーバー(web と同一プロセスで /mcp にマウント済み)
 ```
 
-`web` と `mcp` は両方とも `core` に依存する。`core` は他に依存しない。
+`web` と `mcp` は両方とも `core` に依存する。`core` は他に依存しない。`web` プロセスが起動時に `packages/web/server/index.ts:24` で `mountMcp` を呼び、Streamable HTTP の `/mcp` を立ち上げる。
 
 ### データフロー(対話)
 
@@ -56,10 +66,10 @@ packages/
 - **拡張**: FTS5(全文検索)、`sqlite-vec`(ベクトル検索、768次元固定)
 - **スキーマ**: Zod v4(MCP SDK と共有)
 - **Web**: React Router v7 framework mode + `react-router-hono-server`(Next.js は不採用)
-- **MCP**: `@modelcontextprotocol/sdk` v1.x + `@modelcontextprotocol/hono`、トランスポートは Streamable HTTP のみ(SSE トランスポートは非推奨)
+- **MCP**: `@modelcontextprotocol/sdk` v1.x の `WebStandardStreamableHTTPServerTransport` を Hono に手動マウント(`packages/mcp/src/hono.ts`)。トランスポートは Streamable HTTP のみ(SSE トランスポートは非推奨)
 - **Lint/Format**: Biome
 - **テスト**: `bun test`(Vitest 互換 API)
-- **E2E**: Playwright
+- **E2E**: Playwright(未導入。MVP の受け入れシナリオが固まったタイミングで追加)
 
 ## プロンプトインジェクション対策(セキュリティ最重要)
 
