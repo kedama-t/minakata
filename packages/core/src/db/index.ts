@@ -6,6 +6,7 @@ import { load as loadSqliteVec } from 'sqlite-vec'
 // Bun / Vite (Rollup) 両方で `?raw` は対応している
 import init0001 from './migrations/0001_init.sql?raw'
 import init0002 from './migrations/0002_vec.sql?raw'
+import init0003 from './migrations/0003_archive_proposals.sql?raw'
 
 export type Db = Database
 
@@ -20,6 +21,7 @@ export interface OpenDbOptions {
 const MIGRATIONS: { name: string; sql: string }[] = [
   { name: '0001_init.sql', sql: init0001 },
   { name: '0002_vec.sql', sql: init0002 },
+  { name: '0003_archive_proposals.sql', sql: init0003 },
 ]
 
 /**

@@ -74,6 +74,9 @@ export default function App({ loaderData }: Route.ComponentProps) {
                   <a href="/admin/skills" className="hover:text-blue-600">
                     スキル
                   </a>
+                  <a href="/admin/archives" className="hover:text-blue-600">
+                    アーカイブ承認
+                  </a>
                 </>
               )}
               <span className="text-slate-500">

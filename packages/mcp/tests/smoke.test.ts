@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
+  ArchiveProposalService,
   ArticleService,
   AuditService,
   CommentService,
@@ -36,6 +37,7 @@ function buildServices(): { services: McpServices; cleanup: () => void } {
     policy: new PolicyService(db),
     comments: new CommentService(db),
     skills: new SkillProposalService(db, join(dir, 'skills')),
+    archives: new ArchiveProposalService(db, articles),
   }
   return { services, cleanup: () => rmSync(dir, { recursive: true, force: true }) }
 }
