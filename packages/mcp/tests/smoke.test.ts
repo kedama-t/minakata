@@ -173,6 +173,83 @@ describe('mountMcp', () => {
     cleanup()
   })
 
+  test('create_article / update_article は sources / add_sources を frontmatter に保存する(US-5.1)', async () => {
+    const { services, cleanup } = buildServices()
+    const app = new Hono()
+    mountMcp(app, { token: 't', services })
+    const call = async (method: string, params: unknown, id: number) => {
+      const res = await app.request('/mcp', {
+        method: 'POST',
+        headers: {
+          authorization: 'Bearer t',
+          'content-type': 'application/json',
+          accept: 'application/json, text/event-stream',
+        },
+        body: JSON.stringify({ jsonrpc: '2.0', id, method, params }),
+      })
+      return (await res.json()) as { result?: { structuredContent?: Record<string, unknown> } }
+    }
+    await call(
+      'initialize',
+      {
+        protocolVersion: '2025-06-18',
+        clientInfo: { name: 'test', version: '0.0.1' },
+        capabilities: {},
+      },
+      0,
+    )
+
+    const created = await call(
+      'tools/call',
+      {
+        name: 'minakata.create_article',
+        arguments: {
+          title: 'T',
+          slug: 'src-mcp',
+          body: 'body',
+          author: 'agent:researcher',
+          sources: [
+            {
+              url: 'https://example.com/x',
+              fetched_at: '2026-05-23T00:00:00.000Z',
+              used_in_sections: ['intro'],
+            },
+          ],
+        },
+      },
+      1,
+    )
+    const newId = (created.result?.structuredContent as { id: string }).id
+    const readAfterCreate = services.articles.read(newId)
+    expect(readAfterCreate?.frontmatter.sources).toHaveLength(1)
+
+    await call(
+      'tools/call',
+      {
+        name: 'minakata.update_article',
+        arguments: {
+          id: newId,
+          author: 'agent:researcher',
+          add_sources: [
+            {
+              url: 'https://example.com/y',
+              fetched_at: '2026-05-23T01:00:00.000Z',
+              used_in_sections: ['details'],
+            },
+          ],
+        },
+      },
+      2,
+    )
+    const readAfterUpdate = services.articles.read(newId)
+    expect(readAfterUpdate?.frontmatter.sources.map((s) => s.url)).toEqual([
+      'https://example.com/x',
+      'https://example.com/y',
+    ])
+
+    cleanup()
+  })
+
   test('create_article / update_article の audit log は SHA-256 hex で hash を記録する', async () => {
     const { services, cleanup } = buildServices()
     const app = new Hono()

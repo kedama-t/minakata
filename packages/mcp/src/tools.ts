@@ -1,4 +1,4 @@
-import { ArticleStatusSchema, TaskPrioritySchema } from '@minakata/core'
+import { ArticleStatusSchema, SourceRefSchema, TaskPrioritySchema } from '@minakata/core'
 /**
  * Minakata MCP の公開ツール群(Phase 1)。
  * tech-stack.md §5.3, user-stories.md の各 US 受け入れ条件に対応。
@@ -38,7 +38,8 @@ export function registerArticleTools(
   server.registerTool(
     'minakata.create_article',
     {
-      description: '新規記事を作成する。Markdown 書き込み + DB インデックス + Git コミット',
+      description:
+        '新規記事を作成する。Markdown 書き込み + DB インデックス + Git コミット。出典(US-5.1)は sources で渡す',
       inputSchema: {
         title: z.string(),
         slug: z.string(),
@@ -48,6 +49,8 @@ export function registerArticleTools(
         summary: z.string().optional(),
         author: z.string().default('agent:researcher'),
         source: z.enum(['manual', 'agent_research', 'agent_changelog']).optional(),
+        /** 出典(US-5.1 横断要件)。{url, fetched_at, archive_url?, used_in_sections?} の配列 */
+        sources: z.array(SourceRefSchema).optional(),
       },
     },
     async (args) => {
@@ -60,12 +63,14 @@ export function registerArticleTools(
         summary: args.summary,
         source: args.source,
         author: args.author,
+        sources: args.sources,
       })
       s.audit.log({
         actor: ctx.agent ?? args.author,
         tool_name: 'minakata.create_article',
         target_article_id: created.frontmatter.id,
         after_hash: created.content_hash,
+        metadata: { sources_count: created.frontmatter.sources.length },
       })
       return ok({ id: created.frontmatter.id, slug: created.frontmatter.slug })
     },
@@ -75,7 +80,7 @@ export function registerArticleTools(
     'minakata.update_article',
     {
       description:
-        '既存記事を更新する。body を渡した場合は ReviewService.proposeUpdate を経由し、変更率がしきい値(既定 30%)を超えると pending_approval で保留される(US-6.2)。body 以外のフィールドだけの場合は直接反映する。',
+        '既存記事を更新する。body を渡した場合は ReviewService.proposeUpdate を経由し、変更率がしきい値(既定 30%)を超えると pending_approval で保留される(US-6.2)。body 以外のフィールド(タイトル等メタデータと add_sources)は直接反映する。出典(US-5.1)は add_sources で追記する',
       inputSchema: {
         id: z.string(),
         body: z.string().optional(),
@@ -88,6 +93,8 @@ export function registerArticleTools(
         author: z.string().default('agent:researcher'),
         /** 0..1。デフォルト 0.3。0 にすると常に保留、1 にすると常に直接反映(テスト・移行用) */
         review_threshold: z.number().min(0).max(1).optional(),
+        /** 追記する出典。既存 sources の末尾に append される(US-5.1) */
+        add_sources: z.array(SourceRefSchema).optional(),
       },
     },
     async (args) => {
@@ -102,6 +109,15 @@ export function registerArticleTools(
           ...(args.cost_usd !== undefined && { cost_usd: args.cost_usd }),
         })
         if (proposal.kind === 'pending') {
+          // 保留中でも add_sources は frontmatter への追記なので即時 append
+          // (proposed_body は review record 側に保持されており、本文には未反映)
+          if (args.add_sources && args.add_sources.length > 0) {
+            await s.articles.update({
+              id: args.id,
+              author: args.author,
+              add_sources: args.add_sources,
+            })
+          }
           s.audit.log({
             actor: ctx.agent ?? args.author,
             tool_name: 'minakata.update_article',
@@ -112,6 +128,7 @@ export function registerArticleTools(
               result: 'pending_approval',
               review_id: proposal.review_id,
               change_pct: proposal.change_pct,
+              add_sources_count: args.add_sources?.length ?? 0,
             },
           })
           return ok({
@@ -128,7 +145,8 @@ export function registerArticleTools(
         args.tags !== undefined ||
         args.status !== undefined ||
         args.summary !== undefined ||
-        args.last_researched_at !== undefined
+        args.last_researched_at !== undefined ||
+        (args.add_sources?.length ?? 0) > 0
       const updated =
         hasMeta || args.body === undefined
           ? await s.articles.update({
@@ -140,6 +158,7 @@ export function registerArticleTools(
               last_researched_at: args.last_researched_at,
               cost_usd: args.body === undefined ? args.cost_usd : undefined,
               author: args.author,
+              add_sources: args.add_sources,
             })
           : s.articles.read(args.id)
       s.audit.log({
@@ -149,6 +168,7 @@ export function registerArticleTools(
         before_hash: before?.content_hash ?? null,
         after_hash: updated?.content_hash ?? null,
         cost_usd: args.cost_usd ?? 0,
+        metadata: { add_sources_count: args.add_sources?.length ?? 0 },
       })
       return ok({ id: args.id, status: 'applied' })
     },
