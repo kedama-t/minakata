@@ -91,44 +91,51 @@ export class TaskService extends EventEmitter {
 
   /**
    * 次に処理するタスクを claim する。
-   * priority(urgent > interactive > scheduled > maintenance)→ created_at の順で 1 件取り出す。
+   * priority(urgent > interactive > scheduled > maintenance)→ created_at の順で `limit` 件取り出す。
+   *
+   * SELECT 候補取得 → 個別 UPDATE を 1 つの SQLite トランザクションで囲む
+   * ことで、複数ワーカーが同時に呼び出した場合の重複 claim を防ぐ。
+   * (SQLite はライタが直列化されるため、トランザクション内の UPDATE は
+   *  同時に走らず WHERE status='queued' の競合は確実に弾かれる)
    */
   claim(claimedBy: string, limit = 1): TaskRow[] {
-    const rows = this.db
-      .query<TaskRowRaw, [string, number]>(
-        `SELECT * FROM tasks
-         WHERE status = 'queued'
-           AND (next_attempt_at IS NULL OR next_attempt_at <= ?)
-         ORDER BY CASE priority
-              WHEN 'urgent' THEN 0
-              WHEN 'interactive' THEN 1
-              WHEN 'scheduled' THEN 2
-              WHEN 'maintenance' THEN 3
-            END, created_at
-         LIMIT ?`,
-      )
-      .all(now(), limit)
-    const ts = now()
-    const claimed: TaskRow[] = []
-    for (const r of rows) {
-      const res = this.db
-        .prepare(
-          `UPDATE tasks SET status = 'claimed', claimed_at = ?, claimed_by = ?, updated_at = ?
-           WHERE id = ? AND status = 'queued'`,
+    const claimAt = now()
+    return this.db.transaction((): TaskRow[] => {
+      const rows = this.db
+        .query<TaskRowRaw, [string, number]>(
+          `SELECT * FROM tasks
+           WHERE status = 'queued'
+             AND (next_attempt_at IS NULL OR next_attempt_at <= ?)
+           ORDER BY CASE priority
+                WHEN 'urgent' THEN 0
+                WHEN 'interactive' THEN 1
+                WHEN 'scheduled' THEN 2
+                WHEN 'maintenance' THEN 3
+              END, created_at
+           LIMIT ?`,
         )
-        .run(ts, claimedBy, ts, r.id)
-      if (res.changes > 0)
-        claimed.push(
-          hydrate({
-            ...r,
-            status: 'claimed',
-            claimed_at: ts,
-            claimed_by: claimedBy,
-            updated_at: ts,
-          }),
-        )
-    }
-    return claimed
+        .all(claimAt, limit)
+      const claimed: TaskRow[] = []
+      for (const r of rows) {
+        const res = this.db
+          .prepare(
+            `UPDATE tasks SET status = 'claimed', claimed_at = ?, claimed_by = ?, updated_at = ?
+             WHERE id = ? AND status = 'queued'`,
+          )
+          .run(claimAt, claimedBy, claimAt, r.id)
+        if (res.changes > 0)
+          claimed.push(
+            hydrate({
+              ...r,
+              status: 'claimed',
+              claimed_at: claimAt,
+              claimed_by: claimedBy,
+              updated_at: claimAt,
+            }),
+          )
+      }
+      return claimed
+    })()
   }
 
   complete(id: string, opts: { cost_usd?: number } = {}): void {
