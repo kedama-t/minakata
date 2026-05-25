@@ -1,3 +1,4 @@
+import type { ArticleService } from '../article/index.ts'
 import type { Db } from '../db/index.ts'
 import { runMigrations } from '../db/index.ts'
 import type { EmbeddingService } from '../embedding/index.ts'
@@ -63,30 +64,30 @@ export class MaintenanceService {
 
   /**
    * 全記事の埋め込みを再生成する。モデル変更時に走らせる(M3-1)。
-   * 既存の articles_vec / article_vec_map は破棄して作り直す。
+   * - 既存の articles_vec / article_vec_map は破棄して作り直す
+   * - 各記事は ArticleService.recomputeEmbedding を経由して `${title}\n\n${body}`
+   *   を passage として再インデックス(本文不在の近似ではなく実本文を使う)
+   *
+   * @param articles 本文を読み出すための ArticleService
+   * @param _embedding 引数互換のために残す(ArticleService 経由で利用されるため未使用)
    */
-  async reindexEmbeddings(embedding: EmbeddingService): Promise<{ reindexed: number }> {
+  async reindexEmbeddings(
+    articles: ArticleService,
+    _embedding?: EmbeddingService,
+  ): Promise<{ reindexed: number; failed: number }> {
     this.db.exec(
       'CREATE TABLE IF NOT EXISTS article_vec_map (article_id TEXT PRIMARY KEY, rowid INTEGER UNIQUE)',
     )
     this.db.exec('DELETE FROM articles_vec')
     this.db.exec('DELETE FROM article_vec_map')
-    const rows = this.db
-      .query<{ id: string; title: string }, []>('SELECT id, title FROM articles')
-      .all()
-    let count = 0
+    const rows = this.db.query<{ id: string }, []>('SELECT id FROM articles').all()
+    let reindexed = 0
+    let failed = 0
     for (const r of rows) {
-      // 本文はファイル側だが、ここでは title だけで近似(完全な passage 再構築は ArticleService 経由)
-      const vec = await embedding.embedPassage(r.title)
-      const rowid = count + 1
-      this.db
-        .prepare('INSERT INTO articles_vec(rowid, embedding) VALUES (?, ?)')
-        .run(rowid, Buffer.from(vec.buffer as ArrayBuffer))
-      this.db
-        .prepare('INSERT INTO article_vec_map (article_id, rowid) VALUES (?, ?)')
-        .run(r.id, rowid)
-      count += 1
+      const ok = await articles.recomputeEmbedding(r.id)
+      if (ok) reindexed += 1
+      else failed += 1
     }
-    return { reindexed: count }
+    return { reindexed, failed }
   }
 }
