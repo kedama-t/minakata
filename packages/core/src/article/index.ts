@@ -30,6 +30,8 @@ export interface ArticleListItem {
   tags: string[]
   freshness_rank: string
   updated_at: string
+  /** 最終アクセス日時(US-7.2 のアーカイブ判定に使う)。一度も触られていなければ null */
+  last_accessed_at: string | null
   summary: string
 }
 
@@ -103,9 +105,11 @@ export class ArticleService {
     const offset = opts.offset ?? 0
     const status = opts.status
     const sql = status
-      ? `SELECT id, slug, title, status, source, tags_json, freshness_rank, updated_at, summary
+      ? `SELECT id, slug, title, status, source, tags_json, freshness_rank, updated_at,
+                last_accessed_at, summary
          FROM articles WHERE status = ? ORDER BY updated_at DESC LIMIT ? OFFSET ?`
-      : `SELECT id, slug, title, status, source, tags_json, freshness_rank, updated_at, summary
+      : `SELECT id, slug, title, status, source, tags_json, freshness_rank, updated_at,
+                last_accessed_at, summary
          FROM articles ORDER BY updated_at DESC LIMIT ? OFFSET ?`
     const rows = status
       ? this.db.query<RawListRow, [string, number, number]>(sql).all(status, limit, offset)
@@ -337,6 +341,7 @@ interface RawListRow {
   tags_json: string
   freshness_rank: string
   updated_at: string
+  last_accessed_at: string | null
   summary: string
 }
 
@@ -350,6 +355,7 @@ function toListItem(r: RawListRow): ArticleListItem {
     tags: JSON.parse(r.tags_json) as string[],
     freshness_rank: r.freshness_rank,
     updated_at: r.updated_at,
+    last_accessed_at: r.last_accessed_at,
     summary: r.summary,
   }
 }
