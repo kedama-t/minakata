@@ -5,12 +5,23 @@ import { getServices } from './services.ts'
 const COOKIE_NAME = 'minakata_session'
 const COOKIE_MAX_AGE = 30 * 86_400 // 30 days
 
+/**
+ * 本番運用は HTTPS 前提(Caddy 等の reverse proxy 経由)なので Cookie に
+ * `Secure` を付ける。ローカル開発の HTTP 環境では `COOKIE_SECURE=false` で
+ * opt-out できる。値が未指定(undefined)の場合は `Secure` を付ける。
+ */
+function isSecureCookieEnabled(): boolean {
+  return process.env.COOKIE_SECURE !== 'false'
+}
+
 export function serializeSession(token: string): string {
-  return `${COOKIE_NAME}=${token}; HttpOnly; Path=/; SameSite=Lax; Max-Age=${COOKIE_MAX_AGE}`
+  const secure = isSecureCookieEnabled() ? '; Secure' : ''
+  return `${COOKIE_NAME}=${token}; HttpOnly; Path=/; SameSite=Lax${secure}; Max-Age=${COOKIE_MAX_AGE}`
 }
 
 export function clearSessionCookie(): string {
-  return `${COOKIE_NAME}=; HttpOnly; Path=/; SameSite=Lax; Max-Age=0`
+  const secure = isSecureCookieEnabled() ? '; Secure' : ''
+  return `${COOKIE_NAME}=; HttpOnly; Path=/; SameSite=Lax${secure}; Max-Age=0`
 }
 
 export function getSessionToken(req: Request): string | null {
