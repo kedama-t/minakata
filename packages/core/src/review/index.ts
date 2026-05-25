@@ -1,5 +1,6 @@
 import type { ArticleService } from '../article/index.ts'
 import type { Db } from '../db/index.ts'
+import type { ArticleStatus } from '../schema/index.ts'
 import type { TaskService } from '../task/index.ts'
 import { sha256Hex } from '../util/hash.ts'
 import { newId, now } from '../util/id.ts'
@@ -13,6 +14,8 @@ export interface ReviewRow {
   before_hash: string
   after_hash: string
   proposed_body: string
+  /** 提案時点での記事 status(pending_approval にする前)。reject 時の復元先 */
+  before_status: ArticleStatus | null
   created_at: string
   decided_at: string | null
 }
@@ -96,15 +99,18 @@ export class ReviewService {
     }
     const beforeHash = await sha256Hex(before)
     const afterHash = await sha256Hex(after)
+    const beforeStatus = existing.frontmatter.status
     const id = newId()
     const ts = now()
     this.db
       .prepare(
-        `INSERT INTO reviews (id, article_id, change_pct, status, before_hash, after_hash, proposed_body, created_at)
-         VALUES (?, ?, ?, 'pending', ?, ?, ?, ?)`,
+        `INSERT INTO reviews (id, article_id, change_pct, status, before_hash, after_hash,
+            proposed_body, before_status, created_at)
+         VALUES (?, ?, ?, 'pending', ?, ?, ?, ?, ?)`,
       )
-      .run(id, input.article_id, changePct, beforeHash, afterHash, after, ts)
-    // 記事 status を pending_approval に立てる(UI で「保留中」を可視化)
+      .run(id, input.article_id, changePct, beforeHash, afterHash, after, beforeStatus, ts)
+    // 記事 status を pending_approval に立てる(UI で「保留中」を可視化)。
+    // reject 時はこの beforeStatus に戻すことで「反映前の状態が source of truth」を維持(US-6.2)
     await this.articles.update({
       id: input.article_id,
       status: 'pending_approval',
@@ -146,10 +152,12 @@ export class ReviewService {
         `UPDATE reviews SET status = 'rejected', reviewer_id = ?, decided_at = ? WHERE id = ?`,
       )
       .run(reviewer_id, ts, review_id)
-    // 記事を published に戻す(編集前の状態は Markdown ファイルの commit 履歴に残っている)
+    // 記事 status を pending 前の状態に戻す。古い review レコードで before_status が
+    // 無ければ 'published' にフォールバックする
+    const restoredStatus: ArticleStatus = review.before_status ?? 'published'
     await this.articles.update({
       id: review.article_id,
-      status: 'published',
+      status: restoredStatus,
       author: `user:${reviewer_id}`,
     })
     const task = this.tasks.enqueue({
@@ -169,7 +177,7 @@ export class ReviewService {
     const r = this.db
       .query<RawReview, [string]>(
         `SELECT id, article_id, change_pct, status, reviewer_id, before_hash, after_hash,
-                proposed_body, created_at, decided_at
+                proposed_body, before_status, created_at, decided_at
          FROM reviews WHERE id = ?`,
       )
       .get(id)
@@ -180,7 +188,7 @@ export class ReviewService {
     const rows = this.db
       .query<RawReview, []>(
         `SELECT id, article_id, change_pct, status, reviewer_id, before_hash, after_hash,
-                proposed_body, created_at, decided_at
+                proposed_body, before_status, created_at, decided_at
          FROM reviews WHERE status = 'pending' ORDER BY created_at DESC`,
       )
       .all()
@@ -223,6 +231,7 @@ interface RawReview {
   before_hash: string
   after_hash: string
   proposed_body: string
+  before_status: ArticleStatus | null
   created_at: string
   decided_at: string | null
 }

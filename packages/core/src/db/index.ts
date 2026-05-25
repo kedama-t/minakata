@@ -7,6 +7,7 @@ import { load as loadSqliteVec } from 'sqlite-vec'
 import init0001 from './migrations/0001_init.sql?raw'
 import init0002 from './migrations/0002_vec.sql?raw'
 import init0003 from './migrations/0003_archive_proposals.sql?raw'
+import init0004 from './migrations/0004_review_before_status.sql?raw'
 
 export type Db = Database
 
@@ -22,6 +23,7 @@ const MIGRATIONS: { name: string; sql: string }[] = [
   { name: '0001_init.sql', sql: init0001 },
   { name: '0002_vec.sql', sql: init0002 },
   { name: '0003_archive_proposals.sql', sql: init0003 },
+  { name: '0004_review_before_status.sql', sql: init0004 },
 ]
 
 /**
@@ -68,11 +70,27 @@ export function openDb(options: OpenDbOptions): Db {
 }
 
 /**
- * インライン化されたマイグレーションを順に適用する。冪等性は各 SQL 側の IF NOT EXISTS に依存。
+ * インライン化されたマイグレーションを順に適用する。
+ * `schema_migrations` テーブルで適用済みファイル名を追跡するので、ALTER TABLE
+ * のような非冪等マイグレーションも安全に再実行できる。
  * 拡張ロード前提のマイグレーション(0002_vec.sql など)は loadExtension 後に呼ぶ。
  */
 export function runMigrations(db: Db): void {
-  for (const m of MIGRATIONS) db.exec(m.sql)
+  db.exec(
+    'CREATE TABLE IF NOT EXISTS schema_migrations (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL)',
+  )
+  const applied = new Set(
+    db
+      .query<{ name: string }, []>('SELECT name FROM schema_migrations')
+      .all()
+      .map((r) => r.name),
+  )
+  const ts = new Date().toISOString()
+  for (const m of MIGRATIONS) {
+    if (applied.has(m.name)) continue
+    db.exec(m.sql)
+    db.prepare('INSERT INTO schema_migrations (name, applied_at) VALUES (?, ?)').run(m.name, ts)
+  }
 }
 
 /** テスト用に :memory: で開く便利関数 */

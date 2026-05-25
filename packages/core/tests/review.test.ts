@@ -123,4 +123,30 @@ describe('ReviewService.proposeUpdate', () => {
     db.close()
     cleanup()
   })
+
+  test('reject は proposeUpdate 前の status (draft) に復元する', async () => {
+    const { articles, reviews, reviewer, cleanup, db } = await setup()
+    // 元が draft の記事
+    const a = await articles.create({
+      title: 'T',
+      slug: 't5',
+      body: 'short',
+      status: 'draft',
+      author: 'user:editor',
+    })
+    const r = await reviews.proposeUpdate({
+      article_id: a.frontmatter.id,
+      proposed_body: 'a totally different body text',
+      author: 'agent:researcher',
+    })
+    if (r.kind !== 'pending') throw new Error('expected pending')
+    // 中間状態は pending_approval
+    expect(articles.read(a.frontmatter.id)?.frontmatter.status).toBe('pending_approval')
+
+    await reviews.reject(r.review_id, reviewer.id, '修正してから出して')
+    // reject で 'published' に上書きせず、元の draft に戻ること
+    expect(articles.read(a.frontmatter.id)?.frontmatter.status).toBe('draft')
+    db.close()
+    cleanup()
+  })
 })
