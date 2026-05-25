@@ -34,4 +34,41 @@ describe('AuthService', () => {
     await expect(auth.redeemInvitation(inv.token, 'p3')).rejects.toThrow()
     db.close()
   })
+
+  test('updateRole: 通常のロール変更ができる', async () => {
+    const db = openTestDb()
+    const auth = new AuthService(db)
+    const admin = await auth.createAdminInitial('a@x', 'p1')
+    const inv = auth.createInvitation({ email: 'b@x', role: 'viewer', invited_by: admin.id })
+    const target = await auth.redeemInvitation(inv.token, 'p2')
+    const updated = auth.updateRole({
+      user_id: target.id,
+      role: 'editor',
+      actor_user_id: admin.id,
+    })
+    expect(updated.role).toBe('editor')
+    db.close()
+  })
+
+  test('updateRole: 自分自身の admin 降格は拒否される', async () => {
+    const db = openTestDb()
+    const auth = new AuthService(db)
+    const admin = await auth.createAdminInitial('a@x', 'p1')
+    expect(() =>
+      auth.updateRole({ user_id: admin.id, role: 'editor', actor_user_id: admin.id }),
+    ).toThrow(/Cannot demote yourself/)
+    db.close()
+  })
+
+  test('updateRole: 最後の admin の降格は拒否される(別ユーザーから操作しても)', async () => {
+    const db = openTestDb()
+    const auth = new AuthService(db)
+    const admin = await auth.createAdminInitial('a@x', 'p1')
+    // ロール変更の actor を別 admin にしても、対象が「最後の admin」だと拒否される
+    // ここでは admin が 1 人だけのまま、別 actor から呼んで last_admin を期待
+    expect(() =>
+      auth.updateRole({ user_id: admin.id, role: 'editor', actor_user_id: 'someone-else' }),
+    ).toThrow(/last admin/)
+    db.close()
+  })
 })

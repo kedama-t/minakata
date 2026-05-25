@@ -1,4 +1,4 @@
-import { RoleSchema } from '@minakata/core'
+import { AuthError, RoleSchema } from '@minakata/core'
 import { Form } from 'react-router'
 import { requireAdmin } from '../lib/auth.ts'
 import { getServices } from '../lib/services.ts'
@@ -21,7 +21,7 @@ interface RawInvite {
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
-  requireAdmin(request)
+  const admin = requireAdmin(request)
   const { db } = getServices()
   const members = db
     .query<RawMember, []>('SELECT id, email, role, created_at FROM users ORDER BY created_at')
@@ -31,16 +31,48 @@ export async function loader({ request }: Route.LoaderArgs) {
       'SELECT id, email, role, token, expires_at, used_at FROM invitations WHERE used_at IS NULL ORDER BY created_at DESC',
     )
     .all()
-  return { members, invitations }
+  return { members, invitations, currentUserId: admin.id }
 }
 
 export async function action({ request }: Route.ActionArgs) {
   const admin = requireAdmin(request)
+  const services = getServices()
   const form = await request.formData()
+  const intent = String(form.get('intent') ?? 'invite')
+
+  if (intent === 'update_role') {
+    const userId = String(form.get('user_id') ?? '')
+    const role = RoleSchema.parse(String(form.get('role') ?? ''))
+    if (!userId) return { error: 'user_id が必要' }
+    try {
+      const updated = services.auth.updateRole({
+        user_id: userId,
+        role,
+        actor_user_id: admin.id,
+      })
+      services.audit.log({
+        actor: `user:${admin.id}`,
+        tool_name: 'web.update_role',
+        metadata: { target_user_id: userId, new_role: updated.role },
+      })
+      return { roleUpdated: { id: updated.id, role: updated.role } }
+    } catch (err) {
+      if (err instanceof AuthError) {
+        const map: Record<string, string> = {
+          self_demote: '自分自身の admin を降格することはできません',
+          last_admin: '最後の admin を降格することはできません',
+          not_found: 'ユーザーが見つかりません',
+        }
+        return { error: map[err.code] ?? err.message }
+      }
+      throw err
+    }
+  }
+
+  // 既定: 招待発行
   const email = String(form.get('email') ?? '').trim()
   const role = RoleSchema.parse(String(form.get('role') ?? 'editor'))
   if (!email) return { error: 'メールアドレスが必要' }
-  const services = getServices()
   const inv = services.auth.createInvitation({ email, role, invited_by: admin.id })
   return { invitation: inv }
 }
@@ -82,22 +114,55 @@ export default function Members({ loaderData, actionData }: Route.ComponentProps
 
       <section>
         <h2 className="text-lg font-bold mb-2">メンバー一覧</h2>
+        {actionData?.roleUpdated && (
+          <p className="text-green-700 text-sm mb-2">
+            ロールを {actionData.roleUpdated.role} に変更しました
+          </p>
+        )}
         <table className="w-full text-sm">
           <thead className="text-left text-slate-500">
             <tr>
               <th className="py-1">email</th>
               <th>role</th>
               <th>created</th>
+              <th>操作</th>
             </tr>
           </thead>
           <tbody>
-            {loaderData.members.map((m) => (
-              <tr key={m.id} className="border-t">
-                <td className="py-1">{m.email}</td>
-                <td>{m.role}</td>
-                <td className="text-slate-500">{m.created_at}</td>
-              </tr>
-            ))}
+            {loaderData.members.map((m) => {
+              const isSelf = m.id === loaderData.currentUserId
+              return (
+                <tr key={m.id} className="border-t">
+                  <td className="py-1">
+                    {m.email}
+                    {isSelf && <span className="text-xs text-slate-400 ml-1">(自分)</span>}
+                  </td>
+                  <td>{m.role}</td>
+                  <td className="text-slate-500">{m.created_at}</td>
+                  <td>
+                    <Form method="post" className="flex gap-1 items-center">
+                      <input type="hidden" name="intent" value="update_role" />
+                      <input type="hidden" name="user_id" value={m.id} />
+                      <select
+                        name="role"
+                        defaultValue={m.role}
+                        className="px-2 py-0.5 border rounded text-xs"
+                      >
+                        <option value="viewer">viewer</option>
+                        <option value="editor">editor</option>
+                        <option value="admin">admin</option>
+                      </select>
+                      <button
+                        type="submit"
+                        className="text-xs bg-slate-600 text-white px-2 py-0.5 rounded"
+                      >
+                        変更
+                      </button>
+                    </Form>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </section>
