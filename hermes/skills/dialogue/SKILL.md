@@ -11,6 +11,7 @@ permitted_tools:
   - minakata.fulltext_search
   - minakata.read_article
   - minakata.enqueue_task
+  - minakata.get_research_policy
 ---
 
 # dialogue
@@ -48,4 +49,4 @@ permitted_tools:
 
 ## プロンプトに混ぜる方針
 
-リサーチ方針(`minakata.get_research_policy` で取得、M2 以降で実装)があれば必ず system prompt の先頭に挿入する。
+各ターン応答の生成前に **必ず** `minakata.get_research_policy` を呼び、返却値の `body_md` を system prompt の先頭に挿入する。これにより、チーム共通の調査ルール(優先ソース・粒度・出典必須要件・執筆フォーマット等)が常に対話エージェントの行動に反映される。
