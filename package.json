@@ -10,7 +10,10 @@
     "test": "bun test",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "typecheck": "bun run --filter '*' typecheck"
+    "typecheck": "bun run --filter '*' typecheck",
+    "compose:up": "${COMPOSE:-docker compose} -f docker/docker-compose.yml up",
+    "compose:down": "${COMPOSE:-docker compose} -f docker/docker-compose.yml down",
+    "compose:rebuild": "${COMPOSE:-docker compose} -f docker/docker-compose.yml build --no-cache minakata"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
