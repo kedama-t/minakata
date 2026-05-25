@@ -41,6 +41,20 @@ describe('TaskService', () => {
     db.close()
   })
 
+  test('claim は同じタスクを 2 度返さない(トランザクション化済み)', () => {
+    const db = openTestDb()
+    const tasks = new TaskService(db)
+    tasks.enqueue({ type: 't', priority: 'urgent' })
+    tasks.enqueue({ type: 't', priority: 'urgent' })
+    // 連続して claim を 2 回呼んでも、各タスクは 1 度しか claim されない
+    const first = tasks.claim('worker-a', 5).map((t) => t.id)
+    const second = tasks.claim('worker-b', 5).map((t) => t.id)
+    expect(first.length).toBe(2)
+    expect(second.length).toBe(0)
+    expect(new Set([...first, ...second]).size).toBe(first.length)
+    db.close()
+  })
+
   test('fail で attempts が増え、3 回目で DLQ に入る', () => {
     const db = openTestDb()
     const tasks = new TaskService(db)
