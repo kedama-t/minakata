@@ -40,22 +40,35 @@ ensure_cron() {
     fi
 
     echo "[cron-bootstrap] create $name (schedule=$schedule skill=$skill)"
-    hermes cron create "$schedule" "$prompt" --skill "$skill" --name "$name"
+    # `hermes cron create` は失敗しても exit 0 で返す場合があるため、
+    # create 後に再度 `hermes cron list` を見て登録できたかを必ず確認する。
+    hermes cron create "$schedule" "$prompt" --skill "$skill" --name "$name" || true
+    if hermes cron list 2>/dev/null | grep -qF " $name "; then
+        echo "[cron-bootstrap] OK: $name registered"
+    else
+        echo "[cron-bootstrap] FAILED to register $name" >&2
+        return 1
+    fi
 }
 
-ensure_cron "minakata-dialogue" "every 30s" "dialogue" \
+# schedule format の制約 (cron/jobs.py parse_duration / parse_schedule より):
+# - `every <N>m` / `every <N>h` / `every <N>d` のみ。`s` (秒) は不可
+# - 「毎日 HH:MM」のような時刻指定は **cron 式** で書く (`0 7 * * *` = 毎日 07:00)
+# - gateway tick が 60s なので秒単位の interval は意味なし、1m を最小粒度として扱う
+
+ensure_cron "minakata-dialogue" "every 1m" "dialogue" \
     "Poll Minakata for new user chat messages and respond. Follow the dialogue skill's rules."
 
 ensure_cron "minakata-researcher" "every 5m" "researcher" \
     "Poll Minakata's research task queue and process one pending task. Follow the researcher skill's rules."
 
-ensure_cron "minakata-daily-research" "every day at 03:00" "daily_research" \
+ensure_cron "minakata-daily-research" "0 3 * * *" "daily_research" \
     "Enqueue research tasks for all active subscription topics. Follow the daily_research skill's rules."
 
 ensure_cron "minakata-freshness-checker" "every 6h" "freshness_checker" \
     "Recompute article freshness ranks and enqueue refresh / archive proposals as needed. Follow the freshness_checker skill's rules."
 
-ensure_cron "minakata-changelog-writer" "every day at 07:00" "changelog_writer" \
+ensure_cron "minakata-changelog-writer" "0 7 * * *" "changelog_writer" \
     "Summarize yesterday's research agent activity into a ChangeLog article. Follow the changelog_writer skill's rules."
 
 echo "[cron-bootstrap] done"
