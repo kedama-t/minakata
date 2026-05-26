@@ -92,7 +92,7 @@ packages/
 ## 開発時の注意事項(プロジェクト固有)
 
 - コミット前に lint & test を実行
-- 外部 API キー(`OPENCODE_API_KEY` / `FIRECRAWL_API_KEY` / `MCP_TOKEN` / `SEARXNG_SECRET` / `ANTHROPIC_API_KEY`)は `.env` に書き、コードにハードコードしない
+- 外部 API キー(`OPENCODE_API_KEY` / `FIRECRAWL_API_KEY` / `MCP_TOKEN` / `SEARXNG_SECRET`)は `.env` に書き、コードにハードコードしない
 - LLM API キー類は **Hermes コンテナのみ**が保持する設計(Minakata 側から見えてはいけない)
 - アーキ依存: `sqlite-vec` のバイナリ互換性のため x86_64 推奨。ARM で開発する場合は動作検証が必要
 

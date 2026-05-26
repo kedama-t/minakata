@@ -44,7 +44,6 @@ services:
       FIRECRAWL_API_KEY: "${FIRECRAWL_API_KEY}"
       MINAKATA_MCP_URL: "http://minakata:3000/mcp"
       MINAKATA_MCP_TOKEN: "${MCP_TOKEN}"
-      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
     depends_on:
       minakata:
         condition: service_healthy

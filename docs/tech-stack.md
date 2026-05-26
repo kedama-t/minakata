@@ -304,7 +304,7 @@ minakata/
 
 Hermes 側でサブエージェントごとに `model` を変えることで動的切替を実現する。`hermes/config/config.yaml` の `default_models` と各 `hermes/skills/<name>/SKILL.md` の frontmatter `model:` に反映済み。
 
-**Claude 等の商用モデルを使いたい場合**: Go には Claude / GPT は含まれないため、必要なら ① `OPENAI_API_BASE` を `https://opencode.ai/zen/v1` に切替えて Zen の pay-as-you-go を併用、または ② `ANTHROPIC_API_KEY` を渡して BYOK で直接 Anthropic を叩く構成にする。MVP 範囲では Go 単独で進める。
+**Claude 等の商用モデルを使いたい場合(本書スコープ外)**: Go には Claude / GPT は含まれない。必要になったら `OPENAI_API_BASE` を `https://opencode.ai/zen/v1` に切替えて Zen の pay-as-you-go を併用するか、Hermes に Anthropic プロバイダを追加して BYOK する。MVP では Go 単独で完結させる。
 
 **埋め込みについては本セクションの対象外**(`core` 内でローカル実行、セクション 5.1 を参照)
 
@@ -430,8 +430,6 @@ services:
       # Minakata MCP の接続情報
       MINAKATA_MCP_URL: "http://minakata:3000/mcp"
       MINAKATA_MCP_TOKEN: "${MCP_TOKEN}"
-      # 任意:premium 用の BYOK
-      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
     depends_on: [minakata, searxng]
 
   searxng:
