@@ -34,6 +34,11 @@ services:
     # minakata 単体は agent 無しでも UI 起動する(MCP は手動 enqueue/curl で叩ける)。
     image: nousresearch/hermes-agent:main
     profiles: ["agent"]
+    # default の CMD は bare `hermes`(TUI)で、container には TTY が無いので
+    # 必ず first-run 検出に引っかかって sys.exit(1) → s6 が無限再起動する。
+    # `gateway run` は headless 長期稼働モード(first-run check 無し)で、
+    # cron スケジューラもこの上で動かす想定(#44)。
+    command: ["gateway", "run"]
     volumes:
       # 私たちの custom config と skills を Hermes に届ける(#44)。
       # - config.yaml は read-only bind mount で declarative の単一情報源に
