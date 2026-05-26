@@ -3,7 +3,7 @@ name: dialogue
 description: ユーザーとの対話を担当するエージェント。Minakata MCP の poll_messages を 30 秒周期で叩き、応答する。
 schedule:
   cadence: "every 30 seconds"
-model: "openai/gpt-4o-mini"  # OpenCode Zen 経由の小型・低レイテンシモデル
+model: "opencode-go/deepseek-v4-flash"  # OpenCode Go の小型・低レイテンシモデル
 permitted_tools:
   - minakata.poll_messages
   - minakata.claim_message

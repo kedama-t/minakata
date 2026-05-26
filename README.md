@@ -148,14 +148,14 @@ curl -X POST http://localhost:3000/mcp \
 | `ARTICLES_ROOT`       | Markdown 記事ルート。例: `/app/data/articles`                          | 必須              |
 | `HF_HOME`             | Transformers.js モデルキャッシュ。例: `/app/.cache/huggingface`        | 必須              |
 | `SKILLS_DIR`          | スキル提案承認時に書き出すディレクトリ。例: `./hermes/skills`         | 任意              |
-| `OPENCODE_API_KEY`    | OpenCode Zen の API キー。Hermes コンテナのみが保持                    | Hermes 起動時に必要 |
+| `OPENCODE_API_KEY`    | OpenCode (Go / Zen 共通) の API キー。Hermes コンテナのみが保持        | Hermes 起動時に必要 |
+| `OPENAI_API_BASE`     | OpenAI 互換エンドポイント。既定 `https://opencode.ai/zen/go/v1` (Go)。Zen に戻す場合は `/zen/v1` | 任意              |
 | `FIRECRAWL_API_KEY`   | Firecrawl Cloud の API キー。Hermes コンテナのみ                      | Hermes 起動時に必要 |
-| `ANTHROPIC_API_KEY`   | 重要記事用の BYOK(任意)                                              | 任意              |
 | `SEARXNG_SECRET`      | SearXNG セッションシークレット                                        | SearXNG 起動時に必要 |
 | `SQLITE_CUSTOM_LIB`   | sqlite-vec 用の拡張対応 SQLite 共有ライブラリパス                     | 任意(自動検出)   |
 | `PORT`                | Web サーバーのポート(デフォルト 3000)                                 | 任意              |
 
-> `OPENCODE_API_KEY` / `FIRECRAWL_API_KEY` / `ANTHROPIC_API_KEY` は **Hermes コンテナのみ** が保持する設計です(P7、tech-stack.md §8.3)。`minakata` コンテナの環境には流れません。
+> `OPENCODE_API_KEY` / `FIRECRAWL_API_KEY` は **Hermes コンテナのみ** が保持する設計です(P7、tech-stack.md §8.3)。`minakata` コンテナの環境には流れません。
 
 ## 主要ディレクトリ
 

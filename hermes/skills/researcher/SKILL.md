@@ -3,7 +3,7 @@ name: researcher
 description: 調査タスクキューを消化する。Web 検索 → 抽出 → 記事化を行う。
 schedule:
   cadence: "every 5 minutes"
-model: "opencode/go-research"  # OpenCode Go プラン内のオープンモデル(夜間バッチでも回せる量)
+model: "opencode-go/glm-5.1"  # OpenCode Go の汎用 OSS coding model(夜間バッチでも回せる量)
 permitted_tools:
   - minakata.poll_tasks
   - minakata.complete_task

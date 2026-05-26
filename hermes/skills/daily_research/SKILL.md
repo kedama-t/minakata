@@ -3,7 +3,7 @@ name: daily_research
 description: 購読トピックの夜間バッチ。毎日 03:00 に走る。
 schedule:
   cadence: "every day at 03:00"
-model: "openai/gpt-4o-mini"  # ディスパッチだけなので軽量
+model: "opencode-go/deepseek-v4-flash"  # ディスパッチだけなので軽量
 permitted_tools:
   - minakata.enqueue_task
 ---
