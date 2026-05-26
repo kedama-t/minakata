@@ -3,7 +3,7 @@ name: changelog_writer
 description: 前日の調査エージェント活動をまとめた ChangeLog 日報を作成する。
 schedule:
   cadence: "every day at 07:00"
-model: "openai/gpt-4o-mini"
+model: "opencode-go/deepseek-v4-flash"
 permitted_tools:
   - minakata.list_articles
   - minakata.create_article

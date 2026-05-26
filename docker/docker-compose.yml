@@ -37,7 +37,9 @@ services:
     volumes:
       - ../hermes:/root/.hermes
     environment:
-      OPENAI_API_BASE: "https://opencode.ai/zen/v1"
+      # OpenCode Go (https://opencode.ai/docs/go/) を OpenAI 互換として登録。
+      # Zen に切り戻したい場合は .env で OPENAI_API_BASE=https://opencode.ai/zen/v1
+      OPENAI_API_BASE: "${OPENAI_API_BASE:-https://opencode.ai/zen/go/v1}"
       OPENAI_API_KEY: "${OPENCODE_API_KEY}"
       FIRECRAWL_API_KEY: "${FIRECRAWL_API_KEY}"
       MINAKATA_MCP_URL: "http://minakata:3000/mcp"

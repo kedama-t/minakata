@@ -3,7 +3,7 @@ name: freshness_checker
 description: 記事の鮮度ランクを再計算し、必要に応じて再調査タスクを投入する。
 schedule:
   cadence: "every 6 hours"
-model: "openai/gpt-4o-mini"
+model: "opencode-go/deepseek-v4-flash"
 permitted_tools:
   - minakata.recompute_freshness
   - minakata.list_articles

@@ -34,7 +34,7 @@ Minakata は「エージェントハーネスによる自動情報収集シス�
 - **Web ↔ Agent は MCP メッセージバス経由**(P10): WebSocket やプロセス直結ではなく、SQLite のメッセージテーブル + EventEmitter + SSE で繋ぐ
 - **Hermes が cron とキュー消化を担当**(P9): Minakata 側にスケジューラやワーカープロセスを作らない(`@minakata/worker` は不要)
 - **埋め込み生成はローカル**(P11): Transformers.js + `multilingual-e5-base` を `core` プロセス内で実行。外部 API には送らない
-- **生成系 LLM は OpenCode Zen 経由**(P7): Hermes コンテナのみが API キーを保持。Minakata 側からは見えない
+- **生成系 LLM は OpenCode Go 経由**(P7): Hermes コンテナのみが API キーを保持。Minakata 側からは見えない(Zen `/zen/v1` も同じキーで併用可能だが既定は Go)
 
 ### パッケージ構成(現状)
 
@@ -110,7 +110,7 @@ packages/
 ## やってはいけないこと(`docs/tech-stack.md` §11 より抜粋)
 
 - 独自のスケジューラ・ワーカー(`@minakata/worker` 等)を作る → Hermes が担う
-- ローカル LLM 推論サーバー(Ollama / vLLM)を構成に追加する → 生成系は OpenCode Zen
+- ローカル LLM 推論サーバー(Ollama / vLLM)を構成に追加する → 生成系は OpenCode Go
 - 外部メッセージングゲートウェイ(Telegram / Discord / Slack)を追加する → 入口は WebUI のみ
 - Redis / BullMQ / Postgres / Pinecone / Elasticsearch / LangChain / Next.js を導入する → すべて代替手段が決まっている
 - 埋め込みを外部 API(OpenAI / Cohere 等)に出す → ローカル実行が原則

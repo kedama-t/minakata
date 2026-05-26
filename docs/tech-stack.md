@@ -85,7 +85,7 @@ states: "approved"
               │    * デイリーリサーチ起動    │
               │    * 鮮度チェック          │
               │  - LLM 接続:                │
-              │    OpenCode Zen (OpenAI互換)│
+              │    OpenCode Go (OpenAI互換) │
               │    + BYOK(任意)            │
               │  - Web 接続:                │
               │    search → SearXNG         │
@@ -284,24 +284,27 @@ minakata/
 
 ### 5.5 LLM(生成モデル供給)
 
-**OpenCode Zen を OpenAI 互換 API として利用**。Hermes の OpenAI 互換プロバイダ設定で接続する。Zen は OpenCode エコシステム外の任意のコーディングエージェントでも使えるオープンゲートウェイ。
+**OpenCode Go を OpenAI 互換 API として利用**。Hermes の OpenAI 互換プロバイダ設定で接続する。Go は OpenCode が提供する $10/月 サブスクリプションで、curated な OSS coding model 群(GLM, Kimi, DeepSeek, Qwen など)を定額で叩ける。Zen (`/zen/v1`) も同じ API キーで併用可能だが、本プロジェクトでは Go に一本化する。
 
-| 項目           | 値                                                    |
-| -------------- | ----------------------------------------------------- |
-| エンドポイント | `https://opencode.ai/zen/v1`                          |
-| プロトコル     | OpenAI Chat Completions 互換                          |
-| 認証           | API キー(`opencode.ai/auth` で取得)                   |
-| 課金           | サブスクリプション(OpenCode Go プラン)+ pay-as-you-go |
+| 項目           | 値                                          |
+| -------------- | ------------------------------------------- |
+| エンドポイント | `https://opencode.ai/zen/go/v1`             |
+| プロトコル     | OpenAI Chat Completions 互換                |
+| 認証           | API キー(`opencode.ai/auth` で取得)         |
+| 課金           | サブスクリプション(OpenCode Go、$10/月)     |
+| モデル一覧     | `https://opencode.ai/zen/go/v1/models`      |
 
-**タスク種別ごとのモデル切替**:
+**タスク種別ごとのモデル切替(Go 名前空間内で使い分け)**:
 
-| タスク                     | 推奨モデル                     | 提供元                |
-| -------------------------- | ------------------------------ | --------------------- |
-| 夜間バッチ(大量調査)       | OpenCode Go 内のオープンモデル | Zen                   |
-| 対話チャット(低レイテンシ) | Zen の小型モデル               | Zen                   |
-| 重要記事の最終仕上げ       | Claude Opus / GPT クラス       | Zen 経由 or 直接 BYOK |
+| タスク                       | 推奨モデル                          | 用途                        |
+| ---------------------------- | ----------------------------------- | --------------------------- |
+| 対話 / ディスパッチ(低遅延) | `opencode-go/deepseek-v4-flash`     | dialogue / daily_research 等 |
+| 夜間バッチ(調査・記事化)    | `opencode-go/glm-5.1`               | researcher                  |
+| 重要記事の最終仕上げ         | `opencode-go/kimi-k2.6`             | premium ロール              |
 
-Hermes 側でサブエージェントごとに `model` を変えることで動的切替を実現。
+Hermes 側でサブエージェントごとに `model` を変えることで動的切替を実現する。`hermes/config/config.yaml` の `default_models` と各 `hermes/skills/<name>/SKILL.md` の frontmatter `model:` に反映済み。
+
+**Claude 等の商用モデルを使いたい場合**: Go には Claude / GPT は含まれないため、必要なら ① `OPENAI_API_BASE` を `https://opencode.ai/zen/v1` に切替えて Zen の pay-as-you-go を併用、または ② `ANTHROPIC_API_KEY` を渡して BYOK で直接 Anthropic を叩く構成にする。MVP 範囲では Go 単独で進める。
 
 **埋め込みについては本セクションの対象外**(`core` 内でローカル実行、セクション 5.1 を参照)
 
@@ -419,8 +422,8 @@ services:
     volumes:
       - "./hermes:/root/.hermes"
     environment:
-      # LLM:OpenCode Zen を OpenAI 互換プロバイダとして登録
-      OPENAI_API_BASE: "https://opencode.ai/zen/v1"
+      # LLM:OpenCode Go を OpenAI 互換プロバイダとして登録
+      OPENAI_API_BASE: "${OPENAI_API_BASE:-https://opencode.ai/zen/go/v1}"
       OPENAI_API_KEY: "${OPENCODE_API_KEY}"
       # Web 抽出:Firecrawl
       FIRECRAWL_API_KEY: "${FIRECRAWL_API_KEY}"
@@ -511,12 +514,12 @@ services:
 
 - 環境変数(`.env`、git 管理外)
 - 本番: Docker Secrets / SOPS / 1Password CLI 等
-- LLM API キー(OpenCode Zen / Anthropic 等)・Firecrawl API キーは **Hermes コンテナのみが保持**。Minakata 側からは見えない
+- LLM API キー(OpenCode Go/Zen / Anthropic 等)・Firecrawl API キーは **Hermes コンテナのみが保持**。Minakata 側からは見えない
 
 ### 8.4 プライバシー
 
 - 埋め込み生成はローカルで完結するため、記事本文が外部 API に送信されない(P11)
-- 外部送信が発生するのは: (a) 生成系 LLM へのプロンプト(OpenCode Zen)、(b) Web 検索クエリ(SearXNG 経由)、(c) Web 抽出対象 URL(Firecrawl Cloud)に限られる
+- 外部送信が発生するのは: (a) 生成系 LLM へのプロンプト(OpenCode Go/Zen)、(b) Web 検索クエリ(SearXNG 経由)、(c) Web 抽出対象 URL(Firecrawl Cloud)に限られる
 
 ---
 
@@ -567,13 +570,13 @@ services:
 
 | 候補                                                                           | 採用しない理由                                                                         |
 | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
-| **ローカル LLM 推論サーバー(Ollama / vLLM 等)**                                | 生成系は OpenCode Zen を使う(P7)。後から追加可能                                       |
+| **ローカル LLM 推論サーバー(Ollama / vLLM 等)**                                | 生成系は OpenCode Go を使う(P7)。後から追加可能                                        |
 | **埋め込み API(OpenAI / Cohere 等の外部依存)**                                 | ローカル実行で十分な品質。コスト・プライバシーの両面で有利(P11)                        |
 | **外部メッセージングゲートウェイ(Telegram / Discord / Slack、Hermes Gateway)** | ユーザー入口を WebUI に一本化(P6)                                                      |
-| **OpenCode CLI(opencode コマンド)**                                            | 採用するのは OpenCode Zen の **モデルサービス**のみ。harness は Hermes                 |
+| **OpenCode CLI(opencode コマンド)**                                            | 採用するのは OpenCode Go の **モデルサービス**のみ。harness は Hermes                  |
 | **`@minakata/worker`(独自スケジューラ・ワーカー)**                             | Hermes の cron + subagent が同等機能を提供(P9)                                         |
 | **WebSocket / pub/sub によるリアルタイム配信**                                 | 初期は SQLite + EventEmitter で十分。レイテンシ要件は満たす                            |
-| **Nous Tool Gateway**                                                          | Nous Portal の有料サブスクが必要。OpenCode Zen で推論をしているため二重コスト          |
+| **Nous Tool Gateway**                                                          | Nous Portal の有料サブスクが必要。OpenCode Go で推論をしているため二重コスト           |
 | **ブラウザ自動化バックエンド(Browserbase / Browser Use / Camofox)**            | 初期スコープ外。`web_extract` でカバーできない要件が出てきたら検討                     |
 | **専用埋め込みサービス(TEI / Ollama embeddings)**                              | Minakata の規模では Transformers.js を `core` 同梱で十分。将来スループット不足時に検討 |
 | Next.js                                                                        | React Router v7 で必要十分                                                             |
@@ -605,8 +608,9 @@ services:
 - ドキュメント: https://hermes-agent.nousresearch.com/docs/
 - Web Search & Extract ドキュメント: https://hermes-agent.nousresearch.com/docs/user-guide/features/web-search
 
-### OpenCode Zen / Go
+### OpenCode Go / Zen
 
+- Go 公式: https://opencode.ai/docs/go/
 - Zen 公式: https://opencode.ai/docs/zen/
 - Providers ドキュメント: https://opencode.ai/docs/providers/
 - 認証: https://opencode.ai/auth

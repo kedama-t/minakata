@@ -4,7 +4,8 @@
 
 providers:
   openai:
-    # OpenCode Zen を OpenAI 互換として登録
+    # OpenCode Go (https://opencode.ai/docs/go/) を OpenAI 互換として登録。
+    # 同じ API キーで Zen (`/zen/v1`) も叩けるが、本プロジェクトは Go 一本化。
     api_base: "${OPENAI_API_BASE}"
     api_key: "${OPENAI_API_KEY}"
 
@@ -23,8 +24,10 @@ web:
 # Hermes 側は skills_dir で自動検出する
 skills_dir: "/root/.hermes/skills"
 
-# tech-stack.md §5.5: タスク種別ごとのモデル切替の指針(skill 側の frontmatter で個別指定)
+# tech-stack.md §5.5: タスク種別ごとのモデル切替。
+# OpenCode Go は OSS coding model のみを提供するため、ロールごとに別モデルを当てる。
+# 実際の提供モデル一覧は `https://opencode.ai/zen/go/v1/models` で確認できる。
 default_models:
-  small: "openai/gpt-4o-mini"
-  research: "opencode/go-research"
-  premium: "anthropic/claude-opus-4-5"  # 重要記事の最終仕上げ等(BYOK)
+  small: "opencode-go/deepseek-v4-flash"  # 対話 / ディスパッチ / 軽量判定向け(低レイテンシ)
+  research: "opencode-go/glm-5.1"         # 調査・要約・記事化向け(汎用)
+  premium: "opencode-go/kimi-k2.6"        # 重要記事の最終仕上げ向け(Go 内の高品質枠)

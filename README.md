@@ -148,7 +148,8 @@ curl -X POST http://localhost:3000/mcp \
 | `ARTICLES_ROOT`       | Markdown 記事ルート。例: `/app/data/articles`                          | 必須              |
 | `HF_HOME`             | Transformers.js モデルキャッシュ。例: `/app/.cache/huggingface`        | 必須              |
 | `SKILLS_DIR`          | スキル提案承認時に書き出すディレクトリ。例: `./hermes/skills`         | 任意              |
-| `OPENCODE_API_KEY`    | OpenCode Zen の API キー。Hermes コンテナのみが保持                    | Hermes 起動時に必要 |
+| `OPENCODE_API_KEY`    | OpenCode (Go / Zen 共通) の API キー。Hermes コンテナのみが保持        | Hermes 起動時に必要 |
+| `OPENAI_API_BASE`     | OpenAI 互換エンドポイント。既定 `https://opencode.ai/zen/go/v1` (Go)。Zen に戻す場合は `/zen/v1` | 任意              |
 | `FIRECRAWL_API_KEY`   | Firecrawl Cloud の API キー。Hermes コンテナのみ                      | Hermes 起動時に必要 |
 | `ANTHROPIC_API_KEY`   | 重要記事用の BYOK(任意)                                              | 任意              |
 | `SEARXNG_SECRET`      | SearXNG セッションシークレット                                        | SearXNG 起動時に必要 |
