@@ -1,0 +1,19 @@
+# 現状の compose では hermes/config.yaml と hermes/skills/ だけを Hermes
+# コンテナに :ro マウントしているため、runtime state (sessions/logs/cron/
+# memories/...) はホストに漏れない (`/opt/data` は anonymous volume)。
+# 将来 hermes/ 丸ごとを bind mount する構成に切替えた場合に runtime state
+# を誤コミットしないよう、保険として代表的なパスを ignore しておく。
+
+/sessions/
+/logs/
+/cron/
+/memories/
+/hooks/
+/skins/
+/plans/
+/workspace/
+/home/
+/.install_method
+/.env
+/auth.json
+/config.yaml.bak

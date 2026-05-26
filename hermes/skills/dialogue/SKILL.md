@@ -1,22 +1,24 @@
 ---
 name: dialogue
 description: ユーザーとの対話を担当するエージェント。Minakata MCP の poll_messages を 30 秒周期で叩き、応答する。
-schedule:
-  cadence: "every 30 seconds"
-model: "opencode-go/deepseek-v4-flash"  # OpenCode Go の小型・低レイテンシモデル
-permitted_tools:
-  - minakata.poll_messages
-  - minakata.claim_message
-  - minakata.post_agent_response
-  - minakata.fulltext_search
-  - minakata.read_article
-  - minakata.enqueue_task
-  - minakata.get_research_policy
+version: 0.1.0
+author: minakata
+license: MIT
+platforms: [linux]
+metadata:
+  hermes:
+    tags: [minakata, dialogue, chat]
 ---
 
 # dialogue
 
 ユーザーと WebUI のチャットで対話するエージェント。
+
+## 想定スケジュールと使用ツール(Phase 3 で hermes cron 化予定)
+
+- **cadence**: every 30 seconds
+- **model**: `opencode-go/deepseek-v4-flash`(低レイテンシ重視)
+- **permitted MCP tools**: `minakata.poll_messages` / `minakata.claim_message` / `minakata.post_agent_response` / `minakata.fulltext_search` / `minakata.read_article` / `minakata.enqueue_task` / `minakata.get_research_policy`
 
 ## 行動ルール
 

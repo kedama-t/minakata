@@ -34,9 +34,18 @@ services:
     # minakata 単体は agent 無しでも UI 起動する(MCP は手動 enqueue/curl で叩ける)。
     image: nousresearch/hermes-agent:main
     profiles: ["agent"]
-    # /opt/data は Hermes 内部 layout(config.yaml / skills/ / sessions/ ...)を
-    # 持つ volume。Phase 1 では anonymous volume に任せ、私たちのカスタム skills
-    # を届ける処理は Phase 2 (#42 で別出し) で対応する。
+    # default の CMD は bare `hermes`(TUI)で、container には TTY が無いので
+    # 必ず first-run 検出に引っかかって sys.exit(1) → s6 が無限再起動する。
+    # `gateway run` は headless 長期稼働モード(first-run check 無し)で、
+    # cron スケジューラもこの上で動かす想定(#44)。
+    command: ["gateway", "run"]
+    volumes:
+      # 私たちの custom config と skills を Hermes に届ける(#44)。
+      # - config.yaml は read-only bind mount で declarative の単一情報源に
+      # - skills は external_dirs 経由で読ませる(/opt/data/skills/ にぶつけて
+      #   Hermes 内蔵 skills と混ざるのを避ける)
+      - ../hermes/config.yaml:/opt/data/config.yaml:ro
+      - ../hermes/skills:/opt/hermes-minakata-skills:ro
     environment:
       # podman rootless では UID マッピングを揃えないと chown が無視され、
       # その後の skills_sync.py で PermissionError になる(#42)。
@@ -44,12 +53,14 @@ services:
       HERMES_UID: "${HERMES_UID:-10000}"
       HERMES_GID: "${HERMES_GID:-10000}"
       # OpenCode Go (https://opencode.ai/docs/go/) を OpenAI 互換として登録。
-      # Zen に切り戻したい場合は .env で OPENAI_API_BASE=https://opencode.ai/zen/v1
-      OPENAI_API_BASE: "${OPENAI_API_BASE:-https://opencode.ai/zen/go/v1}"
-      OPENAI_API_KEY: "${OPENCODE_API_KEY}"
+      # base_url は plugins/model-providers/opencode-zen/__init__.py で
+      # ハードコードされており、OPENAI_API_BASE は無視される。env 名も
+      # 専用の OPENCODE_GO_API_KEY を使う(汎用 OPENAI_API_KEY ではない)。
+      OPENCODE_GO_API_KEY: "${OPENCODE_API_KEY}"
       FIRECRAWL_API_KEY: "${FIRECRAWL_API_KEY}"
-      MINAKATA_MCP_URL: "http://minakata:3000/mcp"
-      MINAKATA_MCP_TOKEN: "${MCP_TOKEN}"
+      # config.yaml の mcp_servers.minakata.headers が ${MCP_TOKEN} を展開
+      # できるよう env として渡す。
+      MCP_TOKEN: "${MCP_TOKEN}"
     depends_on:
       minakata:
         condition: service_healthy

@@ -1,19 +1,24 @@
 ---
 name: freshness_checker
 description: 記事の鮮度ランクを再計算し、必要に応じて再調査タスクを投入する。
-schedule:
-  cadence: "every 6 hours"
-model: "opencode-go/deepseek-v4-flash"
-permitted_tools:
-  - minakata.recompute_freshness
-  - minakata.list_articles
-  - minakata.enqueue_task
-  - minakata.archive_article
+version: 0.1.0
+author: minakata
+license: MIT
+platforms: [linux]
+metadata:
+  hermes:
+    tags: [minakata, maintenance, freshness]
 ---
 
 # freshness_checker
 
 記事の最終調査時刻に基づき鮮度ランクを更新し、しきい値を超えたものに再調査タスクを投入する(US-7.1)。
+
+## 想定スケジュールと使用ツール(Phase 3 で hermes cron 化予定)
+
+- **cadence**: every 6 hours
+- **model**: `opencode-go/deepseek-v4-flash`
+- **permitted MCP tools**: `minakata.recompute_freshness` / `minakata.list_articles` / `minakata.enqueue_task` / `minakata.archive_article`
 
 ## 行動ルール
 

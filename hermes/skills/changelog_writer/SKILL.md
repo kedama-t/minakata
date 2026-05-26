@@ -1,18 +1,24 @@
 ---
 name: changelog_writer
 description: 前日の調査エージェント活動をまとめた ChangeLog 日報を作成する。
-schedule:
-  cadence: "every day at 07:00"
-model: "opencode-go/deepseek-v4-flash"
-permitted_tools:
-  - minakata.list_articles
-  - minakata.create_article
-  - minakata.fulltext_search
+version: 0.1.0
+author: minakata
+license: MIT
+platforms: [linux]
+metadata:
+  hermes:
+    tags: [minakata, changelog, daily-batch]
 ---
 
 # changelog_writer
 
 毎朝 7:00 に、前日の調査エージェント活動を 1 ページにまとめる(US-2.4)。
+
+## 想定スケジュールと使用ツール(Phase 3 で hermes cron 化予定)
+
+- **cadence**: every day at 07:00
+- **model**: `opencode-go/deepseek-v4-flash`
+- **permitted MCP tools**: `minakata.list_articles` / `minakata.create_article` / `minakata.fulltext_search`
 
 ## 行動ルール
 
