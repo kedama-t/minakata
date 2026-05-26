@@ -20,8 +20,10 @@ mcp_servers:
       Authorization: "Bearer ${MCP_TOKEN}"
 
 skills:
-  # 私たちのカスタム skill は /opt/hermes-minakata-skills (host: hermes/skills)
-  # に read-only マウントしてある。external_dirs に登録すると Hermes 内蔵 skill
-  # と並んで検索対象になる(read-only。skill 編集は host 側で git commit する)。
-  external_dirs:
-    - "/opt/hermes-minakata-skills"
+  # 当初は external_dirs で /opt/hermes-minakata-skills を read-only 公開して
+  # いたが、cron scheduler の skill_view がそこから skill を解決できない症状
+  # があったため、hermes/cron-bootstrap.sh で SKILLS_DIR (/opt/data/skills)
+  # に直接コピーする方式に変更した(#50)。external_dirs と SKILLS_DIR 両方に
+  # 同じ skill を置くと skill_view がコリジョンで ambiguity error を出すので、
+  # ここでは external_dirs を設定しない。host で skill を編集したら次の
+  # `bun run compose:up:agent` 起動時に bootstrap script が同期する。

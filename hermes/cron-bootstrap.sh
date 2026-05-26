@@ -50,6 +50,27 @@ fi
 
 echo "[cron-bootstrap] --- end diagnostic ---"
 
+# Hermes の cron scheduler (skill_view) は external_dirs から skill を解決
+# できないケースがある(理由は #50 で深掘り中だが、skill_view と
+# `hermes skills list` で挙動が割れる)。確実な workaround として SKILLS_DIR
+# (= /opt/data/skills) に直接コピーする。これで Strategy 1 (direct path) で
+# 確実に hit する。/opt/data は hermes 本体コンテナと共有 named volume なので、
+# 書いた瞬間に本体側からも見える。
+echo "[cron-bootstrap] sync skills → /opt/data/skills/"
+mkdir -p /opt/data/skills
+for src in /opt/hermes-minakata-skills/*/; do
+    [ -d "$src" ] || continue
+    name=$(basename "$src")
+    dest="/opt/data/skills/$name"
+    if [ ! -d "$dest" ] || ! diff -rq "$src" "$dest" >/dev/null 2>&1; then
+        rm -rf "$dest"
+        cp -r "$src" "$dest"
+        echo "    + $name"
+    else
+        echo "    = $name (unchanged)"
+    fi
+done
+
 # `hermes cron list` の "Name:" 行と比較する正規表現。
 # 例: "    Name:      minakata-dialogue"(末尾改行)
 job_registered() {
