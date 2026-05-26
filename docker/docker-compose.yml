@@ -85,6 +85,10 @@ services:
       - hermes-data:/opt/data
       - ../hermes/config.yaml:/opt/data/config.yaml:ro
       - ../hermes/cron-bootstrap.sh:/opt/hermes-cron-bootstrap.sh:ro
+      # hermes 本体と同じ skills mount を持たせる。診断 (hermes skills list)
+      # を意味のあるものにするため、また将来 init 経由で skill を verify する
+      # 余地を残すため(#50)。
+      - ../hermes/skills:/opt/hermes-minakata-skills:ro
     environment:
       HERMES_UID: "${HERMES_UID:-10000}"
       HERMES_GID: "${HERMES_GID:-10000}"

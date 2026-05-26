@@ -31,13 +31,24 @@ if [ "$ready" != true ]; then
     exit 1
 fi
 
-# 診断: 私たちの 5 つの subagent skill (dialogue / researcher / ...) が
-# `skills.external_dirs` 経由で認識されているかを bootstrap 時点で確認する。
-# ここで minakata 系 skill が一覧に出てこないようなら、cron 経由の skill load
-# も同様に失敗する(#50)。
-echo "[cron-bootstrap] --- hermes skills list (filtered) ---"
-hermes skills list 2>&1 | grep -E "minakata|dialogue|researcher|daily_research|freshness_checker|changelog_writer" || echo "[cron-bootstrap]   (no minakata skills detected)"
-echo "[cron-bootstrap] --- end skills list ---"
+# 診断: 私たちの skill が `skills.external_dirs` 経由で認識されているかを
+# 段階的に確認する(#50)。
+echo "[cron-bootstrap] --- diagnostic ---"
+
+echo "[cron-bootstrap] (1) /opt/hermes-minakata-skills の中身:"
+ls -la /opt/hermes-minakata-skills 2>&1 | sed 's/^/    /'
+
+echo "[cron-bootstrap] (2) config.yaml の skills.external_dirs:"
+sed -n '/^skills:/,/^[^ ]/p' /opt/data/config.yaml 2>&1 | sed 's/^/    /'
+
+echo "[cron-bootstrap] (3) hermes skills list (minakata 系のみ):"
+if hermes skills list 2>&1 | grep -E "minakata|dialogue|researcher|daily_research|freshness_checker|changelog_writer" | sed 's/^/    /' ; then
+    :
+else
+    echo "    (no minakata skills detected)"
+fi
+
+echo "[cron-bootstrap] --- end diagnostic ---"
 
 # `hermes cron list` の "Name:" 行と比較する正規表現。
 # 例: "    Name:      minakata-dialogue"(末尾改行)
