@@ -7,8 +7,10 @@ model:
   # OpenCode Go 内の汎用 OSS coding model。実モデル一覧は
   # https://opencode.ai/zen/go/v1/models で確認。
   default: "opencode-go/glm-5.1"
-  # 認証済み env var (OPENCODE_GO_API_KEY) から自動でプロバイダ判定させる。
-  provider: "auto"
+  # `auto` だと cron スケジューラの実行コンテキストで plugin-registered
+  # provider (opencode-go) を見つけそびれて "No inference provider
+  # configured" になることがあるので、ここでは canonical 名で固定する(#50)。
+  provider: "opencode-go"
 
 mcp_servers:
   # Minakata MCP サーバー(Streamable HTTP, Bearer 認証)
