@@ -302,7 +302,7 @@ minakata/
 | 夜間バッチ(調査・記事化)    | `opencode-go/glm-5.1`               | researcher                  |
 | 重要記事の最終仕上げ         | `opencode-go/kimi-k2.6`             | premium ロール              |
 
-Hermes 側でサブエージェントごとに `model` を変えることで動的切替を実現する。`hermes/config/config.yaml` の `default_models` と各 `hermes/skills/<name>/SKILL.md` の frontmatter `model:` に反映済み。
+Hermes 側でサブエージェントごとに使うモデルを切替える方針だが、Hermes 公式 SKILL.md は `model:` frontmatter を持たない(MVP では `hermes/config.yaml` の `model.default` 1 本で起動、ロール別モデル切替は Phase 3 で cron job 作成時に指定する)。
 
 **Claude 等の商用モデルを使いたい場合(本書スコープ外)**: Go には Claude / GPT は含まれない。必要になったら `OPENAI_API_BASE` を `https://opencode.ai/zen/v1` に切替えて Zen の pay-as-you-go を併用するか、Hermes に Anthropic プロバイダを追加して BYOK する。MVP では Go 単独で完結させる。
 
@@ -332,15 +332,23 @@ Hermes は `web_search` / `web_extract` / `browser_*` を組み込みツール�
 - Firecrawl の無料枠 500/月はあくまで試験運用想定。本稼働すると数千クレジット/月になりうるので、本格運用入りで → 有料プラン($25/月〜)へ昇格、または **Firecrawl もセルフホスト**(OSS 版が公式リポジトリで公開されている)に切替
 - SearXNG が想定どおり動かない場合の代替として、`hermes skills install official/research/searxng-search` でフォールバック用スキルが用意されている
 
-**Hermes 設定**(`hermes/config/config.yaml`):
+**Hermes 設定**(`hermes/config.yaml` を `/opt/data/config.yaml` に :ro マウント):
 
 ```yaml
-web:
-  search_backend: "searxng"
-  searxng_url: "http://searxng:8080"
-  extract_backend: "firecrawl"
-  # FIRECRAWL_API_KEY は環境変数で渡す
+model:
+  default: "opencode-go/glm-5.1"
+  provider: "auto"
+mcp_servers:
+  minakata:
+    url: "http://minakata:3000/mcp"
+    headers:
+      Authorization: "Bearer ${MCP_TOKEN}"
+skills:
+  external_dirs:
+    - "/opt/hermes-minakata-skills"  # host: hermes/skills を :ro マウント
 ```
+
+SearXNG / Firecrawl は Hermes 標準の `web_search` / `web_extract` ツールが自動で利用する。FIRECRAWL_API_KEY は環境変数で渡す。SearXNG エンドポイントは Hermes 側のデフォルトに任せる(必要なら Hermes 側 cli-config.yaml.example の web 設定を確認)。
 
 **SearXNG 設定**(`searxng/settings.yml` の重要部分):
 
@@ -418,18 +426,20 @@ services:
       HF_HOME: "/app/.cache/huggingface"
 
   hermes:
-    image: nousresearch/hermes-agent:latest
+    image: nousresearch/hermes-agent:main
     volumes:
-      - "./hermes:/root/.hermes"
+      - "./hermes/config.yaml:/opt/data/config.yaml:ro"
+      - "./hermes/skills:/opt/hermes-minakata-skills:ro"
     environment:
-      # LLM:OpenCode Go を OpenAI 互換プロバイダとして登録
-      OPENAI_API_BASE: "${OPENAI_API_BASE:-https://opencode.ai/zen/go/v1}"
-      OPENAI_API_KEY: "${OPENCODE_API_KEY}"
-      # Web 抽出:Firecrawl
+      # podman rootless 時の UID マッピング
+      HERMES_UID: "${HERMES_UID:-10000}"
+      HERMES_GID: "${HERMES_GID:-10000}"
+      # OpenCode Go (base_url ハードコード)
+      OPENCODE_GO_API_KEY: "${OPENCODE_API_KEY}"
+      # Web 抽出: Firecrawl
       FIRECRAWL_API_KEY: "${FIRECRAWL_API_KEY}"
-      # Minakata MCP の接続情報
-      MINAKATA_MCP_URL: "http://minakata:3000/mcp"
-      MINAKATA_MCP_TOKEN: "${MCP_TOKEN}"
+      # Minakata MCP の Bearer Token (config.yaml の headers で展開)
+      MCP_TOKEN: "${MCP_TOKEN}"
     depends_on: [minakata, searxng]
 
   searxng:

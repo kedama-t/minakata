@@ -1,25 +1,25 @@
 ---
 name: researcher
 description: 調査タスクキューを消化する。Web 検索 → 抽出 → 記事化を行う。
-schedule:
-  cadence: "every 5 minutes"
-model: "opencode-go/glm-5.1"  # OpenCode Go の汎用 OSS coding model(夜間バッチでも回せる量)
-permitted_tools:
-  - minakata.poll_tasks
-  - minakata.complete_task
-  - minakata.fail_task
-  - minakata.read_article
-  - minakata.create_article
-  - minakata.update_article
-  - minakata.fulltext_search
-  - minakata.get_research_policy
-  - web_search
-  - web_extract
+version: 0.1.0
+author: minakata
+license: MIT
+platforms: [linux]
+metadata:
+  hermes:
+    tags: [minakata, research, web]
 ---
 
 # researcher
 
 調査キューを消化して記事を作成・更新するエージェント。
+
+## 想定スケジュールと使用ツール(Phase 3 で hermes cron 化予定)
+
+- **cadence**: every 5 minutes
+- **model**: `opencode-go/glm-5.1`(汎用 OSS coding model、夜間バッチに十分)
+- **permitted MCP tools**: `minakata.poll_tasks` / `minakata.complete_task` / `minakata.fail_task` / `minakata.read_article` / `minakata.create_article` / `minakata.update_article` / `minakata.fulltext_search` / `minakata.get_research_policy`
+- **その他必要なツール**: `web_search` / `web_extract`(Hermes 標準。Capability 分離の対象外)
 
 ## 行動ルール
 

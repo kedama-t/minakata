@@ -1,16 +1,24 @@
 ---
 name: daily_research
 description: 購読トピックの夜間バッチ。毎日 03:00 に走る。
-schedule:
-  cadence: "every day at 03:00"
-model: "opencode-go/deepseek-v4-flash"  # ディスパッチだけなので軽量
-permitted_tools:
-  - minakata.enqueue_task
+version: 0.1.0
+author: minakata
+license: MIT
+platforms: [linux]
+metadata:
+  hermes:
+    tags: [minakata, research, daily-batch]
 ---
 
 # daily_research
 
 毎日午前 3 時に、購読中のトピックを順次調査キューに投入する。
+
+## 想定スケジュールと使用ツール(Phase 3 で hermes cron 化予定)
+
+- **cadence**: every day at 03:00
+- **model**: `opencode-go/deepseek-v4-flash`(ディスパッチのみなので軽量)
+- **permitted MCP tools**: `minakata.enqueue_task`
 
 ## 行動ルール
 
