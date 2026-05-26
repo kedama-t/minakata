@@ -40,6 +40,12 @@ services:
     # cron スケジューラもこの上で動かす想定(#44)。
     command: ["gateway", "run"]
     volumes:
+      # /opt/data は Hermes が runtime state (cron/jobs.json, sessions, logs,
+      # memories, ...) を書き込む dir。hermes-cron-init と共有して同じ
+      # jobs.json に書けるよう named volume にする(以前は anonymous)。
+      # 既存 anonymous volume からの移行は `podman volume prune` で消してから
+      # 起動。詳細は README.md 参照(#46)。
+      - hermes-data:/opt/data
       # 私たちの custom config と skills を Hermes に届ける(#44)。
       # - config.yaml は read-only bind mount で declarative の単一情報源に
       # - skills は external_dirs 経由で読ませる(/opt/data/skills/ にぶつけて
@@ -68,6 +74,32 @@ services:
         condition: service_started
     restart: unless-stopped
 
+  # Minakata の 5 つの subagent skill を Hermes cron に登録する one-shot コンテナ。
+  # hermes 本体と /opt/data (named volume hermes-data) を共有しているため、
+  # ここで `hermes cron create` した job が hermes 本体のスケジューラから
+  # 拾われる。idempotent なので毎回 compose up しても重複生成しない。
+  hermes-cron-init:
+    image: nousresearch/hermes-agent:main
+    profiles: ["agent"]
+    volumes:
+      - hermes-data:/opt/data
+      - ../hermes/config.yaml:/opt/data/config.yaml:ro
+      - ../hermes/cron-bootstrap.sh:/opt/hermes-cron-bootstrap.sh:ro
+    environment:
+      HERMES_UID: "${HERMES_UID:-10000}"
+      HERMES_GID: "${HERMES_GID:-10000}"
+      OPENCODE_GO_API_KEY: "${OPENCODE_API_KEY}"
+      MCP_TOKEN: "${MCP_TOKEN}"
+    depends_on:
+      hermes:
+        condition: service_started
+    # one-shot: 5 cron 登録が終わったら exit する。restart 無し。
+    # image の ENTRYPOINT ["/init", "main-wrapper.sh"] はそのまま使い、
+    # CMD だけ差し替えてスクリプトを s6-setuidgid hermes 経由で実行させる
+    # (main-wrapper.sh が「実行可能な絶対パスならそのまま exec」する分岐に乗る)。
+    restart: "no"
+    command: ["/opt/hermes-cron-bootstrap.sh"]
+
   searxng:
     image: searxng/searxng:latest
     volumes:
@@ -79,3 +111,8 @@ services:
     expose:
       - "8080"
     restart: unless-stopped
+
+volumes:
+  # Hermes の $HERMES_HOME = /opt/data。cron/jobs.json, sessions/, logs/,
+  # memories/ などの runtime state を保持。hermes と hermes-cron-init で共有。
+  hermes-data:
