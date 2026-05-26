@@ -173,7 +173,8 @@ minakata/
 │   ├── Dockerfile.minakata
 │   └── docker-compose.yml
 ├── hermes/
-│   ├── config/config.yaml     # Hermes プロバイダ / MCP 接続 / SearXNG / Firecrawl
+│   ├── config.yaml            # Hermes 公式 schema (model / mcp_servers / skills)
+│   ├── cron-bootstrap.sh      # 起動時に 5 つの subagent を hermes cron に登録
 │   └── skills/                # dialogue / researcher / daily_research / freshness_checker / changelog_writer
 ├── searxng/settings.yml       # SearXNG の設定(JSON formats 有効、limiter off)
 ├── docs/                      # 仕様書(設計フェーズの source of truth)
@@ -229,7 +230,8 @@ minakata/
 - **MCP `/mcp` が 401**: `Authorization: Bearer <MCP_TOKEN>` が一致していない。`.env` を再ロード(`docker compose down && up -d`)。
 - **`/mcp` が 403 `forbidden_host`**: `MCP_ALLOWED_HOSTS` にアクセス元 Host(ポート含む)を追加。
 - **`bun run dev` で `.react-router/types/...` が見つからない**: `bunx react-router typegen` を先に走らせる(`bun run typecheck` が内部で実行)。
-- **Hermes が起動しない**: `OPENCODE_API_KEY` 未設定 / 公式 Hermes イメージ未公開の可能性。Hermes 公式ドキュメントを参照のうえ profile から外して minakata 単体でも UI 検証は可能。
+- **Hermes が起動しない**: `OPENCODE_API_KEY` / `HERMES_UID` / `HERMES_GID` のいずれかが `.env` に無い可能性。`podman exec -it minakata-hermes-1 hermes doctor` で原因を絞り込む。
+- **Hermes は起動するが cron が動かない**: 過去に hermes コンテナを動かしていた場合、anonymous volume が残っていて新しい `hermes-data` named volume が空のまま起動している可能性。一度 `podman compose -f docker/docker-compose.yml --env-file .env down` してから `podman volume prune`(対話で y)で古い volume を消し、再度 `bun run compose:up:agent` する(#46)。
 
 ## ライセンス
 
