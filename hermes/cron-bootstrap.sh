@@ -7,12 +7,17 @@
 #
 # `hermes cron create` は重複検出を持たないため、`hermes cron list` の出力を
 # 名前 (`minakata-<skill>`) で grep して既存なら skip / 無ければ create する。
+# `hermes cron list` の出力は "    Name:      <name>" 形式(末尾改行)。
 
 set -eu
 
-# main-hermes が gateway run で起動して cron API を受けられるまで待つ。
-# 起動直後だと `hermes cron list` が 1 を返すことがあるので最大 60 秒リトライ。
-echo "[cron-bootstrap] waiting for hermes to accept commands..."
+# 公式イメージの ENV PATH と同じく venv を先頭に置く(image の ENTRYPOINT
+# /init を bypass しているため activate スクリプトが走らない、を補う)。
+export PATH="/opt/hermes/.venv/bin:${PATH}"
+
+# main-hermes コンテナ側の stage2-hook が /opt/data を初期化するのを待つ。
+# `hermes cron list` が exit 0 で返るまで最大 60 秒リトライ。
+echo "[cron-bootstrap] waiting for hermes runtime to become ready..."
 ready=false
 for _ in $(seq 1 30); do
     if hermes cron list >/dev/null 2>&1; then
@@ -26,27 +31,32 @@ if [ "$ready" != true ]; then
     exit 1
 fi
 
+# `hermes cron list` の "Name:" 行と比較する正規表現。
+# 例: "    Name:      minakata-dialogue"(末尾改行)
+job_registered() {
+    hermes cron list 2>/dev/null | grep -qE "^[[:space:]]*Name:[[:space:]]+$1$"
+}
+
 ensure_cron() {
     name=$1
     schedule=$2
     skill=$3
     prompt=$4
 
-    # `hermes cron list` の table 内に `name` が含まれていれば既存。
-    # 厳密一致したいので前後にスペースを付けて grep する(部分一致回避)。
-    if hermes cron list 2>/dev/null | grep -qF " $name "; then
+    if job_registered "$name"; then
         echo "[cron-bootstrap] $name already exists; skip"
         return 0
     fi
 
     echo "[cron-bootstrap] create $name (schedule=$schedule skill=$skill)"
     # `hermes cron create` は失敗しても exit 0 で返す場合があるため、
-    # create 後に再度 `hermes cron list` を見て登録できたかを必ず確認する。
+    # create 後に再度 list を読んで実在を確認する。
     hermes cron create "$schedule" "$prompt" --skill "$skill" --name "$name" || true
-    if hermes cron list 2>/dev/null | grep -qF " $name "; then
+    if job_registered "$name"; then
         echo "[cron-bootstrap] OK: $name registered"
     else
-        echo "[cron-bootstrap] FAILED to register $name" >&2
+        echo "[cron-bootstrap] FAILED to register $name. Current cron list:" >&2
+        hermes cron list 2>&1 | sed 's/^/  /' >&2
         return 1
     fi
 }
