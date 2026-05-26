@@ -30,13 +30,19 @@ services:
       start_period: 20s
 
   hermes:
-    # 公式イメージが正式に公開され次第差し替える。MVP では `--profile agent` で起動。
+    # 公式イメージ(Docker Hub: nousresearch/hermes-agent)。`:main` で固定。
     # minakata 単体は agent 無しでも UI 起動する(MCP は手動 enqueue/curl で叩ける)。
-    image: nousresearch/hermes-agent:latest
+    image: nousresearch/hermes-agent:main
     profiles: ["agent"]
-    volumes:
-      - ../hermes:/root/.hermes
+    # /opt/data は Hermes 内部 layout(config.yaml / skills/ / sessions/ ...)を
+    # 持つ volume。Phase 1 では anonymous volume に任せ、私たちのカスタム skills
+    # を届ける処理は Phase 2 (#42 で別出し) で対応する。
     environment:
+      # podman rootless では UID マッピングを揃えないと chown が無視され、
+      # その後の skills_sync.py で PermissionError になる(#42)。
+      # ホスト側で `HERMES_UID=$(id -u) HERMES_GID=$(id -g)` を .env に書く。
+      HERMES_UID: "${HERMES_UID:-10000}"
+      HERMES_GID: "${HERMES_GID:-10000}"
       # OpenCode Go (https://opencode.ai/docs/go/) を OpenAI 互換として登録。
       # Zen に切り戻したい場合は .env で OPENAI_API_BASE=https://opencode.ai/zen/v1
       OPENAI_API_BASE: "${OPENAI_API_BASE:-https://opencode.ai/zen/go/v1}"
