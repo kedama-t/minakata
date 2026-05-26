@@ -11,10 +11,10 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "typecheck": "bun run --filter '*' typecheck",
-    "compose:up": "podman compose -f docker/docker-compose.yml up",
-    "compose:up:agent": "podman compose -f docker/docker-compose.yml --profile agent up",
-    "compose:down": "podman compose -f docker/docker-compose.yml down",
-    "compose:rebuild": "podman compose -f docker/docker-compose.yml build --no-cache minakata"
+    "compose:up": "podman compose -f docker/docker-compose.yml --env-file .env up",
+    "compose:up:agent": "podman compose -f docker/docker-compose.yml --env-file .env --profile agent up",
+    "compose:down": "podman compose -f docker/docker-compose.yml --env-file .env down",
+    "compose:rebuild": "podman compose -f docker/docker-compose.yml --env-file .env build --no-cache minakata"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
