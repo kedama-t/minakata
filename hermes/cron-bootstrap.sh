@@ -16,20 +16,35 @@ set -eu
 PATH="/opt/hermes/.venv/bin:${PATH}"
 export PATH
 
+# cont-init.d 内で見える env を診断(値は伏せる)。s6-overlay は通常
+# container env を継承するが、欠けていたら compose 側 / .env / podman の
+# どこかで途切れている合図。
+echo "[minakata-cron] env check:"
+for var in OPENCODE_GO_API_KEY MCP_TOKEN HERMES_UID HERMES_GID FIRECRAWL_API_KEY; do
+    if [ -n "$(eval echo "\${$var:-}")" ]; then
+        echo "    $var: (set)"
+    else
+        echo "    $var: (UNSET or empty)"
+    fi
+done
+
 # hermes コマンドは hermes user 権限で実行する(jobs.json の owner が
 # hermes になるように)。s6-setuidgid は s6-overlay の組込みで PATH 上に
 # 居る前提(stage2-hook も同じ呼び方をしている)。
+# `s6-setuidgid` は環境変数をそのまま継承する(明示的に clean しない)。
 hermes_run() {
     s6-setuidgid hermes hermes "$@"
 }
 
 # 公式 quickstart の推奨フロー: `hermes config set` 経由でプロバイダと
 # モデルを登録する(env だけだと cron context の resolve loop で取りこぼす
-# 症状が出ていた、#50/#52)。.env / config.yaml / auth store に必要な
-# エントリが全部揃うので、gateway 側の auth resolver が確実にヒットする。
+# 症状が出ていた、#50/#52)。.env / config.yaml に必要なエントリが全部
+# 揃うので、gateway 側の auth resolver が確実にヒットする。
 if [ -n "${OPENCODE_GO_API_KEY:-}" ]; then
     echo "[minakata-cron] register OpenCode Go via hermes config set"
     hermes_run config set OPENCODE_GO_API_KEY "$OPENCODE_GO_API_KEY" >/dev/null 2>&1 || true
+else
+    echo "[minakata-cron] WARN: OPENCODE_GO_API_KEY not in env; skipping API key registration"
 fi
 hermes_run config set model.provider opencode-go >/dev/null 2>&1 || true
 hermes_run config set model.default deepseek-v4-flash >/dev/null 2>&1 || true
