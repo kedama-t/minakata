@@ -332,21 +332,20 @@ Hermes は `web_search` / `web_extract` / `browser_*` を組み込みツール�
 - Firecrawl の無料枠 500/月はあくまで試験運用想定。本稼働すると数千クレジット/月になりうるので、本格運用入りで → 有料プラン($25/月〜)へ昇格、または **Firecrawl もセルフホスト**(OSS 版が公式リポジトリで公開されている)に切替
 - SearXNG が想定どおり動かない場合の代替として、`hermes skills install official/research/searxng-search` でフォールバック用スキルが用意されている
 
-**Hermes 設定**(`hermes/config.yaml` を `/opt/data/config.yaml` に :ro マウント):
+**Hermes 設定**(`hermes/config.yaml`。公式 Docker docs 通り `../hermes` を `/opt/data` 丸ごと bind mount するので、このファイルが `/opt/data/config.yaml` として読まれる):
 
 ```yaml
 model:
-  default: "opencode-go/glm-5.1"
-  provider: "auto"
+  default: "deepseek-v4-flash"  # OpenCode Go 内のモデル
+  provider: "opencode-go"
 mcp_servers:
   minakata:
     url: "http://minakata:3000/mcp"
     headers:
       Authorization: "Bearer ${MCP_TOKEN}"
-skills:
-  external_dirs:
-    - "/opt/hermes-minakata-skills"  # host: hermes/skills を :ro マウント
 ```
+
+Skills は `hermes/skills/<name>/SKILL.md` に置けば `/opt/data/skills/` として Hermes に直接見える(`external_dirs` は不要)。Cron job は `hermes/cron-bootstrap.sh` を `/etc/cont-init.d/99-minakata-cron` に :ro mount しておくと起動時に自動登録される(#52)。
 
 SearXNG / Firecrawl は Hermes 標準の `web_search` / `web_extract` ツールが自動で利用する。FIRECRAWL_API_KEY は環境変数で渡す。SearXNG エンドポイントは Hermes 側のデフォルトに任せる(必要なら Hermes 側 cli-config.yaml.example の web 設定を確認)。
 
@@ -427,9 +426,10 @@ services:
 
   hermes:
     image: nousresearch/hermes-agent:main
+    command: ["gateway", "run"]
     volumes:
-      - "./hermes/config.yaml:/opt/data/config.yaml:ro"
-      - "./hermes/skills:/opt/hermes-minakata-skills:ro"
+      - "./hermes:/opt/data"
+      - "./hermes/cron-bootstrap.sh:/etc/cont-init.d/99-minakata-cron:ro"
     environment:
       # podman rootless 時の UID マッピング
       HERMES_UID: "${HERMES_UID:-10000}"

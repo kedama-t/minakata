@@ -172,9 +172,10 @@ minakata/
 ├── docker/
 │   ├── Dockerfile.minakata
 │   └── docker-compose.yml
-├── hermes/
-│   ├── config.yaml            # Hermes 公式 schema (model / mcp_servers / skills)
-│   ├── cron-bootstrap.sh      # 起動時に 5 つの subagent を hermes cron に登録
+├── hermes/                    # `/opt/data` (HERMES_HOME) に bind mount される
+│   ├── .gitignore             # runtime state (sessions / logs / cron / memories ...) を ignore
+│   ├── config.yaml            # Hermes 設定 (model / mcp_servers)
+│   ├── cron-bootstrap.sh      # /etc/cont-init.d/ に mount され起動時に cron 登録
 │   └── skills/                # dialogue / researcher / daily_research / freshness_checker / changelog_writer
 ├── searxng/settings.yml       # SearXNG の設定(JSON formats 有効、limiter off)
 ├── docs/                      # 仕様書(設計フェーズの source of truth)
@@ -231,7 +232,8 @@ minakata/
 - **`/mcp` が 403 `forbidden_host`**: `MCP_ALLOWED_HOSTS` にアクセス元 Host(ポート含む)を追加。
 - **`bun run dev` で `.react-router/types/...` が見つからない**: `bunx react-router typegen` を先に走らせる(`bun run typecheck` が内部で実行)。
 - **Hermes が起動しない**: `OPENCODE_API_KEY` / `HERMES_UID` / `HERMES_GID` のいずれかが `.env` に無い可能性。`podman exec -it minakata-hermes-1 hermes doctor` で原因を絞り込む。
-- **Hermes は起動するが cron が動かない**: 過去に hermes コンテナを動かしていた場合、anonymous volume が残っていて新しい `hermes-data` named volume が空のまま起動している可能性。一度 `podman compose -f docker/docker-compose.yml --env-file .env down` してから `podman volume prune`(対話で y)で古い volume を消し、再度 `bun run compose:up:agent` する(#46)。
+- **cron jobs が登録されていない**: `podman exec -it minakata-hermes-1 hermes cron list` で確認。空なら `hermes` コンテナのログから `[minakata-cron]` 行を探して bootstrap が走ったか / どこで失敗したかを確認(cont-init.d hook なので main-hermes の起動前に出る)。`hermes/cron-bootstrap.sh` を修正したら `podman compose ... down && bun run compose:up:agent` で再実行できる。
+- **過去の構成から移行**: 以前のセットアップで `hermes-data` named volume を作っていた場合は `podman compose ... down && podman volume prune`(対話で y)で消す。今は `../hermes:/opt/data` の bind mount に統一済みなので named volume は不要(#52)。
 
 ## ライセンス
 

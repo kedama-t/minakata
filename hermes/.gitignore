@@ -1,19 +1,32 @@
-# 現状の compose では hermes/config.yaml と hermes/skills/ だけを Hermes
-# コンテナに :ro マウントしているため、runtime state (sessions/logs/cron/
-# memories/...) はホストに漏れない (`/opt/data` は anonymous volume)。
-# 将来 hermes/ 丸ごとを bind mount する構成に切替えた場合に runtime state
-# を誤コミットしないよう、保険として代表的なパスを ignore しておく。
+# `../hermes` を `/opt/data` に丸ごと bind mount する構成のため、Hermes が
+# 起動時に生成・更新する runtime state がここに展開される(#52)。git track
+# したいのは config.yaml / cron-bootstrap.sh / skills/ だけなので、それ以外
+# を全て無視する。
 
+# Hermes 生成のディレクトリ
+/cron/
 /sessions/
 /logs/
-/cron/
 /memories/
 /hooks/
 /skins/
 /plans/
 /workspace/
 /home/
-/.install_method
+/image_cache/
+/audio_cache/
+/pairing/
+/profiles/
+/.hub/
+
+# Hermes が seed / 書き込む単発ファイル
 /.env
+/.install_method
+/.container-mode
+/.managed
 /auth.json
+/SOUL.md
+/state.db
+/state.db-*
 /config.yaml.bak
+/active_profile

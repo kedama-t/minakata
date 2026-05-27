@@ -1,25 +1,18 @@
-# Hermes Agent 設定 (/opt/data/config.yaml に :ro でマウントされる)
-# 公式 cli-config.yaml.example
-# (https://github.com/NousResearch/hermes-agent/blob/main/cli-config.yaml.example)
-# の schema に合わせている。
+# Hermes Agent 設定。`../hermes` を `/opt/data` に bind mount するので、
+# このファイルが `/opt/data/config.yaml` として読まれる(#52)。
+# schema は公式 cli-config.yaml.example に準拠。
 
 model:
-  # OpenCode Go 内の汎用 OSS coding model。実モデル一覧は
+  # OpenCode Go 内のモデル。実モデル一覧は
   # https://opencode.ai/zen/go/v1/models で確認。
-  default: "opencode-go/glm-5.1"
-  # 認証済み env var (OPENCODE_GO_API_KEY) から自動でプロバイダ判定させる。
-  provider: "auto"
+  default: "deepseek-v4-flash"
+  # plugin-registered provider 名(canonical)を直接指定。
+  provider: "opencode-go"
 
 mcp_servers:
-  # Minakata MCP サーバー(Streamable HTTP, Bearer 認証)
+  # Minakata MCP サーバー(Streamable HTTP, Bearer 認証)。
+  # ${MCP_TOKEN} は hermes コンテナの environment 経由で展開される。
   minakata:
     url: "http://minakata:3000/mcp"
     headers:
       Authorization: "Bearer ${MCP_TOKEN}"
-
-skills:
-  # 私たちのカスタム skill は /opt/hermes-minakata-skills (host: hermes/skills)
-  # に read-only マウントしてある。external_dirs に登録すると Hermes 内蔵 skill
-  # と並んで検索対象になる(read-only。skill 編集は host 側で git commit する)。
-  external_dirs:
-    - "/opt/hermes-minakata-skills"
