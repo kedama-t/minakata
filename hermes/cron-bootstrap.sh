@@ -75,8 +75,17 @@ write_env_kv FIRECRAWL_API_KEY "${FIRECRAWL_API_KEY:-}"
 chown hermes:hermes "$HERMES_ENV_FILE" 2>/dev/null || true
 chmod 600 "$HERMES_ENV_FILE" 2>/dev/null || true
 
-# 残り(provider / model 名)は config.yaml に持つので set コマンド経由で
-# OK(API key と違って .env override 不要)。
+# 上の .env への直書きで `_resolve_api_key_provider_secret` の env 経路
+# (hermes_cli/auth.py:606) はカバーできるはずだが、なぜか cron context で
+# 拾われないケースがあるので credential pool にも登録しておく
+# (env で見つからない時のフォールバック先、auth.py:613)。
+if [ -n "${OPENCODE_GO_API_KEY:-}" ]; then
+    echo "[minakata-cron] register OpenCode Go in credential pool"
+    hermes_run auth add opencode-go --type api_key --api-key "$OPENCODE_GO_API_KEY" \
+        >/dev/null 2>&1 || echo "[minakata-cron] WARN: hermes auth add failed"
+fi
+
+# provider / model 名は config.yaml に書く(API key 以外なので .env 不要)。
 hermes_run config set model.provider opencode-go >/dev/null 2>&1 || true
 hermes_run config set model.default deepseek-v4-flash >/dev/null 2>&1 || true
 
