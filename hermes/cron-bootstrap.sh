@@ -111,6 +111,15 @@ fi
 hermes_run config set model.provider opencode-go >/dev/null 2>&1 || true
 hermes_run config set model.default deepseek-v4-flash >/dev/null 2>&1 || true
 
+# 我々の subagent は MCP minakata.* と web しか要らない。terminal /
+# code_execution / file は危険(任意 shell, sandbox, file 書込)で、
+# しかも `approvals.cron_mode: deny` (default) で cron では approval が
+# 常に deny されるためツール呼び出しが永遠に詰まる。global で disable
+# しておけば agent はそもそも呼ばない(#52)。
+echo "[minakata-cron] disable risky toolsets for cron context"
+hermes_run config set agent.disabled_toolsets "terminal,code_execution,file" \
+    >/dev/null 2>&1 || echo "[minakata-cron] WARN: failed to set disabled_toolsets"
+
 # `hermes cron list` 出力の "    Name:      <name>" 行と name の完全一致で
 # 既存チェック(create が success だったか確認するためにも再利用する)。
 job_registered() {
