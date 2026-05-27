@@ -1,5 +1,4 @@
-# `docker compose -f docker/docker-compose.yml up -d` で起動する想定
-# tech-stack.md §5.9 を参照
+# `bun run compose:up` で起動する想定。詳細は README.md / tech-stack.md §5.9
 name: minakata
 
 services:
@@ -30,37 +29,36 @@ services:
       start_period: 20s
 
   hermes:
-    # 公式イメージ(Docker Hub: nousresearch/hermes-agent)。`:main` で固定。
-    # minakata 単体は agent 無しでも UI 起動する(MCP は手動 enqueue/curl で叩ける)。
+    # 公式 image (Docker Hub: nousresearch/hermes-agent)。`:main` で固定。
+    # `bun run compose:up:agent` (--profile agent) で起動する。
     image: nousresearch/hermes-agent:main
     profiles: ["agent"]
-    # default の CMD は bare `hermes`(TUI)で、container には TTY が無いので
-    # 必ず first-run 検出に引っかかって sys.exit(1) → s6 が無限再起動する。
-    # `gateway run` は headless 長期稼働モード(first-run check 無し)で、
-    # cron スケジューラもこの上で動かす想定(#44)。
+    # default の CMD は bare `hermes`(TUI)。container には TTY が無いので
+    # first-run 検出で sys.exit(1) → s6 が無限再起動する。`gateway run` は
+    # headless 長期稼働モードで cron スケジューラもこの上で動く。
     command: ["gateway", "run"]
+    # 公式 Docker docs (https://hermes-agent.nousresearch.com/docs/user-guide/docker)
+    # 通り、$HERMES_HOME (/opt/data) 丸ごとを host の hermes/ に bind mount する。
+    # これで /opt/data 配下が host から見える = config.yaml / skills / cron /
+    # sessions / logs などすべて hermes/ に一元化される。生成物は
+    # hermes/.gitignore で除外済み(#52)。
     volumes:
-      # /opt/data は Hermes が runtime state (cron/jobs.json, sessions, logs,
-      # memories, ...) を書き込む dir。hermes-cron-init と共有して同じ
-      # jobs.json に書けるよう named volume にする(以前は anonymous)。
-      # 既存 anonymous volume からの移行は `podman volume prune` で消してから
-      # 起動。詳細は README.md 参照(#46)。
-      - hermes-data:/opt/data
-      # 私たちの custom config と skills を Hermes に届ける(#44)。
-      # - config.yaml は read-only bind mount で declarative の単一情報源に
-      # - skills は external_dirs 経由で読ませる(/opt/data/skills/ にぶつけて
-      #   Hermes 内蔵 skills と混ざるのを避ける)
+      - ../hermes:/opt/data
+      # config.yaml だけ :ro で override する。これで Hermes が起動時に
+      # defaults を展開して config.yaml を再書き込みしようとしても block
+      # され、host 側 hermes/config.yaml が我々の canonical な minimal
+      # 設定のまま維持できる(git status が汚れない、#52)。
       - ../hermes/config.yaml:/opt/data/config.yaml:ro
-      - ../hermes/skills:/opt/hermes-minakata-skills:ro
+      # cron job の登録は cont-init.d hook で自動化。本体 (main-hermes)
+      # 起動前に s6 init が走らせるので、別コンテナ・別プロセスを増やさず済む。
+      - ../hermes/cron-bootstrap.sh:/etc/cont-init.d/99-minakata-cron:ro
     environment:
-      # podman rootless では UID マッピングを揃えないと chown が無視され、
-      # その後の skills_sync.py で PermissionError になる(#42)。
-      # ホスト側で `HERMES_UID=$(id -u) HERMES_GID=$(id -g)` を .env に書く。
+      # podman rootless では UID マッピングを揃えないと /opt/data の chown
+      # が無視され、後段で PermissionError になる(#42)。ホスト側で
+      # `HERMES_UID=$(id -u)` / `HERMES_GID=$(id -g)` を .env に書く。
       HERMES_UID: "${HERMES_UID:-10000}"
       HERMES_GID: "${HERMES_GID:-10000}"
-      # OpenCode Go (https://opencode.ai/docs/go/) を OpenAI 互換として登録。
-      # base_url は plugins/model-providers/opencode-zen/__init__.py で
-      # ハードコードされており、OPENAI_API_BASE は無視される。env 名も
+      # OpenCode Go provider。base_url は plugin で hardcode、env 名も
       # 専用の OPENCODE_GO_API_KEY を使う(汎用 OPENAI_API_KEY ではない)。
       OPENCODE_GO_API_KEY: "${OPENCODE_API_KEY}"
       FIRECRAWL_API_KEY: "${FIRECRAWL_API_KEY}"
@@ -74,34 +72,6 @@ services:
         condition: service_started
     restart: unless-stopped
 
-  # Minakata の 5 つの subagent skill を Hermes cron に登録する one-shot コンテナ。
-  # hermes 本体と /opt/data (named volume hermes-data) を共有しているため、
-  # ここで `hermes cron create` した job が hermes 本体のスケジューラから
-  # 拾われる。idempotent なので毎回 compose up しても重複生成しない。
-  hermes-cron-init:
-    image: nousresearch/hermes-agent:main
-    profiles: ["agent"]
-    volumes:
-      - hermes-data:/opt/data
-      - ../hermes/config.yaml:/opt/data/config.yaml:ro
-      - ../hermes/cron-bootstrap.sh:/opt/hermes-cron-bootstrap.sh:ro
-    environment:
-      HERMES_UID: "${HERMES_UID:-10000}"
-      HERMES_GID: "${HERMES_GID:-10000}"
-      OPENCODE_GO_API_KEY: "${OPENCODE_API_KEY}"
-      MCP_TOKEN: "${MCP_TOKEN}"
-    depends_on:
-      hermes:
-        condition: service_started
-    # one-shot: 5 cron 登録が終わったら exit する。restart 無し。
-    # 公式 ENTRYPOINT (/init = s6-overlay) は使わない。s6 経由だと
-    # main-hermes service が init コンテナ側でも起動し、本体コンテナと
-    # /opt/data/logs/gateways/default/lock を奪い合って Resource busy
-    # になる。stage2-hook の初期化は本体コンテナで既に終わっているので
-    # init コンテナでは bootstrap script を直接 exec すれば十分。
-    restart: "no"
-    entrypoint: ["/opt/hermes-cron-bootstrap.sh"]
-
   searxng:
     image: searxng/searxng:latest
     volumes:
@@ -113,8 +83,3 @@ services:
     expose:
       - "8080"
     restart: unless-stopped
-
-volumes:
-  # Hermes の $HERMES_HOME = /opt/data。cron/jobs.json, sessions/, logs/,
-  # memories/ などの runtime state を保持。hermes と hermes-cron-init で共有。
-  hermes-data:

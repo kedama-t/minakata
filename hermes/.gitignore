@@ -1,19 +1,60 @@
-# 現状の compose では hermes/config.yaml と hermes/skills/ だけを Hermes
-# コンテナに :ro マウントしているため、runtime state (sessions/logs/cron/
-# memories/...) はホストに漏れない (`/opt/data` は anonymous volume)。
-# 将来 hermes/ 丸ごとを bind mount する構成に切替えた場合に runtime state
-# を誤コミットしないよう、保険として代表的なパスを ignore しておく。
+# `../hermes` を `/opt/data` に bind mount しているので、Hermes が生成・
+# 更新する大量の runtime state がここに展開される(#52)。git track したい
+# のは下記だけ:
+#   - .gitignore
+#   - config.yaml (Hermes が re-write することもあるが canonical 源を保持)
+#   - cron-bootstrap.sh
+#   - skills/{我々の 5 subagent}
+# それ以外は基本全部 ignore。
 
-/sessions/
-/logs/
+# --- skills: 我々の 5 つだけ残し、Hermes 内蔵 sync 分は ignore ---
+/skills/*
+!/skills/changelog_writer/
+!/skills/daily_research/
+!/skills/dialogue/
+!/skills/freshness_checker/
+!/skills/researcher/
+
+# --- Hermes 生成のディレクトリ ---
+/.cache/
+/.hermes/
+/.local/
+/audio_cache/
+/bin/
+/cache/
 /cron/
-/memories/
-/hooks/
-/skins/
-/plans/
-/workspace/
 /home/
-/.install_method
+/hooks/
+/image_cache/
+/logs/
+/memories/
+/pairing/
+/pastes/
+/plans/
+/profiles/
+/sandboxes/
+/sessions/
+/skins/
+/workspace/
+/.hub/
+
+# --- Hermes が seed / 書き込む単発ファイル ---
 /.env
+/.hermes_history
+/.install_method
+/.container-mode
+/.managed
+/.update_check
+/active_profile
 /auth.json
+/auth.lock
 /config.yaml.bak
+/interrupt_debug.log
+/models_dev_cache.json
+/ollama_cloud_models_cache.json
+/SOUL.md
+/state.db
+/state.db-*
+
+# --- Hermes が investigation 中に作る debug script ---
+/_check_*.py

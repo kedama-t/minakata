@@ -1,40 +1,65 @@
-#!/bin/sh
+#!/command/with-contenv sh
 # hermes/cron-bootstrap.sh
 #
-# Minakata の 5 つの subagent skill を Hermes cron に登録する idempotent script。
-# docker/docker-compose.yml の hermes-cron-init サービスから one-shot 実行される
-# 想定(hermes 本体コンテナと /opt/data を共有 named volume で共有)。
+# s6-overlay の cont-init.d hook として実行される(docker-compose.yml で
+# `/etc/cont-init.d/99-minakata-cron` に :ro mount してある)。
+# stage2-hook (`01-hermes-setup`) の後、main-hermes サービスが起動する前に
+# root として 1 回呼ばれる。
 #
-# `hermes cron create` は重複検出を持たないため、`hermes cron list` の出力を
-# 名前 (`minakata-<skill>`) で grep して既存なら skip / 無ければ create する。
-# `hermes cron list` の出力は "    Name:      <name>" 形式(末尾改行)。
+# shebang に `/command/with-contenv` を使うことで s6-overlay v3 の
+# /run/s6/container_environment/ から container env を呼び戻している。
+# 素の #!/bin/sh だと OPENCODE_GO_API_KEY 等が UNSET になる。
+#
+# やること:
+#   (a) compose 経由で渡された API key を /opt/data/.env に書く
+#       (s6 supervised プロセスは container env を継承しないため、cron
+#        scheduler の load_dotenv が拾えるよう .env に persist する必要)
+#   (b) Minakata の 5 subagent skill 用 cron job を idempotent に登録
+#
+# 設定 (model / provider / mcp_servers / disabled_toolsets) は
+# `hermes/config.yaml` に baked in 済み。compose が config.yaml を :ro
+# mount するので、このスクリプトから書き換えるべきものは無い。
 
 set -eu
 
-# 公式イメージの ENV PATH と同じく venv を先頭に置く(image の ENTRYPOINT
-# /init を bypass しているため activate スクリプトが走らない、を補う)。
-export PATH="/opt/hermes/.venv/bin:${PATH}"
+PATH="/opt/hermes/.venv/bin:${PATH}"
+export PATH
 
-# main-hermes コンテナ側の stage2-hook が /opt/data を初期化するのを待つ。
-# `hermes cron list` が exit 0 で返るまで最大 60 秒リトライ。
-echo "[cron-bootstrap] waiting for hermes runtime to become ready..."
-ready=false
-for _ in $(seq 1 30); do
-    if hermes cron list >/dev/null 2>&1; then
-        ready=true
-        break
+# --- (a) API key を .env に persist する -----------------------------------
+
+HERMES_ENV_FILE="${HERMES_HOME:-/opt/data}/.env"
+write_env_kv() {
+    key=$1
+    value=$2
+    [ -z "$value" ] && return 0
+    if [ -f "$HERMES_ENV_FILE" ]; then
+        # 既存の `KEY=...` 行を削除(コメント `# KEY=` はそのまま残す)。
+        sed -i.bak "/^$key=/d" "$HERMES_ENV_FILE"
+        rm -f "$HERMES_ENV_FILE.bak"
+    else
+        touch "$HERMES_ENV_FILE"
     fi
-    sleep 2
-done
-if [ "$ready" != true ]; then
-    echo "[cron-bootstrap] hermes never became ready; aborting" >&2
-    exit 1
-fi
+    printf '%s=%s\n' "$key" "$value" >> "$HERMES_ENV_FILE"
+}
 
-# `hermes cron list` の "Name:" 行と比較する正規表現。
-# 例: "    Name:      minakata-dialogue"(末尾改行)
+echo "[minakata-cron] sync API keys → $HERMES_ENV_FILE"
+write_env_kv OPENCODE_GO_API_KEY "${OPENCODE_GO_API_KEY:-}"
+write_env_kv FIRECRAWL_API_KEY "${FIRECRAWL_API_KEY:-}"
+chown hermes:hermes "$HERMES_ENV_FILE" 2>/dev/null || true
+chmod 600 "$HERMES_ENV_FILE" 2>/dev/null || true
+
+# --- (b) cron job を idempotent に登録 -------------------------------------
+
+# hermes コマンドは hermes user 権限で実行する(jobs.json の owner が
+# hermes になるように)。s6-setuidgid は s6-overlay の組込み。
+hermes_run() {
+    s6-setuidgid hermes hermes "$@"
+}
+
+# `hermes cron list` 出力の "    Name:      <name>" 行と name の完全一致で
+# 既存チェック(create が success だったか確認するためにも再利用する)。
 job_registered() {
-    hermes cron list 2>/dev/null | grep -qE "^[[:space:]]*Name:[[:space:]]+$1$"
+    hermes_run cron list 2>/dev/null | grep -qE "^[[:space:]]*Name:[[:space:]]+$1$"
 }
 
 ensure_cron() {
@@ -44,27 +69,27 @@ ensure_cron() {
     prompt=$4
 
     if job_registered "$name"; then
-        echo "[cron-bootstrap] $name already exists; skip"
+        echo "[minakata-cron] $name already exists; skip"
         return 0
     fi
 
-    echo "[cron-bootstrap] create $name (schedule=$schedule skill=$skill)"
-    # `hermes cron create` は失敗しても exit 0 で返す場合があるため、
-    # create 後に再度 list を読んで実在を確認する。
-    hermes cron create "$schedule" "$prompt" --skill "$skill" --name "$name" || true
+    echo "[minakata-cron] create $name (schedule=$schedule skill=$skill)"
+    # hermes cron create は失敗時も exit 0 で返ることがあるので、create 後に
+    # 必ず list で実在確認する。
+    hermes_run cron create "$schedule" "$prompt" --skill "$skill" --name "$name" || true
     if job_registered "$name"; then
-        echo "[cron-bootstrap] OK: $name registered"
+        echo "[minakata-cron] OK: $name registered"
     else
-        echo "[cron-bootstrap] FAILED to register $name. Current cron list:" >&2
-        hermes cron list 2>&1 | sed 's/^/  /' >&2
+        echo "[minakata-cron] FAILED to register $name. Current cron list:" >&2
+        hermes_run cron list 2>&1 | sed 's/^/  /' >&2
         return 1
     fi
 }
 
 # schedule format の制約 (cron/jobs.py parse_duration / parse_schedule より):
 # - `every <N>m` / `every <N>h` / `every <N>d` のみ。`s` (秒) は不可
-# - 「毎日 HH:MM」のような時刻指定は **cron 式** で書く (`0 7 * * *` = 毎日 07:00)
-# - gateway tick が 60s なので秒単位の interval は意味なし、1m を最小粒度として扱う
+# - 「毎日 HH:MM」のような時刻指定は cron 式で書く(`0 7 * * *` = 毎日 07:00)
+# - gateway tick が 60s なので秒単位の interval は意味なし、1m が最小粒度
 
 ensure_cron "minakata-dialogue" "every 1m" "dialogue" \
     "Poll Minakata for new user chat messages and respond. Follow the dialogue skill's rules."
@@ -81,4 +106,4 @@ ensure_cron "minakata-freshness-checker" "every 6h" "freshness_checker" \
 ensure_cron "minakata-changelog-writer" "0 7 * * *" "changelog_writer" \
     "Summarize yesterday's research agent activity into a ChangeLog article. Follow the changelog_writer skill's rules."
 
-echo "[cron-bootstrap] done"
+echo "[minakata-cron] done"
