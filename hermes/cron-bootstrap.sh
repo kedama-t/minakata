@@ -75,6 +75,28 @@ write_env_kv FIRECRAWL_API_KEY "${FIRECRAWL_API_KEY:-}"
 chown hermes:hermes "$HERMES_ENV_FILE" 2>/dev/null || true
 chmod 600 "$HERMES_ENV_FILE" 2>/dev/null || true
 
+# 防御策: gateway プロセスが HERMES_HOME env を継承しないと
+# `get_hermes_home()` が Path.home() / ".hermes" にフォールバックして
+# /opt/data/.hermes/.env を見にいってしまう症状を回避するため、
+# /opt/data/.hermes/ に主要ファイルへのシンボリックリンクを張る(#52)。
+HERMES_FALLBACK_DIR="${HERMES_HOME:-/opt/data}/.hermes"
+mkdir -p "$HERMES_FALLBACK_DIR"
+for entry in .env config.yaml cron skills sessions logs memories hooks SOUL.md auth.json state.db; do
+    src="${HERMES_HOME:-/opt/data}/$entry"
+    dest="$HERMES_FALLBACK_DIR/$entry"
+    if [ -e "$src" ] && [ ! -e "$dest" ]; then
+        ln -sfn "$src" "$dest"
+    fi
+done
+chown -h hermes:hermes "$HERMES_FALLBACK_DIR"/* 2>/dev/null || true
+
+# 診断: gateway プロセスから見た HERMES_HOME を Python で解決して出力する
+# (Hermes と同じロジックを直接呼ぶ)。
+echo "[minakata-cron] resolve HERMES_HOME from hermes runtime:"
+s6-setuidgid hermes /opt/hermes/.venv/bin/python -c \
+    "from hermes_constants import get_hermes_home; print('    HERMES_HOME =', get_hermes_home())" \
+    2>&1 | sed 's/^/    /' || echo "    (diagnostic failed)"
+
 # 上の .env への直書きで `_resolve_api_key_provider_secret` の env 経路
 # (hermes_cli/auth.py:606) はカバーできるはずだが、なぜか cron context で
 # 拾われないケースがあるので credential pool にも登録しておく
