@@ -116,9 +116,23 @@ hermes_run config set model.default deepseek-v4-flash >/dev/null 2>&1 || true
 # しかも `approvals.cron_mode: deny` (default) で cron では approval が
 # 常に deny されるためツール呼び出しが永遠に詰まる。global で disable
 # しておけば agent はそもそも呼ばない(#52)。
+#
+# `hermes config set` の list 値ハンドリングが信用できない(文字列扱い
+# される疑い)ので Python で直接 YAML を書き換える。
 echo "[minakata-cron] disable risky toolsets for cron context"
-hermes_run config set agent.disabled_toolsets "terminal,code_execution,file" \
-    >/dev/null 2>&1 || echo "[minakata-cron] WARN: failed to set disabled_toolsets"
+s6-setuidgid hermes /opt/hermes/.venv/bin/python - <<'PY'
+import yaml
+from pathlib import Path
+
+cfg_path = Path("/opt/data/config.yaml")
+cfg = yaml.safe_load(cfg_path.read_text()) if cfg_path.exists() else {}
+if not isinstance(cfg, dict):
+    cfg = {}
+agent = cfg.setdefault("agent", {})
+agent["disabled_toolsets"] = ["terminal", "code_execution", "file"]
+cfg_path.write_text(yaml.safe_dump(cfg, sort_keys=False))
+print("    disabled_toolsets =", agent["disabled_toolsets"])
+PY
 
 # `hermes cron list` 出力の "    Name:      <name>" 行と name の完全一致で
 # 既存チェック(create が success だったか確認するためにも再利用する)。
