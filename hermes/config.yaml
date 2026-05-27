@@ -1,5 +1,6 @@
-# Hermes Agent 設定。`../hermes` を `/opt/data` に bind mount するので、
-# このファイルが `/opt/data/config.yaml` として読まれる(#52)。
+# Hermes Agent 設定。`../hermes` を `/opt/data` に bind mount + config.yaml
+# だけ :ro override しているので、Hermes はこのファイルを rewrite できない
+# (#52)。設定変更したい時はホスト側でこのファイルを編集 + コンテナ再起動。
 # schema は公式 cli-config.yaml.example に準拠。
 
 model:
@@ -8,6 +9,16 @@ model:
   default: "deepseek-v4-flash"
   # plugin-registered provider 名(canonical)を直接指定。
   provider: "opencode-go"
+
+agent:
+  # cron 経由 subagent では危険な toolset を完全に無効化する。
+  # `approvals.cron_mode: deny` (Hermes default) で terminal の approval
+  # request が永遠に詰まるため、agent に呼ばせない方が安全。
+  # 我々の skill は MCP minakata.* と web しか必要としない。
+  disabled_toolsets:
+    - terminal
+    - code_execution
+    - file
 
 mcp_servers:
   # Minakata MCP サーバー(Streamable HTTP, Bearer 認証)。

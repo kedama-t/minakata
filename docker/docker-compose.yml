@@ -44,6 +44,11 @@ services:
     # hermes/.gitignore で除外済み(#52)。
     volumes:
       - ../hermes:/opt/data
+      # config.yaml だけ :ro で override する。これで Hermes が起動時に
+      # defaults を展開して config.yaml を再書き込みしようとしても block
+      # され、host 側 hermes/config.yaml が我々の canonical な minimal
+      # 設定のまま維持できる(git status が汚れない、#52)。
+      - ../hermes/config.yaml:/opt/data/config.yaml:ro
       # cron job の登録は cont-init.d hook で自動化。本体 (main-hermes)
       # 起動前に s6 init が走らせるので、別コンテナ・別プロセスを増やさず済む。
       - ../hermes/cron-bootstrap.sh:/etc/cont-init.d/99-minakata-cron:ro

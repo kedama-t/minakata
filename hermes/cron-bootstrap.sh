@@ -8,57 +8,32 @@
 #
 # shebang に `/command/with-contenv` を使うことで s6-overlay v3 の
 # /run/s6/container_environment/ から container env を呼び戻している。
-# 素の #!/bin/sh だと OPENCODE_GO_API_KEY 等が UNSET になって `hermes
-# config set` が API key を書けない(#52)。
+# 素の #!/bin/sh だと OPENCODE_GO_API_KEY 等が UNSET になる。
 #
-# やること: Minakata の 5 subagent skill 用 cron job を idempotent に登録。
-# `hermes cron create` は jobs.json への file write しかしないので gateway
-# が起動していなくても問題なく動く。各 job を `--name "minakata-<skill>"`
-# で識別し、既存ならスキップする。
+# やること:
+#   (a) compose 経由で渡された API key を /opt/data/.env に書く
+#       (s6 supervised プロセスは container env を継承しないため、cron
+#        scheduler の load_dotenv が拾えるよう .env に persist する必要)
+#   (b) Minakata の 5 subagent skill 用 cron job を idempotent に登録
+#
+# 設定 (model / provider / mcp_servers / disabled_toolsets) は
+# `hermes/config.yaml` に baked in 済み。compose が config.yaml を :ro
+# mount するので、このスクリプトから書き換えるべきものは無い。
 
 set -eu
 
 PATH="/opt/hermes/.venv/bin:${PATH}"
 export PATH
 
-# cont-init.d 内で見える env を診断(値は伏せる)。s6-overlay は通常
-# container env を継承するが、欠けていたら compose 側 / .env / podman の
-# どこかで途切れている合図。
-echo "[minakata-cron] env check:"
-for var in OPENCODE_GO_API_KEY MCP_TOKEN HERMES_UID HERMES_GID FIRECRAWL_API_KEY; do
-    if [ -n "$(eval echo "\${$var:-}")" ]; then
-        echo "    $var: (set)"
-    else
-        echo "    $var: (UNSET or empty)"
-    fi
-done
+# --- (a) API key を .env に persist する -----------------------------------
 
-# hermes コマンドは hermes user 権限で実行する(jobs.json の owner が
-# hermes になるように)。s6-setuidgid は s6-overlay の組込みで PATH 上に
-# 居る前提(stage2-hook も同じ呼び方をしている)。
-# `s6-setuidgid` は環境変数をそのまま継承する(明示的に clean しない)。
-hermes_run() {
-    s6-setuidgid hermes hermes "$@"
-}
-
-# cron scheduler は tick ごとに `load_dotenv(/opt/data/.env, override=True)`
-# を呼んで env を再読込する(cron/scheduler.py:1472)。compose 経由で渡した
-# env だけだと s6 supervised プロセスが container env を継承していないため
-# /opt/data/.env に書いておかないと OPENCODE_GO_API_KEY が cron context で
-# 見えない(#52)。
-#
-# 公式パス (`hermes config set OPENCODE_GO_API_KEY ...`) も .env 書き込みに
-# 帰着するが、サブプロセス・権限経路で詰まることがあるので、確実性のため
-# 直接ファイルに書く。既存行があれば削除して append (idempotent)。
 HERMES_ENV_FILE="${HERMES_HOME:-/opt/data}/.env"
 write_env_kv() {
     key=$1
     value=$2
-    if [ -z "$value" ]; then
-        return 0
-    fi
-    # まず既存の `KEY=...` 行を削除(コメント `# KEY=` はそのまま残す)。
+    [ -z "$value" ] && return 0
     if [ -f "$HERMES_ENV_FILE" ]; then
+        # 既存の `KEY=...` 行を削除(コメント `# KEY=` はそのまま残す)。
         sed -i.bak "/^$key=/d" "$HERMES_ENV_FILE"
         rm -f "$HERMES_ENV_FILE.bak"
     else
@@ -70,69 +45,16 @@ write_env_kv() {
 echo "[minakata-cron] sync API keys → $HERMES_ENV_FILE"
 write_env_kv OPENCODE_GO_API_KEY "${OPENCODE_GO_API_KEY:-}"
 write_env_kv FIRECRAWL_API_KEY "${FIRECRAWL_API_KEY:-}"
-# hermes user が読めるようにする(stage2-hook が後で chmod 600 し直すが
-# 念のため owner も合わせる)。
 chown hermes:hermes "$HERMES_ENV_FILE" 2>/dev/null || true
 chmod 600 "$HERMES_ENV_FILE" 2>/dev/null || true
 
-# 防御策: gateway プロセスが HERMES_HOME env を継承しないと
-# `get_hermes_home()` が Path.home() / ".hermes" にフォールバックして
-# /opt/data/.hermes/.env を見にいってしまう症状を回避するため、
-# /opt/data/.hermes/ に主要ファイルへのシンボリックリンクを張る(#52)。
-HERMES_FALLBACK_DIR="${HERMES_HOME:-/opt/data}/.hermes"
-mkdir -p "$HERMES_FALLBACK_DIR"
-for entry in .env config.yaml cron skills sessions logs memories hooks SOUL.md auth.json state.db; do
-    src="${HERMES_HOME:-/opt/data}/$entry"
-    dest="$HERMES_FALLBACK_DIR/$entry"
-    if [ -e "$src" ] && [ ! -e "$dest" ]; then
-        ln -sfn "$src" "$dest"
-    fi
-done
-chown -h hermes:hermes "$HERMES_FALLBACK_DIR"/* 2>/dev/null || true
+# --- (b) cron job を idempotent に登録 -------------------------------------
 
-# 診断: gateway プロセスから見た HERMES_HOME を Python で解決して出力する
-# (Hermes と同じロジックを直接呼ぶ)。
-echo "[minakata-cron] resolve HERMES_HOME from hermes runtime:"
-s6-setuidgid hermes /opt/hermes/.venv/bin/python -c \
-    "from hermes_constants import get_hermes_home; print('    HERMES_HOME =', get_hermes_home())" \
-    2>&1 | sed 's/^/    /' || echo "    (diagnostic failed)"
-
-# 上の .env への直書きで `_resolve_api_key_provider_secret` の env 経路
-# (hermes_cli/auth.py:606) はカバーできるはずだが、なぜか cron context で
-# 拾われないケースがあるので credential pool にも登録しておく
-# (env で見つからない時のフォールバック先、auth.py:613)。
-if [ -n "${OPENCODE_GO_API_KEY:-}" ]; then
-    echo "[minakata-cron] register OpenCode Go in credential pool"
-    hermes_run auth add opencode-go --type api_key --api-key "$OPENCODE_GO_API_KEY" \
-        >/dev/null 2>&1 || echo "[minakata-cron] WARN: hermes auth add failed"
-fi
-
-# provider / model 名は config.yaml に書く(API key 以外なので .env 不要)。
-hermes_run config set model.provider opencode-go >/dev/null 2>&1 || true
-hermes_run config set model.default deepseek-v4-flash >/dev/null 2>&1 || true
-
-# 我々の subagent は MCP minakata.* と web しか要らない。terminal /
-# code_execution / file は危険(任意 shell, sandbox, file 書込)で、
-# しかも `approvals.cron_mode: deny` (default) で cron では approval が
-# 常に deny されるためツール呼び出しが永遠に詰まる。global で disable
-# しておけば agent はそもそも呼ばない(#52)。
-#
-# `hermes config set` の list 値ハンドリングが信用できない(文字列扱い
-# される疑い)ので Python で直接 YAML を書き換える。
-echo "[minakata-cron] disable risky toolsets for cron context"
-s6-setuidgid hermes /opt/hermes/.venv/bin/python - <<'PY'
-import yaml
-from pathlib import Path
-
-cfg_path = Path("/opt/data/config.yaml")
-cfg = yaml.safe_load(cfg_path.read_text()) if cfg_path.exists() else {}
-if not isinstance(cfg, dict):
-    cfg = {}
-agent = cfg.setdefault("agent", {})
-agent["disabled_toolsets"] = ["terminal", "code_execution", "file"]
-cfg_path.write_text(yaml.safe_dump(cfg, sort_keys=False))
-print("    disabled_toolsets =", agent["disabled_toolsets"])
-PY
+# hermes コマンドは hermes user 権限で実行する(jobs.json の owner が
+# hermes になるように)。s6-setuidgid は s6-overlay の組込み。
+hermes_run() {
+    s6-setuidgid hermes hermes "$@"
+}
 
 # `hermes cron list` 出力の "    Name:      <name>" 行と name の完全一致で
 # 既存チェック(create が success だったか確認するためにも再利用する)。
