@@ -23,6 +23,17 @@ hermes_run() {
     s6-setuidgid hermes hermes "$@"
 }
 
+# 公式 quickstart の推奨フロー: `hermes config set` 経由でプロバイダと
+# モデルを登録する(env だけだと cron context の resolve loop で取りこぼす
+# 症状が出ていた、#50/#52)。.env / config.yaml / auth store に必要な
+# エントリが全部揃うので、gateway 側の auth resolver が確実にヒットする。
+if [ -n "${OPENCODE_GO_API_KEY:-}" ]; then
+    echo "[minakata-cron] register OpenCode Go via hermes config set"
+    hermes_run config set OPENCODE_GO_API_KEY "$OPENCODE_GO_API_KEY" >/dev/null 2>&1 || true
+fi
+hermes_run config set model.provider opencode-go >/dev/null 2>&1 || true
+hermes_run config set model.default deepseek-v4-flash >/dev/null 2>&1 || true
+
 # `hermes cron list` 出力の "    Name:      <name>" 行と name の完全一致で
 # 既存チェック(create が success だったか確認するためにも再利用する)。
 job_registered() {
