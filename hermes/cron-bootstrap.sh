@@ -41,16 +41,42 @@ hermes_run() {
     s6-setuidgid hermes hermes "$@"
 }
 
-# 公式 quickstart の推奨フロー: `hermes config set` 経由でプロバイダと
-# モデルを登録する(env だけだと cron context の resolve loop で取りこぼす
-# 症状が出ていた、#50/#52)。.env / config.yaml に必要なエントリが全部
-# 揃うので、gateway 側の auth resolver が確実にヒットする。
-if [ -n "${OPENCODE_GO_API_KEY:-}" ]; then
-    echo "[minakata-cron] register OpenCode Go via hermes config set"
-    hermes_run config set OPENCODE_GO_API_KEY "$OPENCODE_GO_API_KEY" >/dev/null 2>&1 || true
-else
-    echo "[minakata-cron] WARN: OPENCODE_GO_API_KEY not in env; skipping API key registration"
-fi
+# cron scheduler は tick ごとに `load_dotenv(/opt/data/.env, override=True)`
+# を呼んで env を再読込する(cron/scheduler.py:1472)。compose 経由で渡した
+# env だけだと s6 supervised プロセスが container env を継承していないため
+# /opt/data/.env に書いておかないと OPENCODE_GO_API_KEY が cron context で
+# 見えない(#52)。
+#
+# 公式パス (`hermes config set OPENCODE_GO_API_KEY ...`) も .env 書き込みに
+# 帰着するが、サブプロセス・権限経路で詰まることがあるので、確実性のため
+# 直接ファイルに書く。既存行があれば削除して append (idempotent)。
+HERMES_ENV_FILE="${HERMES_HOME:-/opt/data}/.env"
+write_env_kv() {
+    key=$1
+    value=$2
+    if [ -z "$value" ]; then
+        return 0
+    fi
+    # まず既存の `KEY=...` 行を削除(コメント `# KEY=` はそのまま残す)。
+    if [ -f "$HERMES_ENV_FILE" ]; then
+        sed -i.bak "/^$key=/d" "$HERMES_ENV_FILE"
+        rm -f "$HERMES_ENV_FILE.bak"
+    else
+        touch "$HERMES_ENV_FILE"
+    fi
+    printf '%s=%s\n' "$key" "$value" >> "$HERMES_ENV_FILE"
+}
+
+echo "[minakata-cron] sync API keys → $HERMES_ENV_FILE"
+write_env_kv OPENCODE_GO_API_KEY "${OPENCODE_GO_API_KEY:-}"
+write_env_kv FIRECRAWL_API_KEY "${FIRECRAWL_API_KEY:-}"
+# hermes user が読めるようにする(stage2-hook が後で chmod 600 し直すが
+# 念のため owner も合わせる)。
+chown hermes:hermes "$HERMES_ENV_FILE" 2>/dev/null || true
+chmod 600 "$HERMES_ENV_FILE" 2>/dev/null || true
+
+# 残り(provider / model 名)は config.yaml に持つので set コマンド経由で
+# OK(API key と違って .env override 不要)。
 hermes_run config set model.provider opencode-go >/dev/null 2>&1 || true
 hermes_run config set model.default deepseek-v4-flash >/dev/null 2>&1 || true
 
