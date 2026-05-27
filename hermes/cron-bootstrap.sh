@@ -1,10 +1,15 @@
-#!/bin/sh
+#!/command/with-contenv sh
 # hermes/cron-bootstrap.sh
 #
 # s6-overlay の cont-init.d hook として実行される(docker-compose.yml で
 # `/etc/cont-init.d/99-minakata-cron` に :ro mount してある)。
 # stage2-hook (`01-hermes-setup`) の後、main-hermes サービスが起動する前に
 # root として 1 回呼ばれる。
+#
+# shebang に `/command/with-contenv` を使うことで s6-overlay v3 の
+# /run/s6/container_environment/ から container env を呼び戻している。
+# 素の #!/bin/sh だと OPENCODE_GO_API_KEY 等が UNSET になって `hermes
+# config set` が API key を書けない(#52)。
 #
 # やること: Minakata の 5 subagent skill 用 cron job を idempotent に登録。
 # `hermes cron create` は jobs.json への file write しかしないので gateway
