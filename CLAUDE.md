@@ -61,6 +61,7 @@ packages/
 
 ## 技術スタック(必ず守ること)
 
+- **コンテナランタイム**: **Podman**(`docker` ではなく `podman` / `podman compose` を使う)。rootless 運用のため `.env` に `HERMES_UID` / `HERMES_GID` の設定が必須
 - **ランタイム**: Bun 1.x で統一(P8)。Node.js / pnpm / npm は使わない
 - **SQLite**: `bun:sqlite` を使う(`better-sqlite3` は不採用)
 - **拡張**: FTS5(全文検索)、`sqlite-vec`(ベクトル検索、768次元固定)
