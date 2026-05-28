@@ -17,6 +17,7 @@ export interface TaskRow {
   parent_task_id: string | null
   parent_review_id: string | null
   dedup_key: string | null
+  requested_by: string | null
   cost_usd: number
   created_at: string
   updated_at: string
@@ -29,6 +30,7 @@ export interface EnqueueInput {
   dedup_key?: string | null | undefined
   parent_task_id?: string | null | undefined
   parent_review_id?: string | null | undefined
+  requested_by?: string | null | undefined
 }
 
 const MAX_ATTEMPTS = 3
@@ -50,8 +52,8 @@ export class TaskService extends EventEmitter {
       this.db
         .prepare(
           `INSERT INTO tasks (id, type, priority, payload_json, parent_task_id, parent_review_id,
-            dedup_key, created_at, updated_at)
-           VALUES ($id, $type, $prio, $payload, $parent, $review, $dedup, $ts, $ts)`,
+            dedup_key, requested_by, created_at, updated_at)
+           VALUES ($id, $type, $prio, $payload, $parent, $review, $dedup, $requested, $ts, $ts)`,
         )
         .run({
           id,
@@ -61,6 +63,7 @@ export class TaskService extends EventEmitter {
           parent: input.parent_task_id ?? null,
           review: input.parent_review_id ?? null,
           dedup: input.dedup_key ?? null,
+          requested: input.requested_by ?? null,
           ts,
         })
     } catch (err) {
@@ -192,6 +195,79 @@ export class TaskService extends EventEmitter {
     this.emit('retrying', id)
   }
 
+  /**
+   * 指定ユーザーが依頼したタスクを `created_at` 降順で返す。
+   * `status` / `type` フィルタ、`before` カーソルページングに対応。
+   * 編集者が「自分の調査依頼の進捗」を見るための画面 (US-3.2 系) で使う。
+   */
+  listByUser(opts: {
+    user_id: string
+    status?: TaskStatus | undefined
+    type?: string | undefined
+    limit?: number | undefined
+    before?: string | undefined
+  }): TaskRow[] {
+    const limit = opts.limit ?? 50
+    const conditions: string[] = ['requested_by = ?']
+    const params: Array<string | number> = [opts.user_id]
+    if (opts.status) {
+      conditions.push('status = ?')
+      params.push(opts.status)
+    }
+    if (opts.type) {
+      conditions.push('type = ?')
+      params.push(opts.type)
+    }
+    if (opts.before) {
+      conditions.push('created_at < ?')
+      params.push(opts.before)
+    }
+    params.push(limit)
+    const rows = this.db
+      .query<TaskRowRaw, Array<string | number>>(
+        `SELECT * FROM tasks
+          WHERE ${conditions.join(' AND ')}
+          ORDER BY created_at DESC, id DESC
+          LIMIT ?`,
+      )
+      .all(...params)
+    return rows.map(hydrate)
+  }
+
+  /** admin 用: 依頼者を問わず全タスクを返す(フィルタ条件は listByUser と同等) */
+  listAll(
+    opts: {
+      status?: TaskStatus | undefined
+      type?: string | undefined
+      limit?: number | undefined
+      before?: string | undefined
+    } = {},
+  ): TaskRow[] {
+    const limit = opts.limit ?? 50
+    const conditions: string[] = []
+    const params: Array<string | number> = []
+    if (opts.status) {
+      conditions.push('status = ?')
+      params.push(opts.status)
+    }
+    if (opts.type) {
+      conditions.push('type = ?')
+      params.push(opts.type)
+    }
+    if (opts.before) {
+      conditions.push('created_at < ?')
+      params.push(opts.before)
+    }
+    params.push(limit)
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+    const rows = this.db
+      .query<TaskRowRaw, Array<string | number>>(
+        `SELECT * FROM tasks ${where} ORDER BY created_at DESC, id DESC LIMIT ?`,
+      )
+      .all(...params)
+    return rows.map(hydrate)
+  }
+
   /** 状態問わず取り消す。`pending_approval` のレビュー差し戻し等で利用 */
   cancel(id: string): void {
     this.db
@@ -214,6 +290,7 @@ interface TaskRowRaw {
   parent_task_id: string | null
   parent_review_id: string | null
   dedup_key: string | null
+  requested_by: string | null
   cost_usd: number
   created_at: string
   updated_at: string
@@ -234,6 +311,7 @@ function hydrate(r: TaskRowRaw): TaskRow {
     parent_task_id: r.parent_task_id,
     parent_review_id: r.parent_review_id,
     dedup_key: r.dedup_key,
+    requested_by: r.requested_by,
     cost_usd: r.cost_usd,
     created_at: r.created_at,
     updated_at: r.updated_at,

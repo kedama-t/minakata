@@ -407,6 +407,7 @@ export function registerTaskTools(server: McpServer, s: McpServices, ctx: CallCo
         dedup_key: z.string().optional(),
         parent_task_id: z.string().optional(),
         parent_review_id: z.string().optional(),
+        requested_by: z.string().optional(),
       },
     },
     async (args) => {
@@ -417,6 +418,7 @@ export function registerTaskTools(server: McpServer, s: McpServices, ctx: CallCo
         dedup_key: args.dedup_key ?? null,
         parent_task_id: args.parent_task_id ?? null,
         parent_review_id: args.parent_review_id ?? null,
+        requested_by: args.requested_by ?? null,
       })
       s.audit.log({
         actor: ctx.agent ?? 'unknown',
