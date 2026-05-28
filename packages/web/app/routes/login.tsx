@@ -33,12 +33,14 @@ export default function Login({ actionData }: Route.ComponentProps) {
           className="w-full px-3 py-2 border rounded"
           placeholder="パスワード"
         />
-        {actionData?.error && <p className="text-red-600 text-sm">{actionData.error}</p>}
+        {actionData?.error && (
+          <p className="text-red-600 dark:text-red-400 text-sm">{actionData.error}</p>
+        )}
         <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded">
           ログイン
         </button>
       </Form>
-      <p className="text-xs text-slate-500 mt-4">
+      <p className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500 mt-4">
         新規ユーザーは管理者の招待リンクから登録できます。
       </p>
     </div>
