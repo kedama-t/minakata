@@ -1,5 +1,6 @@
 import { Links, Meta, Outlet, Scripts, ScrollRestoration, redirect } from 'react-router'
 import type { Route } from './+types/root.ts'
+import { CommandPalette } from './components/command-palette.tsx'
 import { getCurrentUser } from './lib/auth.ts'
 import { getServices } from './lib/services.ts'
 import './styles.css'
@@ -94,6 +95,7 @@ export default function App({ loaderData }: Route.ComponentProps) {
       <main className="flex-1">
         <Outlet />
       </main>
+      {user && <CommandPalette />}
     </div>
   )
 }
