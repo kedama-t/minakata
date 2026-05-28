@@ -17,13 +17,37 @@ export async function loader({ request }: Route.LoaderArgs) {
   const changelogs = services.articles
     .list({ limit: 200 })
     .filter((a) => a.source === 'agent_changelog' && a.updated_at >= sevenDaysAgo)
-  return { recentUpdates, newToday, changelogs }
+  // 直近のエージェント活動 (#61)
+  const recentActivity = services.audit.list({ limit: 10 })
+  return { recentUpdates, newToday, changelogs, recentActivity }
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { recentUpdates, newToday, changelogs } = loaderData
+  const { recentUpdates, newToday, changelogs, recentActivity } = loaderData
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-8">
+      {recentActivity.length > 0 && (
+        <section className="bg-white border rounded p-4">
+          <div className="flex items-baseline justify-between mb-3">
+            <h2 className="text-xl font-bold">エージェント稼働</h2>
+            <a href="/monitor" className="text-xs text-blue-600 hover:underline">
+              すべて見る →
+            </a>
+          </div>
+          <ul className="space-y-1 text-sm">
+            {recentActivity.map((e) => (
+              <li key={e.id} className="flex items-center gap-2">
+                <span className="text-xs text-slate-500 tabular-nums">
+                  {new Date(e.timestamp).toLocaleTimeString('ja-JP')}
+                </span>
+                <span className="text-xs text-slate-500">{e.actor}</span>
+                <span className="text-xs bg-slate-100 px-1.5 py-0.5 rounded">{e.tool_name}</span>
+                {e.agent_name && <span className="text-xs text-slate-400">via {e.agent_name}</span>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       {changelogs.length > 0 && (
         <section className="bg-white dark:bg-slate-800 border rounded p-4">
           <h2 className="text-xl font-bold mb-3">ChangeLog 日報</h2>

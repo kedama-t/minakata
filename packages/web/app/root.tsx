@@ -94,6 +94,8 @@ export default function App({ loaderData }: Route.ComponentProps) {
             >
               ナレッジ質問
             </a>
+            <a href="/monitor" className="hover:text-blue-600">
+              モニター
             <a href="/reviews" className="hover:text-blue-600 dark:hover:text-blue-400">
             <a href="/tasks" className="hover:text-blue-600">
               タスク

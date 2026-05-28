@@ -18,6 +18,8 @@ export interface AuditLogInput {
 export interface AuditLogRow extends AuditLogInput {
   id: string
   timestamp: string
+  /** cost_usd は DB のデフォルトが 0 のため、行としては常に number(input の optional とは別) */
+  cost_usd: number
 }
 
 /**
@@ -71,7 +73,49 @@ export class AuditService extends EventEmitter {
     return id
   }
 
-  list(limit = 100): AuditLogRow[] {
+  /**
+   * 監査ログを時系列降順で返す。`since` / `actor` / `agent_name` / `tool_name`
+   * のフィルタとカーソルページング (`before` = timestamp) に対応。
+   * /monitor 画面と Hermes 稼働状況ウィジェットで使う。
+   */
+  list(
+    opts:
+      | number
+      | {
+          limit?: number | undefined
+          since?: string | undefined
+          before?: string | undefined
+          actor?: string | undefined
+          agent_name?: string | undefined
+          tool_name?: string | undefined
+        } = 100,
+  ): AuditLogRow[] {
+    const o = typeof opts === 'number' ? { limit: opts } : opts
+    const limit = o.limit ?? 100
+    const conditions: string[] = []
+    const params: Array<string | number> = []
+    if (o.since) {
+      conditions.push('timestamp >= ?')
+      params.push(o.since)
+    }
+    if (o.before) {
+      conditions.push('timestamp < ?')
+      params.push(o.before)
+    }
+    if (o.actor) {
+      conditions.push('actor = ?')
+      params.push(o.actor)
+    }
+    if (o.agent_name) {
+      conditions.push('agent_name = ?')
+      params.push(o.agent_name)
+    }
+    if (o.tool_name) {
+      conditions.push('tool_name = ?')
+      params.push(o.tool_name)
+    }
+    params.push(limit)
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
     const rows = this.db
       .query<
         {
@@ -88,9 +132,9 @@ export class AuditService extends EventEmitter {
           cost_usd: number
           metadata_json: string | null
         },
-        [number]
-      >('SELECT * FROM audit_log ORDER BY timestamp DESC LIMIT ?')
-      .all(limit)
+        Array<string | number>
+      >(`SELECT * FROM audit_log ${where} ORDER BY timestamp DESC, id DESC LIMIT ?`)
+      .all(...params)
     return rows.map((r) => ({
       id: r.id,
       timestamp: r.timestamp,
@@ -107,5 +151,25 @@ export class AuditService extends EventEmitter {
         ? (JSON.parse(r.metadata_json) as Record<string, unknown>)
         : undefined,
     }))
+  }
+
+  /** 直近に登場した agent_name / tool_name の集合を返す(フィルタ用) */
+  distinctAgents(): string[] {
+    return this.db
+      .query<{ agent_name: string | null }, []>(
+        'SELECT DISTINCT agent_name FROM audit_log WHERE agent_name IS NOT NULL ORDER BY agent_name',
+      )
+      .all()
+      .map((r) => r.agent_name)
+      .filter((v): v is string => Boolean(v))
+  }
+
+  distinctTools(): string[] {
+    return this.db
+      .query<{ tool_name: string }, []>(
+        'SELECT DISTINCT tool_name FROM audit_log ORDER BY tool_name',
+      )
+      .all()
+      .map((r) => r.tool_name)
   }
 }
