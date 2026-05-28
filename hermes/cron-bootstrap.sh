@@ -14,11 +14,13 @@
 #   (a) compose 経由で渡された API key を /opt/data/.env に書く
 #       (s6 supervised プロセスは container env を継承しないため、cron
 #        scheduler の load_dotenv が拾えるよう .env に persist する必要)
-#   (b) Minakata の 5 subagent skill 用 cron job を idempotent に登録
+#   (b) カスタム skills を /opt/data/.hermes/skills/ に symlink する
+#       (gateway は HERMES_HOME を継承せず /opt/data/.hermes/ を使うため)
+#   (c) Minakata の 5 subagent skill 用 cron job を idempotent に登録
 #
 # 設定 (model / provider / mcp_servers / disabled_toolsets) は
-# `hermes/config.yaml` に baked in 済み。compose が config.yaml を :ro
-# mount するので、このスクリプトから書き換えるべきものは無い。
+# `hermes/config.yaml` に baked in 済み。compose が /opt/data/config.yaml を
+# :ro mount するので、このスクリプトから書き換えるべきものは無い。
 
 set -eu
 
@@ -48,7 +50,23 @@ write_env_kv FIRECRAWL_API_KEY "${FIRECRAWL_API_KEY:-}"
 chown hermes:hermes "$HERMES_ENV_FILE" 2>/dev/null || true
 chmod 600 "$HERMES_ENV_FILE" 2>/dev/null || true
 
-# --- (b) cron job を idempotent に登録 -------------------------------------
+# --- (b) カスタム skills を gateway の HERMES_HOME に symlink する -----------
+# gateway プロセスは s6 supervised のため HERMES_HOME env を継承しない。
+# get_hermes_home() が Path.home() / ".hermes" = /opt/data/.hermes/ に
+# フォールバックし、スキルを /opt/data/.hermes/skills/ で探す。
+# カスタム skills は /opt/data/skills/ にあるので symlink を張る(idempotent)。
+GATEWAY_SKILLS_DIR="${HERMES_HOME:-/opt/data}/.hermes/skills"
+mkdir -p "$GATEWAY_SKILLS_DIR"
+chown hermes:hermes "$GATEWAY_SKILLS_DIR" 2>/dev/null || true
+for skill in dialogue researcher daily_research freshness_checker changelog_writer; do
+    dest="$GATEWAY_SKILLS_DIR/$skill"
+    if [ ! -e "$dest" ]; then
+        ln -sfn "../../skills/$skill" "$dest"
+        echo "[minakata-cron] linked skill: $skill"
+    fi
+done
+
+# --- (c) cron job を idempotent に登録 -------------------------------------
 
 # hermes コマンドは hermes user 権限で実行する(jobs.json の owner が
 # hermes になるように)。s6-setuidgid は s6-overlay の組込み。
@@ -82,9 +100,16 @@ ensure_cron() {
     else
         echo "[minakata-cron] FAILED to register $name. Current cron list:" >&2
         hermes_run cron list 2>&1 | sed 's/^/  /' >&2
+        echo "[minakata-cron] Available skills at failure time:" >&2
+        hermes_run skills list 2>&1 | head -20 | sed 's/^/  /' >&2
         return 1
     fi
 }
+
+# --- (diagnostic) skill discovery check ------------------------------------
+# cron job を登録する前に skill が認識されているか確認する。
+echo "[minakata-cron] checking skill discovery..."
+hermes_run skills list 2>&1 | head -20 | sed 's/^/  /'
 
 # schedule format の制約 (cron/jobs.py parse_duration / parse_schedule より):
 # - `every <N>m` / `every <N>h` / `every <N>d` のみ。`s` (秒) は不可
