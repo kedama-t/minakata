@@ -19,7 +19,7 @@ services:
       HF_HOME: "/app/.cache/huggingface"
       PORT: "3000"
       # MCP の DNS rebinding 対策。本番では Hermes コンテナの hostname と Caddy 経由の公開ホストを指定
-      MCP_ALLOWED_HOSTS: "${MCP_ALLOWED_HOSTS:-minakata,localhost,localhost:3000}"
+      MCP_ALLOWED_HOSTS: "${MCP_ALLOWED_HOSTS:-minakata:3000,localhost,localhost:3000}"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/health"]
