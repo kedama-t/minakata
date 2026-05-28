@@ -61,6 +61,8 @@ export default function App({ loaderData }: Route.ComponentProps) {
             </a>
             <a href="/tasks" className="hover:text-blue-600">
               タスク
+            <a href="/chats" className="hover:text-blue-600">
+              チャット履歴
             </a>
             <a href="/reviews" className="hover:text-blue-600">
               レビュー
