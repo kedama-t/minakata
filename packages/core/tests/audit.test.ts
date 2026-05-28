@@ -58,6 +58,9 @@ describe('AuditService', () => {
 
     expect(audit.distinctAgents()).toEqual(['dialogue', 'researcher'])
     expect(audit.distinctTools().length).toBe(3)
+    db.close()
+  })
+
   test('log で audit-logged イベントが発火する', () => {
     const db = openTestDb()
     const audit = new AuditService(db)

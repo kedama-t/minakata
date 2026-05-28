@@ -95,15 +95,16 @@ export default function App({ loaderData }: Route.ComponentProps) {
             >
               ナレッジ質問
             </a>
-            <a href="/monitor" className="hover:text-blue-600">
+            <a href="/monitor" className="hover:text-blue-600 dark:hover:text-blue-400">
               モニター
-            <a href="/reviews" className="hover:text-blue-600 dark:hover:text-blue-400">
-            <a href="/tasks" className="hover:text-blue-600">
+            </a>
+            <a href="/tasks" className="hover:text-blue-600 dark:hover:text-blue-400">
               タスク
-            <a href="/chats" className="hover:text-blue-600">
+            </a>
+            <a href="/chats" className="hover:text-blue-600 dark:hover:text-blue-400">
               チャット履歴
             </a>
-            <a href="/reviews" className="hover:text-blue-600">
+            <a href="/reviews" className="hover:text-blue-600 dark:hover:text-blue-400">
               レビュー
             </a>
             <div className="ml-auto flex items-center gap-3">
