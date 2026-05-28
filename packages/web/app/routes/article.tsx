@@ -45,6 +45,7 @@ export async function action({ request, params }: Route.ActionArgs) {
         type: 'research_followup',
         priority: 'interactive',
         payload: { article_id: article.frontmatter.id, comment: body, anchor },
+        requested_by: user.id,
       })
     }
     return { ok: true }
@@ -59,6 +60,7 @@ export async function action({ request, params }: Route.ActionArgs) {
       type: 'refresh',
       priority: 'urgent',
       payload: { article_id: article.frontmatter.id, reason: 'unarchived' },
+      requested_by: user.id,
     })
     services.audit.log({
       actor: `user:${user.id}`,

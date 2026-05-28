@@ -59,6 +59,8 @@ export default function App({ loaderData }: Route.ComponentProps) {
             <a href="/chat/new?kind=knowledge" className="hover:text-blue-600">
               ナレッジ質問
             </a>
+            <a href="/tasks" className="hover:text-blue-600">
+              タスク
             <a href="/chats" className="hover:text-blue-600">
               チャット履歴
             </a>
