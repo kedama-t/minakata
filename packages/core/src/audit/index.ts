@@ -1,3 +1,4 @@
+import { EventEmitter } from 'node:events'
 import type { Db } from '../db/index.ts'
 import { newId, now } from '../util/id.ts'
 
@@ -21,12 +22,17 @@ export interface AuditLogRow extends AuditLogInput {
 
 /**
  * 全変更系操作の監査ログを記録する。tech-stack.md §7 で定義された最低項目をカバー。
+ * EventEmitter を継承し、`audit-logged` イベントを SSE バス (/events) に流す。
  */
-export class AuditService {
-  constructor(private readonly db: Db) {}
+export class AuditService extends EventEmitter {
+  constructor(private readonly db: Db) {
+    super()
+    this.setMaxListeners(0)
+  }
 
   log(input: AuditLogInput): string {
     const id = newId()
+    const ts = now()
     this.db
       .prepare(
         `INSERT INTO audit_log (id, timestamp, actor, agent_name, hermes_session_id, tool_name,
@@ -35,7 +41,7 @@ export class AuditService {
       )
       .run({
         id,
-        ts: now(),
+        ts,
         actor: input.actor,
         agent: input.agent_name ?? null,
         session: input.hermes_session_id ?? null,
@@ -47,6 +53,21 @@ export class AuditService {
         cost: input.cost_usd ?? 0,
         meta: input.metadata ? JSON.stringify(input.metadata) : null,
       })
+    const row: AuditLogRow = {
+      id,
+      timestamp: ts,
+      actor: input.actor,
+      agent_name: input.agent_name ?? null,
+      hermes_session_id: input.hermes_session_id ?? null,
+      tool_name: input.tool_name,
+      target_article_id: input.target_article_id ?? null,
+      before_hash: input.before_hash ?? null,
+      after_hash: input.after_hash ?? null,
+      source_request_id: input.source_request_id ?? null,
+      cost_usd: input.cost_usd ?? 0,
+      metadata: input.metadata,
+    }
+    this.emit('audit-logged', row)
     return id
   }
 

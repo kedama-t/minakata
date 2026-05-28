@@ -34,6 +34,7 @@ export interface ChatSession {
 export class MessageService extends EventEmitter {
   constructor(private readonly db: Db) {
     super()
+    this.setMaxListeners(0)
   }
 
   createSession(input: {

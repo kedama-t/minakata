@@ -40,6 +40,7 @@ const MAX_ATTEMPTS = 3
 export class TaskService extends EventEmitter {
   constructor(private readonly db: Db) {
     super()
+    this.setMaxListeners(0)
   }
 
   enqueue(input: EnqueueInput): TaskRow {
