@@ -1,9 +1,10 @@
+import { Form } from 'react-router'
 import { requireUser } from '../lib/auth.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/home.ts'
 
 export async function loader({ request }: Route.LoaderArgs) {
-  requireUser(request)
+  const user = requireUser(request)
   const services = getServices()
   // 直近 24 時間で更新された記事(US-2.3)
   const since = new Date(Date.now() - 24 * 3_600_000).toISOString()
@@ -17,13 +18,55 @@ export async function loader({ request }: Route.LoaderArgs) {
   const changelogs = services.articles
     .list({ limit: 200 })
     .filter((a) => a.source === 'agent_changelog' && a.updated_at >= sevenDaysAgo)
-  return { recentUpdates, newToday, changelogs }
+  return { recentUpdates, newToday, changelogs, canEdit: user.role !== 'viewer' }
+}
+
+function QuickActions({ canEdit }: { canEdit: boolean }) {
+  return (
+    <section className="bg-white border rounded p-4">
+      <h2 className="text-sm font-semibold text-slate-500 mb-3">クイックアクション</h2>
+      <Form method="get" action="/search" className="flex gap-2 mb-3">
+        <input
+          name="q"
+          className="flex-1 px-3 py-2 border rounded text-base"
+          placeholder="ナレッジを検索 (例: React Router v7 framework mode)"
+          autoComplete="off"
+        />
+        <button type="submit" className="bg-blue-600 text-white px-4 rounded">
+          検索
+        </button>
+      </Form>
+      {canEdit && (
+        <div className="flex flex-wrap gap-2">
+          <a
+            href="/chat/new"
+            className="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700"
+          >
+            + 新規対話
+          </a>
+          <a
+            href="/chat/new?kind=knowledge"
+            className="bg-purple-600 text-white px-3 py-2 rounded text-sm hover:bg-purple-700"
+          >
+            ? ナレッジ質問
+          </a>
+          <a
+            href="/topics"
+            className="border border-slate-300 px-3 py-2 rounded text-sm hover:bg-slate-50"
+          >
+            購読トピックを編集
+          </a>
+        </div>
+      )}
+    </section>
+  )
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { recentUpdates, newToday, changelogs } = loaderData
+  const { recentUpdates, newToday, changelogs, canEdit } = loaderData
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-8">
+      <QuickActions canEdit={canEdit} />
       {changelogs.length > 0 && (
         <section className="bg-white border rounded p-4">
           <h2 className="text-xl font-bold mb-3">ChangeLog 日報</h2>
