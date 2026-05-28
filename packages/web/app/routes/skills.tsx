@@ -31,33 +31,43 @@ export default function Skills({ loaderData, actionData }: Route.ComponentProps)
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <h1 className="text-2xl font-bold">スキル提案レビュー</h1>
       {actionData?.approved && (
-        <p className="text-sm text-green-700">承認しました(書き込み先: {actionData.approved})</p>
+        <p className="text-sm text-green-700 dark:text-green-300">
+          承認しました(書き込み先: {actionData.approved})
+        </p>
       )}
-      {actionData?.rejected && <p className="text-sm text-amber-700">却下しました</p>}
+      {actionData?.rejected && (
+        <p className="text-sm text-amber-700 dark:text-amber-300">却下しました</p>
+      )}
       <ul className="space-y-3">
         {loaderData.proposals.map((p) => (
-          <li key={p.id} className="bg-white p-4 rounded border">
+          <li key={p.id} className="bg-white dark:bg-slate-800 p-4 rounded border">
             <div className="flex items-center justify-between">
               <h2 className="font-bold">
                 {p.name}{' '}
                 <span
                   className={`ml-2 text-xs px-2 py-0.5 rounded ${
                     p.status === 'proposed'
-                      ? 'bg-blue-100 text-blue-700'
+                      ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
                       : p.status === 'approved'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-slate-100 text-slate-600'
+                        ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
+                        : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 dark:text-slate-500'
                   }`}
                 >
                   {p.status}
                 </span>
               </h2>
-              <span className="text-xs text-slate-500">{p.created_at}</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                {p.created_at}
+              </span>
             </div>
-            <p className="text-sm text-slate-600 mt-1">{p.description}</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400 dark:text-slate-500 mt-1">
+              {p.description}
+            </p>
             <details className="mt-2">
-              <summary className="text-xs text-blue-700 cursor-pointer">コードを表示</summary>
-              <pre className="text-xs bg-slate-50 p-2 rounded mt-1 whitespace-pre-wrap">
+              <summary className="text-xs text-blue-700 dark:text-blue-300 cursor-pointer">
+                コードを表示
+              </summary>
+              <pre className="text-xs bg-slate-50 dark:bg-slate-950 p-2 rounded mt-1 whitespace-pre-wrap">
                 {p.code}
               </pre>
             </details>
@@ -90,7 +100,9 @@ export default function Skills({ loaderData, actionData }: Route.ComponentProps)
           </li>
         ))}
         {loaderData.proposals.length === 0 && (
-          <p className="text-sm text-slate-500">スキル提案はまだありません。</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
+            スキル提案はまだありません。
+          </p>
         )}
       </ul>
     </div>

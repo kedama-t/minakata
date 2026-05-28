@@ -18,7 +18,7 @@ const components: Components = {
       // 出典・参照は外部 URL になりがちなので開く先を別タブに
       target="_blank"
       rel="noreferrer noopener"
-      className="text-blue-700 hover:underline"
+      className="text-blue-700 dark:text-blue-300 hover:underline"
     >
       {children}
     </a>
@@ -54,7 +54,10 @@ const components: Components = {
     </ol>
   ),
   blockquote: ({ node: _node, children, ...rest }) => (
-    <blockquote {...rest} className="border-l-4 border-slate-300 pl-3 my-3 text-slate-700 italic">
+    <blockquote
+      {...rest}
+      className="border-l-4 border-slate-300 pl-3 my-3 text-slate-700 dark:text-slate-300 italic"
+    >
       {children}
     </blockquote>
   ),
@@ -69,7 +72,7 @@ const components: Components = {
       )
     }
     return (
-      <code {...rest} className="bg-slate-100 px-1 rounded text-sm">
+      <code {...rest} className="bg-slate-100 dark:bg-slate-700 px-1 rounded text-sm">
         {children}
       </code>
     )
@@ -87,7 +90,7 @@ const components: Components = {
     </div>
   ),
   th: ({ node: _node, children, ...rest }) => (
-    <th {...rest} className="border px-2 py-1 bg-slate-100 text-left">
+    <th {...rest} className="border px-2 py-1 bg-slate-100 dark:bg-slate-700 text-left">
       {children}
     </th>
   ),
@@ -96,7 +99,7 @@ const components: Components = {
       {children}
     </td>
   ),
-  hr: () => <hr className="my-6 border-slate-200" />,
+  hr: () => <hr className="my-6 border-slate-200 dark:border-slate-700" />,
 }
 
 export function ArticleMarkdown({ source }: { source: string }) {
@@ -104,7 +107,7 @@ export function ArticleMarkdown({ source }: { source: string }) {
   // ため、見出し等の Tailwind ユーティリティクラスは components マップ側で個別に
   // 当てている。ここでは折り返しやリンク色のためのコンテナクラスだけ持たせる。
   return (
-    <div className="text-base text-slate-900 break-words">
+    <div className="text-base text-slate-900 dark:text-slate-100 break-words">
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
         {source}
       </ReactMarkdown>

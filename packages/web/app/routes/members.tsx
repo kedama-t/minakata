@@ -82,7 +82,7 @@ export default function Members({ loaderData, actionData }: Route.ComponentProps
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <h1 className="text-2xl font-bold">メンバー管理</h1>
 
-      <section className="bg-white p-4 rounded border">
+      <section className="bg-white dark:bg-slate-800 p-4 rounded border">
         <h2 className="text-lg font-bold mb-2">招待を発行</h2>
         <Form method="post" className="flex gap-2 items-end">
           <input
@@ -101,11 +101,13 @@ export default function Members({ loaderData, actionData }: Route.ComponentProps
             招待
           </button>
         </Form>
-        {actionData?.error && <p className="text-red-600 text-sm mt-2">{actionData.error}</p>}
+        {actionData?.error && (
+          <p className="text-red-600 dark:text-red-400 text-sm mt-2">{actionData.error}</p>
+        )}
         {actionData?.invitation && (
-          <p className="text-sm text-green-700 mt-2">
+          <p className="text-sm text-green-700 dark:text-green-300 mt-2">
             招待リンク:
-            <code className="ml-1 bg-slate-100 px-1">
+            <code className="ml-1 bg-slate-100 dark:bg-slate-700 px-1">
               /invitations/{actionData.invitation.token}
             </code>
           </p>
@@ -115,12 +117,12 @@ export default function Members({ loaderData, actionData }: Route.ComponentProps
       <section>
         <h2 className="text-lg font-bold mb-2">メンバー一覧</h2>
         {actionData?.roleUpdated && (
-          <p className="text-green-700 text-sm mb-2">
+          <p className="text-green-700 dark:text-green-300 text-sm mb-2">
             ロールを {actionData.roleUpdated.role} に変更しました
           </p>
         )}
         <table className="w-full text-sm">
-          <thead className="text-left text-slate-500">
+          <thead className="text-left text-slate-500 dark:text-slate-400 dark:text-slate-500">
             <tr>
               <th className="py-1">email</th>
               <th>role</th>
@@ -135,10 +137,16 @@ export default function Members({ loaderData, actionData }: Route.ComponentProps
                 <tr key={m.id} className="border-t">
                   <td className="py-1">
                     {m.email}
-                    {isSelf && <span className="text-xs text-slate-400 ml-1">(自分)</span>}
+                    {isSelf && (
+                      <span className="text-xs text-slate-400 dark:text-slate-500 ml-1">
+                        (自分)
+                      </span>
+                    )}
                   </td>
                   <td>{m.role}</td>
-                  <td className="text-slate-500">{m.created_at}</td>
+                  <td className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                    {m.created_at}
+                  </td>
                   <td>
                     <Form method="post" className="flex gap-1 items-center">
                       <input type="hidden" name="intent" value="update_role" />
@@ -170,15 +178,23 @@ export default function Members({ loaderData, actionData }: Route.ComponentProps
       <section>
         <h2 className="text-lg font-bold mb-2">未受諾の招待</h2>
         {loaderData.invitations.length === 0 && (
-          <p className="text-sm text-slate-500">未受諾の招待はありません</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
+            未受諾の招待はありません
+          </p>
         )}
         <ul className="space-y-1 text-sm">
           {loaderData.invitations.map((i) => (
             <li key={i.id} className="border-b py-1">
               <span className="font-semibold">{i.email}</span>
-              <span className="ml-2 text-slate-500">{i.role}</span>
-              <span className="ml-2 text-xs text-slate-400">期限: {i.expires_at}</span>
-              <code className="ml-2 bg-slate-100 px-1 text-xs">/invitations/{i.token}</code>
+              <span className="ml-2 text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                {i.role}
+              </span>
+              <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">
+                期限: {i.expires_at}
+              </span>
+              <code className="ml-2 bg-slate-100 dark:bg-slate-700 px-1 text-xs">
+                /invitations/{i.token}
+              </code>
             </li>
           ))}
         </ul>

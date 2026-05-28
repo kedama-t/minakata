@@ -20,7 +20,7 @@ export default function Policy({ loaderData, actionData }: Route.ComponentProps)
   return (
     <div className="max-w-3xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-2">リサーチ方針</h1>
-      <p className="text-sm text-slate-600 mb-4">
+      <p className="text-sm text-slate-600 dark:text-slate-400 dark:text-slate-500 mb-4">
         Hermes の subagent が system prompt に挿入する
         Markdown。優先ソース・粒度・必須項目(出典/TL;DR 等)を書く。
       </p>
@@ -36,8 +36,10 @@ export default function Policy({ loaderData, actionData }: Route.ComponentProps)
           <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded">
             保存
           </button>
-          {actionData?.ok && <span className="text-green-600 text-sm">保存しました</span>}
-          <span className="text-xs text-slate-500 ml-auto">
+          {actionData?.ok && (
+            <span className="text-green-600 dark:text-green-400 text-sm">保存しました</span>
+          )}
+          <span className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500 ml-auto">
             最終更新: {loaderData.policy.updated_at}
           </span>
         </div>

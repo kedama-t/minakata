@@ -1,1 +1,6 @@
 @import "tailwindcss";
+
+/* `dark:` variant を `data-theme="dark"` 属性ベースに切り替える。
+ * 切り替えは Cookie + inline script (root.tsx) で行うため、SSR 段階で
+ * `<html data-theme="...">` が確定し FOUC を起こさない。 */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));

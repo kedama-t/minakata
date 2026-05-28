@@ -52,38 +52,48 @@ export default function Archives({ loaderData, actionData }: Route.ComponentProp
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-4">
       <h1 className="text-2xl font-bold">アーカイブ承認待ち</h1>
-      <p className="text-sm text-slate-600">
+      <p className="text-sm text-slate-600 dark:text-slate-400 dark:text-slate-500">
         エージェントが提案したアーカイブはここで admin が承認/却下する(§6
         承認ゲート)。承認するまで記事は `archived` にならない。
       </p>
       {actionData?.ok && (
-        <p className="text-green-700 text-sm">
+        <p className="text-green-700 dark:text-green-300 text-sm">
           {actionData.ok === 'approved' ? '承認しました' : '却下しました'}
         </p>
       )}
-      {actionData?.error && <p className="text-red-600 text-sm">{actionData.error}</p>}
+      {actionData?.error && (
+        <p className="text-red-600 dark:text-red-400 text-sm">{actionData.error}</p>
+      )}
       {proposals.length === 0 && (
-        <p className="text-sm text-slate-500">承認待ちのアーカイブ提案はありません。</p>
+        <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
+          承認待ちのアーカイブ提案はありません。
+        </p>
       )}
       <ul className="space-y-3">
         {proposals.map((p) => (
-          <li key={p.id} className="bg-white border rounded p-4 space-y-2">
+          <li key={p.id} className="bg-white dark:bg-slate-800 border rounded p-4 space-y-2">
             <div className="flex items-center justify-between">
               {p.article_slug ? (
                 <a
                   href={`/articles/${p.article_slug}`}
-                  className="text-blue-700 font-semibold hover:underline"
+                  className="text-blue-700 dark:text-blue-300 font-semibold hover:underline"
                 >
                   {p.article_title}
                 </a>
               ) : (
                 <span className="font-semibold">{p.article_title}</span>
               )}
-              <span className="text-xs text-slate-500">{p.created_at}</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                {p.created_at}
+              </span>
             </div>
-            <p className="text-xs text-slate-500">提案者: {p.proposed_by}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
+              提案者: {p.proposed_by}
+            </p>
             {p.reason && (
-              <p className="text-sm text-slate-700 bg-slate-50 rounded p-2">{p.reason}</p>
+              <p className="text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-950 rounded p-2">
+                {p.reason}
+              </p>
             )}
             <div className="flex gap-2 items-start">
               <Form method="post" className="inline">
