@@ -11,6 +11,7 @@ export default [
   route('topics', 'routes/topics.tsx'),
   route('chat/:sessionId', 'routes/chat.tsx'),
   route('chat/:sessionId/stream', 'routes/chat-stream.tsx'),
+  route('events', 'routes/events.tsx'),
   route('settings/members', 'routes/members.tsx'),
   route('reviews', 'routes/reviews.tsx'),
   route('reviews/:reviewId', 'routes/review.tsx'),
