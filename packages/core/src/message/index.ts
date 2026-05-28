@@ -24,6 +24,11 @@ export interface ChatSession {
   updated_at: string
 }
 
+export interface ChatSessionListItem extends ChatSession {
+  last_message: string | null
+  last_message_role: MessageRole | null
+}
+
 /**
  * チャットメッセージバス。
  * - user メッセージ → DB に保存 → Hermes が poll で取得
@@ -141,6 +146,66 @@ export class MessageService extends EventEmitter {
       )
       .run(ts, claimedBy, messageId)
     return res.changes > 0
+  }
+
+  /**
+   * 指定ユーザーの過去対話セッション一覧を `updated_at` 降順で取得する。
+   * `kind` 指定で dialogue / knowledge にフィルタ、`before` でカーソルページング。
+   * 末尾メッセージ抜粋付き(プレビュー表示用)。
+   */
+  listSessionsByUser(opts: {
+    user_id: string
+    kind?: 'dialogue' | 'knowledge' | undefined
+    limit?: number | undefined
+    before?: string | undefined
+  }): ChatSessionListItem[] {
+    const limit = opts.limit ?? 30
+    const conditions: string[] = ['s.user_id = ?']
+    const params: Array<string | number> = [opts.user_id]
+    if (opts.kind) {
+      conditions.push('s.kind = ?')
+      params.push(opts.kind)
+    }
+    if (opts.before) {
+      conditions.push('s.updated_at < ?')
+      params.push(opts.before)
+    }
+    params.push(limit)
+    const rows = this.db
+      .query<
+        {
+          id: string
+          user_id: string
+          title: string
+          kind: 'dialogue' | 'knowledge'
+          created_at: string
+          updated_at: string
+          last_message: string | null
+          last_message_role: MessageRole | null
+        },
+        Array<string | number>
+      >(
+        `SELECT s.id, s.user_id, s.title, s.kind, s.created_at, s.updated_at,
+                (SELECT content FROM messages m WHERE m.session_id = s.id
+                  ORDER BY m.created_at DESC LIMIT 1) AS last_message,
+                (SELECT role FROM messages m WHERE m.session_id = s.id
+                  ORDER BY m.created_at DESC LIMIT 1) AS last_message_role
+           FROM chat_sessions s
+          WHERE ${conditions.join(' AND ')}
+          ORDER BY s.updated_at DESC, s.id DESC
+          LIMIT ?`,
+      )
+      .all(...params)
+    return rows.map((r) => ({
+      id: r.id,
+      user_id: r.user_id,
+      title: r.title,
+      kind: r.kind,
+      created_at: r.created_at,
+      updated_at: r.updated_at,
+      last_message: r.last_message,
+      last_message_role: r.last_message_role,
+    }))
   }
 
   /** セッション内の全メッセージを時系列で取得(画面表示用) */
