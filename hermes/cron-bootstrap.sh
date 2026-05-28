@@ -14,9 +14,12 @@
 #   (a) compose 経由で渡された API key を /opt/data/.env に書く
 #       (s6 supervised プロセスは container env を継承しないため、cron
 #        scheduler の load_dotenv が拾えるよう .env に persist する必要)
-#   (b) HERMES_HOME を s6 container env に書き込み gateway daemon に伝播する
-#       + カスタム skills を .hermes/skills/ に symlink する(フォールバック保険)
+#   (b) カスタム skills を .hermes/skills/ に symlink する(フォールバック保険)
 #   (c) Minakata の 5 subagent skill 用 cron job を idempotent に登録
+#
+# gateway/CLI 間の HERMES_HOME 不一致(以前 cron job が走らなかった原因)は
+# `hermes/main-wrapper.sh` を with-contenv シバン版に差し替えることで根本
+# 解決済み(docker-compose.yml の bind mount)。このスクリプトでは触らない。
 #
 # 設定 (model / provider / mcp_servers / disabled_toolsets) は
 # `hermes/config.yaml` に baked in 済み。compose が /opt/data/config.yaml を
@@ -27,14 +30,7 @@ set -eu
 PATH="/opt/hermes/.venv/bin:${PATH}"
 export PATH
 
-# s6-supervised プロセス(gateway)はコンテナ環境を継承しないため、HERMES_HOME が
-# 未設定となり get_hermes_home() が Path.home()/".hermes" にフォールバックする。
-# CLI は with-contenv 経由で HERMES_HOME を取得し別ディレクトリに書くため、
-# gateway が読む jobs.json と CLI が書く jobs.json がずれてジョブが動かなくなる。
-# /run/s6/container_environment/ に書くことで以降の s6 サービスにも env が伝播する。
-EFFECTIVE_HERMES_HOME="${HERMES_HOME:-/opt/data}"
-printf '%s' "$EFFECTIVE_HERMES_HOME" > /run/s6/container_environment/HERMES_HOME 2>/dev/null || true
-echo "[minakata-cron] HERMES_HOME=$EFFECTIVE_HERMES_HOME → propagated to s6 container env"
+echo "[minakata-cron] HERMES_HOME=${HERMES_HOME:-/opt/data}"
 
 # --- (a) API key を .env に persist する -----------------------------------
 
@@ -60,8 +56,9 @@ chown hermes:hermes "$HERMES_ENV_FILE" 2>/dev/null || true
 chmod 600 "$HERMES_ENV_FILE" 2>/dev/null || true
 
 # --- (b) カスタム skills を .hermes/skills/ に symlink する ------------------
-# 上記で HERMES_HOME を伝播済みだが、gateway の get_hermes_home() が
-# Path.home()/".hermes" にフォールバックするケースへの保険として symlink も維持する。
+# main-wrapper.sh override 後は gateway も HERMES_HOME=/opt/data を読むので
+# 通常 .hermes/skills/ 経路は使われない。万一フォールバックが発動したケース
+# でも skills が見つかるよう、保険として symlink は維持する。
 GATEWAY_SKILLS_DIR="${HERMES_HOME:-/opt/data}/.hermes/skills"
 mkdir -p "$GATEWAY_SKILLS_DIR"
 chown hermes:hermes "$GATEWAY_SKILLS_DIR" 2>/dev/null || true

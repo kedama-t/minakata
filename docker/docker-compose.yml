@@ -52,6 +52,11 @@ services:
       # cron job の登録は cont-init.d hook で自動化。本体 (main-hermes)
       # 起動前に s6 init が走らせるので、別コンテナ・別プロセスを増やさず済む。
       - ../hermes/cron-bootstrap.sh:/etc/cont-init.d/99-minakata-cron:ro
+      # 上流 main-wrapper.sh は #!/bin/sh で container env を読まないため、
+      # gateway が HERMES_HOME=/opt/data を受け取れず /opt/data/.hermes に
+      # フォールバックする。with-contenv シバン版で上書きして CLI と gateway
+      # の HERMES_HOME を一致させる。
+      - ../hermes/main-wrapper.sh:/opt/hermes/docker/main-wrapper.sh:ro
     environment:
       # podman rootless では UID マッピングを揃えないと /opt/data の chown
       # が無視され、後段で PermissionError になる(#42)。ホスト側で

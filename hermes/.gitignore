@@ -55,6 +55,16 @@
 /SOUL.md
 /state.db
 /state.db-*
+/.skills_prompt_snapshot.json
+/channel_directory.json
+/gateway.lock
+/gateway.pid
+/gateway_state.json
+/kanban.db
+/kanban.db-*
+
+# --- gateway HERMES_HOME=/opt/data 修正前に作られた退避ディレクトリ ---
+/.hermes.bak.*/
 
 # --- Hermes が investigation 中に作る debug script ---
 /_check_*.py
