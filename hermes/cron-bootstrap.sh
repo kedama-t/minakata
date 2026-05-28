@@ -82,9 +82,16 @@ ensure_cron() {
     else
         echo "[minakata-cron] FAILED to register $name. Current cron list:" >&2
         hermes_run cron list 2>&1 | sed 's/^/  /' >&2
+        echo "[minakata-cron] Available skills at failure time:" >&2
+        hermes_run skills list 2>&1 | head -20 | sed 's/^/  /' >&2
         return 1
     fi
 }
+
+# --- (diagnostic) skill discovery check ------------------------------------
+# cron job を登録する前に skill が認識されているか確認する。
+echo "[minakata-cron] checking skill discovery..."
+hermes_run skills list 2>&1 | head -20 | sed 's/^/  /'
 
 # schedule format の制約 (cron/jobs.py parse_duration / parse_schedule より):
 # - `every <N>m` / `every <N>h` / `every <N>d` のみ。`s` (秒) は不可
