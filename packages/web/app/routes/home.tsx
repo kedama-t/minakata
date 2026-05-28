@@ -18,17 +18,27 @@ export async function loader({ request }: Route.LoaderArgs) {
   const changelogs = services.articles
     .list({ limit: 200 })
     .filter((a) => a.source === 'agent_changelog' && a.updated_at >= sevenDaysAgo)
-  return { recentUpdates, newToday, changelogs, canEdit: user.role !== 'viewer' }
+  // 直近のエージェント活動 (#61)
+  const recentActivity = services.audit.list({ limit: 10 })
+  return {
+    recentUpdates,
+    newToday,
+    changelogs,
+    recentActivity,
+    canEdit: user.role !== 'viewer',
+  }
 }
 
 function QuickActions({ canEdit }: { canEdit: boolean }) {
   return (
-    <section className="bg-white border rounded p-4">
-      <h2 className="text-sm font-semibold text-slate-500 mb-3">クイックアクション</h2>
+    <section className="bg-white dark:bg-slate-800 border rounded p-4">
+      <h2 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-3">
+        クイックアクション
+      </h2>
       <Form method="get" action="/search" className="flex gap-2 mb-3">
         <input
           name="q"
-          className="flex-1 px-3 py-2 border rounded text-base"
+          className="flex-1 px-3 py-2 border rounded text-base bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
           placeholder="ナレッジを検索 (例: React Router v7 framework mode)"
           autoComplete="off"
         />
@@ -52,7 +62,7 @@ function QuickActions({ canEdit }: { canEdit: boolean }) {
           </a>
           <a
             href="/topics"
-            className="border border-slate-300 px-3 py-2 rounded text-sm hover:bg-slate-50"
+            className="border border-slate-300 dark:border-slate-600 px-3 py-2 rounded text-sm hover:bg-slate-50 dark:hover:bg-slate-700"
           >
             購読トピックを編集
           </a>
@@ -63,37 +73,33 @@ function QuickActions({ canEdit }: { canEdit: boolean }) {
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { recentUpdates, newToday, changelogs, canEdit } = loaderData
+  const { recentUpdates, newToday, changelogs, recentActivity, canEdit } = loaderData
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-8">
       <QuickActions canEdit={canEdit} />
-      {changelogs.length > 0 && (
-  // 直近のエージェント活動 (#61)
-  const recentActivity = services.audit.list({ limit: 10 })
-  return { recentUpdates, newToday, changelogs, recentActivity }
-}
-
-export default function Home({ loaderData }: Route.ComponentProps) {
-  const { recentUpdates, newToday, changelogs, recentActivity } = loaderData
-  return (
-    <div className="max-w-6xl mx-auto p-6 space-y-8">
       {recentActivity.length > 0 && (
-        <section className="bg-white border rounded p-4">
+        <section className="bg-white dark:bg-slate-800 border rounded p-4">
           <div className="flex items-baseline justify-between mb-3">
             <h2 className="text-xl font-bold">エージェント稼働</h2>
-            <a href="/monitor" className="text-xs text-blue-600 hover:underline">
+            <a href="/monitor" className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
               すべて見る →
             </a>
           </div>
           <ul className="space-y-1 text-sm">
             {recentActivity.map((e) => (
               <li key={e.id} className="flex items-center gap-2">
-                <span className="text-xs text-slate-500 tabular-nums">
+                <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
                   {new Date(e.timestamp).toLocaleTimeString('ja-JP')}
                 </span>
-                <span className="text-xs text-slate-500">{e.actor}</span>
-                <span className="text-xs bg-slate-100 px-1.5 py-0.5 rounded">{e.tool_name}</span>
-                {e.agent_name && <span className="text-xs text-slate-400">via {e.agent_name}</span>}
+                <span className="text-xs text-slate-500 dark:text-slate-400">{e.actor}</span>
+                <span className="text-xs bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">
+                  {e.tool_name}
+                </span>
+                {e.agent_name && (
+                  <span className="text-xs text-slate-400 dark:text-slate-500">
+                    via {e.agent_name}
+                  </span>
+                )}
               </li>
             ))}
           </ul>
@@ -111,7 +117,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 >
                   {c.title}
                 </a>
-                <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 ml-2 text-xs">
+                <span className="text-slate-500 dark:text-slate-400 ml-2 text-xs">
                   {c.updated_at}
                 </span>
               </li>
@@ -146,11 +152,7 @@ function ArticleList({
   emptyMessage: string
 }) {
   if (items.length === 0)
-    return (
-      <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
-        {emptyMessage}
-      </p>
-    )
+    return <p className="text-sm text-slate-500 dark:text-slate-400">{emptyMessage}</p>
   return (
     <ul className="space-y-3">
       {items.map((a) => (
@@ -163,9 +165,7 @@ function ArticleList({
           </a>
           <FreshnessBadge rank={a.freshness_rank} />
           {a.summary && (
-            <p className="text-sm text-slate-600 dark:text-slate-400 dark:text-slate-500 mt-1">
-              {a.summary}
-            </p>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{a.summary}</p>
           )}
           {a.tags.length > 0 && (
             <div className="flex gap-1 mt-2">

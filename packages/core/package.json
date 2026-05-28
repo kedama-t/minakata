@@ -18,7 +18,7 @@
     "./maintenance": "./src/maintenance/index.ts"
   },
   "scripts": {
-    "build": "bun build ./src/index.ts --outdir ./dist --target bun",
+    "build": "echo '@minakata/core is consumed as TS source via package.json exports — no bundle step'",
     "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
