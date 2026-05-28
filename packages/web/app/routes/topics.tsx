@@ -116,7 +116,7 @@ export default function Topics({ loaderData, actionData }: Route.ComponentProps)
     <div className="max-w-3xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-4">購読トピック</h1>
 
-      <Form method="post" className="bg-white p-4 rounded border space-y-2 mb-6">
+      <Form method="post" className="bg-white dark:bg-slate-800 p-4 rounded border space-y-2 mb-6">
         <input type="hidden" name="intent" value="create" />
         <input
           name="name"
@@ -159,14 +159,16 @@ export default function Topics({ loaderData, actionData }: Route.ComponentProps)
           className="w-full px-3 py-2 border rounded text-sm font-mono"
           placeholder="トピック個別の指示(Markdown)。リサーチ方針より優先される"
         />
-        {actionData?.error && <p className="text-red-600 text-sm">{actionData.error}</p>}
+        {actionData?.error && (
+          <p className="text-red-600 dark:text-red-400 text-sm">{actionData.error}</p>
+        )}
         {actionData?.ok === 'created' && (
-          <p className="text-green-600 text-sm">
+          <p className="text-green-600 dark:text-green-400 text-sm">
             登録しました(あなたを自動購読登録、次回バッチから有効)
           </p>
         )}
         {(actionData?.ok === 'subscribe' || actionData?.ok === 'unsubscribe') && (
-          <p className="text-green-600 text-sm">
+          <p className="text-green-600 dark:text-green-400 text-sm">
             {actionData.ok === 'subscribe' ? '購読しました' : '購読解除しました'}
           </p>
         )}
@@ -178,10 +180,10 @@ export default function Topics({ loaderData, actionData }: Route.ComponentProps)
       <h2 className="text-lg font-bold mb-2">登録済み</h2>
       <ul className="space-y-2">
         {loaderData.topics.map((t) => (
-          <li key={t.id} className="bg-white p-3 rounded border space-y-1">
+          <li key={t.id} className="bg-white dark:bg-slate-800 p-3 rounded border space-y-1">
             <div className="flex items-center gap-2">
               <span className="font-semibold">{t.name}</span>
-              <span className="text-xs text-slate-500">
+              <span className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
                 {t.depth} / {t.active ? '有効' : '停止中'}
               </span>
               <span className="ml-auto">
@@ -192,7 +194,9 @@ export default function Topics({ loaderData, actionData }: Route.ComponentProps)
                     name="intent"
                     value={t.subscribed ? 'unsubscribe' : 'subscribe'}
                     className={`text-xs px-2 py-0.5 rounded ${
-                      t.subscribed ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600'
+                      t.subscribed
+                        ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
+                        : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 dark:text-slate-500'
                     }`}
                   >
                     {t.subscribed ? '購読中(解除)' : '購読する'}
@@ -201,33 +205,35 @@ export default function Topics({ loaderData, actionData }: Route.ComponentProps)
               </span>
             </div>
             {t.keywords.length > 0 && (
-              <div className="text-xs text-slate-600">
+              <div className="text-xs text-slate-600 dark:text-slate-400 dark:text-slate-500">
                 <span className="font-bold mr-1">キーワード:</span>
                 {t.keywords.join(', ')}
               </div>
             )}
             {t.priority_sources.length > 0 && (
-              <div className="text-xs text-slate-600">
+              <div className="text-xs text-slate-600 dark:text-slate-400 dark:text-slate-500">
                 <span className="font-bold mr-1">優先ソース:</span>
                 {t.priority_sources.join(', ')}
               </div>
             )}
             {t.exclusion.length > 0 && (
-              <div className="text-xs text-slate-600">
+              <div className="text-xs text-slate-600 dark:text-slate-400 dark:text-slate-500">
                 <span className="font-bold mr-1">除外:</span>
                 {t.exclusion.join(', ')}
               </div>
             )}
             {t.format && (
-              <div className="text-xs text-slate-600">
+              <div className="text-xs text-slate-600 dark:text-slate-400 dark:text-slate-500">
                 <span className="font-bold mr-1">フォーマット:</span>
                 {t.format}
               </div>
             )}
             {t.instructions_md && (
-              <details className="text-xs text-slate-600">
-                <summary className="cursor-pointer text-blue-700">個別指示を表示</summary>
-                <pre className="bg-slate-50 p-2 mt-1 rounded whitespace-pre-wrap font-mono">
+              <details className="text-xs text-slate-600 dark:text-slate-400 dark:text-slate-500">
+                <summary className="cursor-pointer text-blue-700 dark:text-blue-300">
+                  個別指示を表示
+                </summary>
+                <pre className="bg-slate-50 dark:bg-slate-950 p-2 mt-1 rounded whitespace-pre-wrap font-mono">
                   {t.instructions_md}
                 </pre>
               </details>
@@ -235,7 +241,9 @@ export default function Topics({ loaderData, actionData }: Route.ComponentProps)
           </li>
         ))}
         {loaderData.topics.length === 0 && (
-          <p className="text-sm text-slate-500">まだトピックがありません</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
+            まだトピックがありません
+          </p>
         )}
       </ul>
     </div>

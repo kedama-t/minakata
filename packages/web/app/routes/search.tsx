@@ -36,20 +36,29 @@ export default function Search({ loaderData }: Route.ComponentProps) {
           検索
         </button>
       </Form>
-      {tag && <p className="text-sm text-slate-600 mb-2">タグ「{tag}」</p>}
+      {tag && (
+        <p className="text-sm text-slate-600 dark:text-slate-400 dark:text-slate-500 mb-2">
+          タグ「{tag}」
+        </p>
+      )}
       <ul className="space-y-2">
         {hits.map((h) => (
-          <li key={h.id} className="bg-white p-3 rounded border">
-            <a href={`/articles/${h.slug}`} className="text-blue-700 font-semibold">
+          <li key={h.id} className="bg-white dark:bg-slate-800 p-3 rounded border">
+            <a
+              href={`/articles/${h.slug}`}
+              className="text-blue-700 dark:text-blue-300 font-semibold"
+            >
               {h.title}
             </a>
-            <span className="ml-2 text-xs text-slate-500">{h.status}</span>
+            <span className="ml-2 text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
+              {h.status}
+            </span>
             {h.snippet.length > 0 && (
               <p className="text-sm mt-1">
                 {h.snippet.map((seg, i) =>
                   seg.mark ? (
                     // biome-ignore lint/suspicious/noArrayIndexKey: snippet segments are positional
-                    <mark key={i} className="bg-yellow-200">
+                    <mark key={i} className="bg-yellow-200 dark:bg-yellow-700">
                       {seg.text}
                     </mark>
                   ) : (
@@ -61,7 +70,11 @@ export default function Search({ loaderData }: Route.ComponentProps) {
             )}
           </li>
         ))}
-        {hits.length === 0 && <p className="text-sm text-slate-500">結果がありません</p>}
+        {hits.length === 0 && (
+          <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
+            結果がありません
+          </p>
+        )}
       </ul>
     </div>
   )

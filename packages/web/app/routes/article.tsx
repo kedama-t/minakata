@@ -78,7 +78,7 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
   return (
     <article className="max-w-3xl mx-auto p-6">
       <h1 className="text-3xl font-bold mb-1">{article.frontmatter.title}</h1>
-      <div className="text-xs text-slate-500 mb-6 flex items-center gap-2">
+      <div className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-6 flex items-center gap-2">
         <span>
           最終更新: {article.frontmatter.updated_at} / 鮮度: {article.frontmatter.freshness_rank} /
           状態: {article.frontmatter.status}
@@ -93,7 +93,9 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
         )}
       </div>
       {article.frontmatter.summary && (
-        <div className="bg-slate-100 p-3 rounded mb-6 text-sm">{article.frontmatter.summary}</div>
+        <div className="bg-slate-100 dark:bg-slate-700 p-3 rounded mb-6 text-sm">
+          {article.frontmatter.summary}
+        </div>
       )}
       <ArticleMarkdown source={article.body} />
       {article.frontmatter.sources.length > 0 && (
@@ -102,10 +104,12 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
           <ul className="space-y-1 text-sm">
             {article.frontmatter.sources.map((s) => (
               <li key={s.url}>
-                <a href={s.url} className="text-blue-700 hover:underline">
+                <a href={s.url} className="text-blue-700 dark:text-blue-300 hover:underline">
                   {s.url}
                 </a>
-                <span className="text-slate-500 ml-2">取得: {s.fetched_at}</span>
+                <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 ml-2">
+                  取得: {s.fetched_at}
+                </span>
               </li>
             ))}
           </ul>
@@ -118,11 +122,16 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
           <ul className="space-y-1 text-sm">
             {related.map((r) => (
               <li key={r.id}>
-                <a href={`/articles/${r.slug}`} className="text-blue-700 hover:underline">
+                <a
+                  href={`/articles/${r.slug}`}
+                  className="text-blue-700 dark:text-blue-300 hover:underline"
+                >
                   {r.title}
                 </a>
                 {r.status === 'archived' && (
-                  <span className="ml-2 text-xs text-slate-500">(archived)</span>
+                  <span className="ml-2 text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
+                    (archived)
+                  </span>
                 )}
               </li>
             ))}
@@ -136,9 +145,9 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
           {comments.map((c) => (
             <li
               key={c.id}
-              className={`bg-slate-50 p-2 rounded ${c.status === 'resolved' ? 'opacity-50' : ''}`}
+              className={`bg-slate-50 dark:bg-slate-950 p-2 rounded ${c.status === 'resolved' ? 'opacity-50' : ''}`}
             >
-              <div className="text-xs text-slate-500">
+              <div className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
                 {c.author_id} - {c.created_at}
                 {c.anchor && <> / @{c.anchor}</>}
               </div>
@@ -147,7 +156,10 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
                 <Form method="post" className="inline">
                   <input type="hidden" name="intent" value="resolve" />
                   <input type="hidden" name="comment_id" value={c.id} />
-                  <button type="submit" className="text-xs text-blue-700 hover:underline">
+                  <button
+                    type="submit"
+                    className="text-xs text-blue-700 dark:text-blue-300 hover:underline"
+                  >
                     解決済みにする
                   </button>
                 </Form>
@@ -155,11 +167,16 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
             </li>
           ))}
           {comments.length === 0 && (
-            <p className="text-xs text-slate-500">コメントはまだありません。</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
+              コメントはまだありません。
+            </p>
           )}
         </ul>
         {canEdit && (
-          <Form method="post" className="mt-4 space-y-2 bg-white p-3 rounded border">
+          <Form
+            method="post"
+            className="mt-4 space-y-2 bg-white dark:bg-slate-800 p-3 rounded border"
+          >
             <input type="hidden" name="intent" value="add_comment" />
             <input
               name="anchor"
@@ -173,12 +190,16 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
               className="w-full px-3 py-2 border rounded text-sm"
               placeholder="この部分のセキュリティ的な懸念について調べてほしい..."
             />
-            <label className="flex items-center gap-1 text-xs text-slate-600">
+            <label className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-400 dark:text-slate-500">
               <input type="checkbox" name="request_research" />
               追加調査タスクとしてキューに投入する
             </label>
-            {actionData?.error && <p className="text-red-600 text-xs">{actionData.error}</p>}
-            {actionData?.ok && <p className="text-green-600 text-xs">登録しました</p>}
+            {actionData?.error && (
+              <p className="text-red-600 dark:text-red-400 text-xs">{actionData.error}</p>
+            )}
+            {actionData?.ok && (
+              <p className="text-green-600 dark:text-green-400 text-xs">登録しました</p>
+            )}
             <button type="submit" className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm">
               コメントを追加
             </button>

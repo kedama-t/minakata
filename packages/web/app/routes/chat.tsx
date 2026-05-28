@@ -157,8 +157,8 @@ export default function Chat({ loaderData }: Route.ComponentProps) {
         <span
           className={`ml-2 text-xs px-2 py-0.5 rounded ${
             session.kind === 'knowledge'
-              ? 'bg-purple-100 text-purple-700'
-              : 'bg-blue-100 text-blue-700'
+              ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
+              : 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
           }`}
         >
           {session.kind}
@@ -166,10 +166,10 @@ export default function Chat({ loaderData }: Route.ComponentProps) {
       </h1>
       <div
         ref={containerRef}
-        className="flex-1 overflow-y-auto bg-white rounded border p-4 space-y-3"
+        className="flex-1 overflow-y-auto bg-white dark:bg-slate-800 rounded border p-4 space-y-3"
       >
         {merged.length === 0 && (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
             メッセージはまだありません。下のフォームから依頼を送信してください。
           </p>
         )}
@@ -177,11 +177,15 @@ export default function Chat({ loaderData }: Route.ComponentProps) {
           <div key={m.id} className={m.role === 'user' ? 'text-right' : ''}>
             <span
               className={`inline-block px-3 py-2 rounded whitespace-pre-wrap ${
-                m.role === 'user' ? 'bg-blue-100' : 'bg-slate-100'
+                m.role === 'user'
+                  ? 'bg-blue-100 dark:bg-blue-900/40'
+                  : 'bg-slate-100 dark:bg-slate-700'
               }`}
             >
               {m.content}
-              {m.streaming && <span className="text-slate-400 animate-pulse"> ▍</span>}
+              {m.streaming && (
+                <span className="text-slate-400 dark:text-slate-500 animate-pulse"> ▍</span>
+              )}
             </span>
           </div>
         ))}
@@ -203,7 +207,7 @@ export default function Chat({ loaderData }: Route.ComponentProps) {
         </button>
       </fetcher.Form>
       {fetcher.data && 'error' in fetcher.data && fetcher.data.error && (
-        <p className="text-red-600 text-xs mt-1">{fetcher.data.error}</p>
+        <p className="text-red-600 dark:text-red-400 text-xs mt-1">{fetcher.data.error}</p>
       )}
     </div>
   )
