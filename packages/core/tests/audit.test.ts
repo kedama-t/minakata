@@ -22,4 +22,42 @@ describe('AuditService', () => {
     expect(list[0]?.metadata).toEqual({ reason: 'test' })
     db.close()
   })
+
+  test('list は agent_name / tool_name / since フィルタが効く', async () => {
+    const db = openTestDb()
+    const audit = new AuditService(db)
+    const tick = () => new Promise<void>((r) => setTimeout(r, 3))
+    audit.log({
+      actor: 'agent:researcher',
+      agent_name: 'researcher',
+      tool_name: 'minakata.create_article',
+    })
+    await tick()
+    audit.log({
+      actor: 'agent:dialogue',
+      agent_name: 'dialogue',
+      tool_name: 'minakata.post_agent_response',
+    })
+    await tick()
+    audit.log({
+      actor: 'agent:researcher',
+      agent_name: 'researcher',
+      tool_name: 'minakata.complete_task',
+    })
+
+    const byAgent = audit.list({ agent_name: 'researcher' })
+    expect(byAgent.length).toBe(2)
+    expect(byAgent.every((e) => e.agent_name === 'researcher')).toBe(true)
+
+    const byTool = audit.list({ tool_name: 'minakata.complete_task' })
+    expect(byTool.length).toBe(1)
+    expect(byTool[0]?.tool_name).toBe('minakata.complete_task')
+
+    const sinceFuture = audit.list({ since: new Date(Date.now() + 60_000).toISOString() })
+    expect(sinceFuture.length).toBe(0)
+
+    expect(audit.distinctAgents()).toEqual(['dialogue', 'researcher'])
+    expect(audit.distinctTools().length).toBe(3)
+    db.close()
+  })
 })
