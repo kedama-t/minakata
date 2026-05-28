@@ -11,25 +11,27 @@
 # 素の #!/bin/sh だと OPENCODE_GO_API_KEY 等が UNSET になる。
 #
 # やること:
-#   (a) compose 経由で渡された API key を /opt/data/.env に書く
+#   (a) compose 経由で渡された API key を /opt/data/.hermes/.env に書く
 #       (s6 supervised プロセスは container env を継承しないため、cron
 #        scheduler の load_dotenv が拾えるよう .env に persist する必要)
-#   (b) カスタム skills を /opt/data/.hermes/skills/ に symlink する
-#       (gateway は HERMES_HOME を継承せず /opt/data/.hermes/ を使うため)
-#   (c) Minakata の 5 subagent skill 用 cron job を idempotent に登録
+#   (b) Minakata の 5 subagent skill 用 cron job を idempotent に登録
 #
-# 設定 (model / provider / mcp_servers / disabled_toolsets) は
-# `hermes/config.yaml` に baked in 済み。compose が /opt/data/config.yaml を
-# :ro mount するので、このスクリプトから書き換えるべきものは無い。
+# マウント方針(#55): host の hermes/ を /opt/data/.hermes/ (gateway の
+# HERMES_HOME) に直接 bind mount しているため、config.yaml / skills / cron
+# などのパスは全部 /opt/data/.hermes/ 配下に統一されている。CLI も同じ場所を
+# 見るので、symlink などの workaround は不要。
 
 set -eu
 
 PATH="/opt/hermes/.venv/bin:${PATH}"
 export PATH
 
+# gateway が使う HERMES_HOME。マウント先と一致させる。
+HERMES_DATA_DIR="/opt/data/.hermes"
+
 # --- (a) API key を .env に persist する -----------------------------------
 
-HERMES_ENV_FILE="${HERMES_HOME:-/opt/data}/.env"
+HERMES_ENV_FILE="$HERMES_DATA_DIR/.env"
 write_env_kv() {
     key=$1
     value=$2
@@ -50,23 +52,7 @@ write_env_kv FIRECRAWL_API_KEY "${FIRECRAWL_API_KEY:-}"
 chown hermes:hermes "$HERMES_ENV_FILE" 2>/dev/null || true
 chmod 600 "$HERMES_ENV_FILE" 2>/dev/null || true
 
-# --- (b) カスタム skills を gateway の HERMES_HOME に symlink する -----------
-# gateway プロセスは s6 supervised のため HERMES_HOME env を継承しない。
-# get_hermes_home() が Path.home() / ".hermes" = /opt/data/.hermes/ に
-# フォールバックし、スキルを /opt/data/.hermes/skills/ で探す。
-# カスタム skills は /opt/data/skills/ にあるので symlink を張る(idempotent)。
-GATEWAY_SKILLS_DIR="${HERMES_HOME:-/opt/data}/.hermes/skills"
-mkdir -p "$GATEWAY_SKILLS_DIR"
-chown hermes:hermes "$GATEWAY_SKILLS_DIR" 2>/dev/null || true
-for skill in dialogue researcher daily_research freshness_checker changelog_writer; do
-    dest="$GATEWAY_SKILLS_DIR/$skill"
-    if [ ! -e "$dest" ]; then
-        ln -sfn "../../skills/$skill" "$dest"
-        echo "[minakata-cron] linked skill: $skill"
-    fi
-done
-
-# --- (c) cron job を idempotent に登録 -------------------------------------
+# --- (b) cron job を idempotent に登録 -------------------------------------
 
 # hermes コマンドは hermes user 権限で実行する(jobs.json の owner が
 # hermes になるように)。s6-setuidgid は s6-overlay の組込み。
@@ -98,17 +84,17 @@ ensure_cron() {
     if job_registered "$name"; then
         echo "[minakata-cron] OK: $name registered"
     else
-        echo "[minakata-cron] FAILED to register $name. Current cron list:" >&2
-        hermes_run cron list 2>&1 | sed 's/^/  /' >&2
-        echo "[minakata-cron] Available skills at failure time:" >&2
-        hermes_run skills list 2>&1 | head -20 | sed 's/^/  /' >&2
+        echo "[minakata-cron] FAILED to register $name. Diagnostics:" >&2
+        echo "[minakata-cron]   cron list:" >&2
+        hermes_run cron list 2>&1 | sed 's/^/    /' >&2
+        echo "[minakata-cron]   skills list (top 20):" >&2
+        hermes_run skills list 2>&1 | head -20 | sed 's/^/    /' >&2
         return 1
     fi
 }
 
-# --- (diagnostic) skill discovery check ------------------------------------
-# cron job を登録する前に skill が認識されているか確認する。
-echo "[minakata-cron] checking skill discovery..."
+# 起動診断: skill が gateway から見えるパスに居るかログに残す。
+echo "[minakata-cron] skill discovery (first 20):"
 hermes_run skills list 2>&1 | head -20 | sed 's/^/  /'
 
 # schedule format の制約 (cron/jobs.py parse_duration / parse_schedule より):

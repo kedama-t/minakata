@@ -172,7 +172,7 @@ minakata/
 ├── docker/
 │   ├── Dockerfile.minakata
 │   └── docker-compose.yml
-├── hermes/                    # `/opt/data` (HERMES_HOME) に bind mount される
+├── hermes/                    # `/opt/data/.hermes` (gateway の HERMES_HOME) に bind mount される
 │   ├── .gitignore             # runtime state (sessions / logs / cron / memories ...) を ignore
 │   ├── config.yaml            # Hermes 設定 (model / mcp_servers)
 │   ├── cron-bootstrap.sh      # /etc/cont-init.d/ に mount され起動時に cron 登録
@@ -233,7 +233,7 @@ minakata/
 - **`bun run dev` で `.react-router/types/...` が見つからない**: `bunx react-router typegen` を先に走らせる(`bun run typecheck` が内部で実行)。
 - **Hermes が起動しない**: `OPENCODE_API_KEY` / `HERMES_UID` / `HERMES_GID` のいずれかが `.env` に無い可能性。`podman exec -it minakata-hermes-1 hermes doctor` で原因を絞り込む。
 - **cron jobs が登録されていない**: `podman exec -it minakata-hermes-1 hermes cron list` で確認。空なら `hermes` コンテナのログから `[minakata-cron]` 行を探して bootstrap が走ったか / どこで失敗したかを確認(cont-init.d hook なので main-hermes の起動前に出る)。`hermes/cron-bootstrap.sh` を修正したら `podman compose ... down && bun run compose:up:agent` で再実行できる。
-- **過去の構成から移行**: 以前のセットアップで `hermes-data` named volume を作っていた場合は `podman compose ... down && podman volume prune`(対話で y)で消す。今は `../hermes:/opt/data` の bind mount に統一済みなので named volume は不要(#52)。
+- **過去の構成から移行**: `../hermes:/opt/data` で動かしていた場合は古い `hermes/.hermes/` サブディレクトリが残っていることがある。`rm -rf hermes/.hermes` で消した上で `podman compose ... down && bun run compose:up:agent` で再起動する。新マウントは `../hermes:/opt/data/.hermes` で gateway の HERMES_HOME に直結(#55)。
 
 ## ライセンス
 

@@ -37,18 +37,24 @@ services:
     # first-run 検出で sys.exit(1) → s6 が無限再起動する。`gateway run` は
     # headless 長期稼働モードで cron スケジューラもこの上で動く。
     command: ["gateway", "run"]
-    # 公式 Docker docs (https://hermes-agent.nousresearch.com/docs/user-guide/docker)
-    # 通り、$HERMES_HOME (/opt/data) 丸ごとを host の hermes/ に bind mount する。
-    # これで /opt/data 配下が host から見える = config.yaml / skills / cron /
-    # sessions / logs などすべて hermes/ に一元化される。生成物は
-    # hermes/.gitignore で除外済み(#52)。
+    # gateway プロセスは s6 supervised のため container env を継承せず、
+    # `get_hermes_home()` が hermes user の home (`/opt/data`) + `.hermes`
+    # で `/opt/data/.hermes/` を HERMES_HOME として使う。CLI 側 (cron-bootstrap.sh
+    # 経由) も同じパスに揃うので、ここに host の hermes/ を直接 bind mount し、
+    # 二重ディレクトリ構造を排除する(#55)。
+    #   - hermes/config.yaml = /opt/data/.hermes/config.yaml ← gateway が読む
+    #   - hermes/skills/<name>/ = /opt/data/.hermes/skills/<name>/ ← cron scheduler が見つける
+    #   - hermes/cron/jobs.json = /opt/data/.hermes/cron/jobs.json
+    # builtin skills (apple / dogfood 等) は失う(image が初回 populate するが
+    # 我々の bind mount で上書きされる)。Minakata cron は自前 5 skill しか
+    # 使わないため許容。必要なら個別 mount で追加する。
     volumes:
-      - ../hermes:/opt/data
+      - ../hermes:/opt/data/.hermes
       # config.yaml だけ :ro で override する。これで Hermes が起動時に
       # defaults を展開して config.yaml を再書き込みしようとしても block
       # され、host 側 hermes/config.yaml が我々の canonical な minimal
-      # 設定のまま維持できる(git status が汚れない、#52)。
-      - ../hermes/config.yaml:/opt/data/config.yaml:ro
+      # 設定のまま維持できる(git status が汚れない)。
+      - ../hermes/config.yaml:/opt/data/.hermes/config.yaml:ro
       # cron job の登録は cont-init.d hook で自動化。本体 (main-hermes)
       # 起動前に s6 init が走らせるので、別コンテナ・別プロセスを増やさず済む。
       - ../hermes/cron-bootstrap.sh:/etc/cont-init.d/99-minakata-cron:ro
