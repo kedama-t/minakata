@@ -55,6 +55,38 @@ describe('TaskService', () => {
     db.close()
   })
 
+  test('listByUser は requested_by で絞り込み、status / type フィルタが効く', async () => {
+    const db = openTestDb()
+    const tasks = new TaskService(db)
+    const tick = () => new Promise<void>((r) => setTimeout(r, 3))
+    const t1 = tasks.enqueue({
+      type: 'research_followup',
+      priority: 'interactive',
+      requested_by: 'user-a',
+    })
+    await tick()
+    const t2 = tasks.enqueue({ type: 'refresh', priority: 'urgent', requested_by: 'user-a' })
+    await tick()
+    tasks.enqueue({ type: 'research_followup', priority: 'scheduled', requested_by: 'user-b' })
+    tasks.enqueue({ type: 'refresh', priority: 'urgent' }) // requested_by: null
+
+    const ownAll = tasks.listByUser({ user_id: 'user-a' })
+    expect(ownAll.map((t) => t.id)).toEqual([t2.id, t1.id])
+
+    const ownRefresh = tasks.listByUser({ user_id: 'user-a', type: 'refresh' })
+    expect(ownRefresh.length).toBe(1)
+    expect(ownRefresh[0]?.id).toBe(t2.id)
+
+    tasks.complete(t1.id)
+    const ownDone = tasks.listByUser({ user_id: 'user-a', status: 'done' })
+    expect(ownDone.length).toBe(1)
+    expect(ownDone[0]?.id).toBe(t1.id)
+
+    const all = tasks.listAll({})
+    expect(all.length).toBe(4)
+    db.close()
+  })
+
   test('fail で attempts が増え、3 回目で DLQ に入る', () => {
     const db = openTestDb()
     const tasks = new TaskService(db)

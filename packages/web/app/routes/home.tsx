@@ -68,15 +68,52 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     <div className="max-w-6xl mx-auto p-6 space-y-8">
       <QuickActions canEdit={canEdit} />
       {changelogs.length > 0 && (
+  // 直近のエージェント活動 (#61)
+  const recentActivity = services.audit.list({ limit: 10 })
+  return { recentUpdates, newToday, changelogs, recentActivity }
+}
+
+export default function Home({ loaderData }: Route.ComponentProps) {
+  const { recentUpdates, newToday, changelogs, recentActivity } = loaderData
+  return (
+    <div className="max-w-6xl mx-auto p-6 space-y-8">
+      {recentActivity.length > 0 && (
         <section className="bg-white border rounded p-4">
+          <div className="flex items-baseline justify-between mb-3">
+            <h2 className="text-xl font-bold">エージェント稼働</h2>
+            <a href="/monitor" className="text-xs text-blue-600 hover:underline">
+              すべて見る →
+            </a>
+          </div>
+          <ul className="space-y-1 text-sm">
+            {recentActivity.map((e) => (
+              <li key={e.id} className="flex items-center gap-2">
+                <span className="text-xs text-slate-500 tabular-nums">
+                  {new Date(e.timestamp).toLocaleTimeString('ja-JP')}
+                </span>
+                <span className="text-xs text-slate-500">{e.actor}</span>
+                <span className="text-xs bg-slate-100 px-1.5 py-0.5 rounded">{e.tool_name}</span>
+                {e.agent_name && <span className="text-xs text-slate-400">via {e.agent_name}</span>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {changelogs.length > 0 && (
+        <section className="bg-white dark:bg-slate-800 border rounded p-4">
           <h2 className="text-xl font-bold mb-3">ChangeLog 日報</h2>
           <ul className="space-y-1 text-sm">
             {changelogs.map((c) => (
               <li key={c.id}>
-                <a href={`/articles/${c.slug}`} className="text-blue-700 hover:underline">
+                <a
+                  href={`/articles/${c.slug}`}
+                  className="text-blue-700 dark:text-blue-300 hover:underline"
+                >
                   {c.title}
                 </a>
-                <span className="text-slate-500 ml-2 text-xs">{c.updated_at}</span>
+                <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 ml-2 text-xs">
+                  {c.updated_at}
+                </span>
               </li>
             ))}
           </ul>
@@ -108,23 +145,35 @@ function ArticleList({
   }[]
   emptyMessage: string
 }) {
-  if (items.length === 0) return <p className="text-sm text-slate-500">{emptyMessage}</p>
+  if (items.length === 0)
+    return (
+      <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
+        {emptyMessage}
+      </p>
+    )
   return (
     <ul className="space-y-3">
       {items.map((a) => (
-        <li key={a.id} className="bg-white p-4 rounded border">
-          <a href={`/articles/${a.slug}`} className="text-blue-700 font-semibold hover:underline">
+        <li key={a.id} className="bg-white dark:bg-slate-800 p-4 rounded border">
+          <a
+            href={`/articles/${a.slug}`}
+            className="text-blue-700 dark:text-blue-300 font-semibold hover:underline"
+          >
             {a.title}
           </a>
           <FreshnessBadge rank={a.freshness_rank} />
-          {a.summary && <p className="text-sm text-slate-600 mt-1">{a.summary}</p>}
+          {a.summary && (
+            <p className="text-sm text-slate-600 dark:text-slate-400 dark:text-slate-500 mt-1">
+              {a.summary}
+            </p>
+          )}
           {a.tags.length > 0 && (
             <div className="flex gap-1 mt-2">
               {a.tags.map((t) => (
                 <a
                   key={t}
                   href={`/search?tag=${encodeURIComponent(t)}`}
-                  className="text-xs bg-slate-100 px-2 py-0.5 rounded"
+                  className="text-xs bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded"
                 >
                   {t}
                 </a>
@@ -140,11 +189,11 @@ function ArticleList({
 function FreshnessBadge({ rank }: { rank: string }) {
   const color =
     rank === 'fresh'
-      ? 'bg-green-100 text-green-700'
+      ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
       : rank === 'aging'
-        ? 'bg-yellow-100 text-yellow-700'
+        ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300'
         : rank === 'stale'
-          ? 'bg-orange-100 text-orange-700'
-          : 'bg-red-100 text-red-700'
+          ? 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300'
+          : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
   return <span className={`ml-2 text-xs px-2 py-0.5 rounded ${color}`}>{rank}</span>
 }

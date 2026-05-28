@@ -8,6 +8,7 @@ import init0001 from './migrations/0001_init.sql?raw'
 import init0002 from './migrations/0002_vec.sql?raw'
 import init0003 from './migrations/0003_archive_proposals.sql?raw'
 import init0004 from './migrations/0004_review_before_status.sql?raw'
+import init0005 from './migrations/0005_tasks_requested_by.sql?raw'
 
 export type Db = Database
 
@@ -24,6 +25,7 @@ const MIGRATIONS: { name: string; sql: string }[] = [
   { name: '0002_vec.sql', sql: init0002 },
   { name: '0003_archive_proposals.sql', sql: init0003 },
   { name: '0004_review_before_status.sql', sql: init0004 },
+  { name: '0005_tasks_requested_by.sql', sql: init0005 },
 ]
 
 /**

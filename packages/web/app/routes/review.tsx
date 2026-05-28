@@ -42,16 +42,16 @@ export default function ReviewPage({ loaderData, actionData }: Route.ComponentPr
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <header>
-        <a href="/reviews" className="text-blue-700 text-sm">
+        <a href="/reviews" className="text-blue-700 dark:text-blue-300 text-sm">
           ← レビュー一覧
         </a>
         <h1 className="text-2xl font-bold mt-1">{article_title}</h1>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
           変更率: {(review.change_pct * 100).toFixed(1)}% / 状態: {review.status}
         </p>
       </header>
 
-      <section className="bg-white border rounded p-4">
+      <section className="bg-white dark:bg-slate-800 border rounded p-4">
         <h2 className="text-lg font-bold mb-2">差分</h2>
         <pre className="text-sm font-mono leading-tight whitespace-pre-wrap">
           {diff.map((chunk, i) => (
@@ -60,10 +60,10 @@ export default function ReviewPage({ loaderData, actionData }: Route.ComponentPr
               key={i}
               className={
                 chunk.added
-                  ? 'bg-green-100 text-green-900'
+                  ? 'bg-green-100 dark:bg-green-900/40 text-green-900 dark:text-green-200'
                   : chunk.removed
-                    ? 'bg-red-100 text-red-900 line-through'
-                    : 'text-slate-700'
+                    ? 'bg-red-100 dark:bg-red-900/40 text-red-900 dark:text-red-200 line-through'
+                    : 'text-slate-700 dark:text-slate-300'
               }
             >
               {chunk.value}
@@ -73,7 +73,7 @@ export default function ReviewPage({ loaderData, actionData }: Route.ComponentPr
       </section>
 
       {review.status === 'pending' && (
-        <section className="bg-white border rounded p-4 space-y-3">
+        <section className="bg-white dark:bg-slate-800 border rounded p-4 space-y-3">
           <h2 className="text-lg font-bold">判定</h2>
           <Form method="post" className="flex gap-2">
             <button
@@ -101,24 +101,28 @@ export default function ReviewPage({ loaderData, actionData }: Route.ComponentPr
             >
               差し戻し
             </button>
-            {actionData?.error && <p className="text-red-600 text-sm">{actionData.error}</p>}
+            {actionData?.error && (
+              <p className="text-red-600 dark:text-red-400 text-sm">{actionData.error}</p>
+            )}
           </Form>
         </section>
       )}
 
-      <section className="bg-white border rounded p-4">
+      <section className="bg-white dark:bg-slate-800 border rounded p-4">
         <h2 className="text-lg font-bold mb-2">コメント</h2>
         <ul className="space-y-1 text-sm">
           {comments.map((c) => (
             <li key={c.id} className="border-b pb-1">
-              <span className="text-slate-500 text-xs">
+              <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">
                 {c.author_id} - {c.created_at}
               </span>
               <p>{c.body}</p>
             </li>
           ))}
           {comments.length === 0 && (
-            <p className="text-xs text-slate-500">まだコメントはありません。</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
+              まだコメントはありません。
+            </p>
           )}
         </ul>
         <Form method="post" className="mt-3 flex gap-2">
