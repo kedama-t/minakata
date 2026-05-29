@@ -13,13 +13,7 @@ import { CommandPalette } from './components/command-palette.tsx'
 import { Sidebar } from './components/sidebar.tsx'
 import { getCurrentUser } from './lib/auth.ts'
 import { getServices } from './lib/services.ts'
-import {
-  THEME_INIT_SCRIPT,
-  type Theme,
-  readThemeCookie,
-  resolveTheme,
-  resolvedThemeAttr,
-} from './lib/theme.ts'
+import { type Theme, readThemeCookie, resolvedThemeAttr } from './lib/theme.ts'
 import './styles.css'
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -38,22 +32,19 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export function Layout({ children }: { children: React.ReactNode }) {
   // root loader の theme(cookie 由来)から SSR 段階で data-theme を確定する。
-  // explicit な light/dark はこれでフラッシュ無し。system は light を仮置きし
-  // inline script が prefers-color-scheme で上書きする。
-  // suppressHydrationWarning: inline script が変えた data-theme を React が
-  // ハイドレーション時にサーバ値へ巻き戻すのを防ぐ(暗→light の戻り対策)。
+  // explicit な light/dark は属性で確定。system は属性を出さず CSS の
+  // @media (prefers-color-scheme) に委ねるため、初期テーマは CSS だけで決まり
+  // JS の実行タイミングに依存せず FOUC が起きない。
   const data = useRouteLoaderData('root') as { theme?: Theme } | undefined
   const themeAttr = resolvedThemeAttr(data?.theme ?? 'system')
   return (
-    <html lang="ja" data-theme={themeAttr} suppressHydrationWarning>
+    <html lang="ja" data-theme={themeAttr}>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>Minakata</title>
         <Meta />
         <Links />
-        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: theme init script is a static constant */}
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
       <body className="bg-canvas text-slate-900 dark:text-slate-100 min-h-screen antialiased">
         {children}
@@ -66,20 +57,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 /**
  * 永続化された theme(cookie 由来)を `<html data-theme>` にライブ同期する。
- * テーマ切替は /theme への POST → クライアントナビ(再検証)で行われ、`<head>` の
- * inline script は再実行されない。そのため loader が返す theme の変化を effect で
- * 捕捉して属性を更新し、切替を即時反映する。system のときは OS の配色変更にも追従。
+ * テーマ切替は /theme への POST → クライアントナビ(再検証)で行われるため、
+ * loader が返す theme の変化を effect で捕捉して属性を更新し即時反映する。
+ * system のときは属性を外して CSS の @media に委ねる(OS の配色変更にも自動追従)。
  */
 function ThemeManager({ theme }: { theme: Theme }) {
   useEffect(() => {
-    const apply = () => {
-      document.documentElement.setAttribute('data-theme', resolveTheme(theme))
-    }
-    apply()
+    const el = document.documentElement
     if (theme === 'system') {
-      const m = window.matchMedia('(prefers-color-scheme: dark)')
-      m.addEventListener('change', apply)
-      return () => m.removeEventListener('change', apply)
+      el.removeAttribute('data-theme')
+    } else {
+      el.setAttribute('data-theme', theme)
     }
   }, [theme])
   return null
