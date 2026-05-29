@@ -1,4 +1,3 @@
-import { Form } from 'react-router'
 import { requireUser } from '../lib/auth.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/home.ts'
@@ -25,74 +24,79 @@ export async function loader({ request }: Route.LoaderArgs) {
     newToday,
     changelogs,
     recentActivity,
-    canEdit: user.role !== 'viewer',
+    user,
   }
 }
 
-function QuickActions({ canEdit }: { canEdit: boolean }) {
-  return (
-    <section className="bg-white dark:bg-slate-800 border rounded p-4">
-      <h2 className="text-sm font-semibold text-slate-500 dark:text-slate-400 mb-3">
-        クイックアクション
-      </h2>
-      <Form method="get" action="/search" className="flex gap-2 mb-3">
-        <input
-          name="q"
-          className="flex-1 px-3 py-2 border rounded text-base bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700"
-          placeholder="ナレッジを検索 (例: React Router v7 framework mode)"
-          autoComplete="off"
-        />
-        <button type="submit" className="bg-blue-600 text-white px-4 rounded">
-          検索
-        </button>
-      </Form>
-      {canEdit && (
-        <div className="flex flex-wrap gap-2">
-          <a
-            href="/chat/new"
-            className="bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700"
-          >
-            + 新規対話
-          </a>
-          <a
-            href="/chat/new?kind=knowledge"
-            className="bg-purple-600 text-white px-3 py-2 rounded text-sm hover:bg-purple-700"
-          >
-            ? ナレッジ質問
-          </a>
-          <a
-            href="/topics"
-            className="border border-slate-300 dark:border-slate-600 px-3 py-2 rounded text-sm hover:bg-slate-50 dark:hover:bg-slate-700"
-          >
-            購読トピックを編集
-          </a>
-        </div>
-      )}
-    </section>
+function StatCard({
+  label,
+  value,
+  href,
+}: {
+  label: string
+  value: number
+  href?: string
+}) {
+  const content = (
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4 transition-colors hover:border-slate-300 dark:hover:border-slate-700">
+      <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+        {label}
+      </p>
+      <p className="text-2xl font-semibold mt-1.5 tabular-nums">{value}</p>
+    </div>
+  )
+  return href ? (
+    <a href={href} className="block">
+      {content}
+    </a>
+  ) : (
+    content
   )
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { recentUpdates, newToday, changelogs, recentActivity, canEdit } = loaderData
+  const { recentUpdates, newToday, changelogs, recentActivity, user } = loaderData
+  const greeting = (() => {
+    const h = new Date().getHours()
+    if (h < 5) return 'こんばんは'
+    if (h < 11) return 'おはようございます'
+    if (h < 18) return 'こんにちは'
+    return 'こんばんは'
+  })()
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-8">
-      <QuickActions canEdit={canEdit} />
+    <div className="max-w-6xl mx-auto px-4 lg:px-8 py-6 lg:py-10 space-y-8">
+      <header>
+        <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">
+          {greeting}、{user.email.split('@')[0]} さん
+        </h1>
+        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          直近 24 時間のナレッジ更新と、エージェントの稼働状況です。
+        </p>
+      </header>
+
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard label="昨夜の更新" value={recentUpdates.length} />
+        <StatCard label="新規記事" value={newToday.length} />
+        <StatCard label="ChangeLog" value={changelogs.length} />
+        <StatCard label="モニター" value={recentActivity.length} href="/monitor" />
+      </section>
+
       {recentActivity.length > 0 && (
-        <section className="bg-white dark:bg-slate-800 border rounded p-4">
+        <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-5">
           <div className="flex items-baseline justify-between mb-3">
-            <h2 className="text-xl font-bold">エージェント稼働</h2>
+            <h2 className="text-base font-semibold">エージェント稼働</h2>
             <a href="/monitor" className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
               すべて見る →
             </a>
           </div>
           <ul className="space-y-1 text-sm">
             {recentActivity.map((e) => (
-              <li key={e.id} className="flex items-center gap-2">
+              <li key={e.id} className="flex items-center gap-2 py-1">
                 <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
                   {new Date(e.timestamp).toLocaleTimeString('ja-JP')}
                 </span>
                 <span className="text-xs text-slate-500 dark:text-slate-400">{e.actor}</span>
-                <span className="text-xs bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">
+                <span className="text-xs bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
                   {e.tool_name}
                 </span>
                 {e.agent_name && (
@@ -106,9 +110,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         </section>
       )}
       {changelogs.length > 0 && (
-        <section className="bg-white dark:bg-slate-800 border rounded p-4">
-          <h2 className="text-xl font-bold mb-3">ChangeLog 日報</h2>
-          <ul className="space-y-1 text-sm">
+        <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-5">
+          <h2 className="text-base font-semibold mb-3">ChangeLog 日報</h2>
+          <ul className="space-y-1.5 text-sm">
             {changelogs.map((c) => (
               <li key={c.id}>
                 <a
@@ -126,11 +130,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         </section>
       )}
       <section>
-        <h2 className="text-xl font-bold mb-3">昨夜の更新</h2>
+        <h2 className="text-base font-semibold mb-3">昨夜の更新</h2>
         <ArticleList items={recentUpdates} emptyMessage="まだ更新がありません" />
       </section>
       <section>
-        <h2 className="text-xl font-bold mb-3">新規作成された記事</h2>
+        <h2 className="text-base font-semibold mb-3">新規作成された記事</h2>
         <ArticleList items={newToday} emptyMessage="まだ新規記事がありません" />
       </section>
     </div>
@@ -154,9 +158,12 @@ function ArticleList({
   if (items.length === 0)
     return <p className="text-sm text-slate-500 dark:text-slate-400">{emptyMessage}</p>
   return (
-    <ul className="space-y-3">
+    <ul className="space-y-2">
       {items.map((a) => (
-        <li key={a.id} className="bg-white dark:bg-slate-800 p-4 rounded border">
+        <li
+          key={a.id}
+          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-lg transition-colors hover:border-slate-300 dark:hover:border-slate-700"
+        >
           <a
             href={`/articles/${a.slug}`}
             className="text-blue-700 dark:text-blue-300 font-semibold hover:underline"
@@ -165,15 +172,17 @@ function ArticleList({
           </a>
           <FreshnessBadge rank={a.freshness_rank} />
           {a.summary && (
-            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">{a.summary}</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1.5 line-clamp-2">
+              {a.summary}
+            </p>
           )}
           {a.tags.length > 0 && (
-            <div className="flex gap-1 mt-2">
+            <div className="flex flex-wrap gap-1 mt-2.5">
               {a.tags.map((t) => (
                 <a
                   key={t}
                   href={`/search?tag=${encodeURIComponent(t)}`}
-                  className="text-xs bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded"
+                  className="text-xs bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 px-2 py-0.5 rounded transition-colors"
                 >
                   {t}
                 </a>

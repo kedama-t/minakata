@@ -67,7 +67,7 @@ export function CommandPalette() {
     setSelectedIdx(0)
   }, [])
 
-  // Cmd+K / Ctrl+K で開く・Esc で閉じる
+  // Cmd+K / Ctrl+K で開く・Esc で閉じる + サイドバー検索ボタン等からのカスタムイベント
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -78,8 +78,13 @@ export function CommandPalette() {
         close()
       }
     }
+    const onOpen = () => setOpen(true)
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    window.addEventListener('open-command-palette', onOpen)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('open-command-palette', onOpen)
+    }
   }, [open, close])
 
   // open 時に input フォーカス
