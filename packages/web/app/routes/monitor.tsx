@@ -131,7 +131,7 @@ function AgentCard({ stat }: { stat: AgentStat }) {
       {favoriteAction && (
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-1.5">
           <span>{favoriteAction.icon}</span>
-          <span className="truncate">よく {favoriteAction.phrase}</span>
+          <span className="truncate">{favoriteAction.phrase}</span>
         </p>
       )}
     </a>
