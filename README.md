@@ -96,6 +96,25 @@ docker compose -f docker/docker-compose.yml --env-file .env restart minakata
 docker compose -f docker/docker-compose.yml --env-file .env down
 ```
 
+### コンテナのままフロント変更を素早く反映する(イメージ再ビルド回避)
+
+`minakata` イメージは `build/` を焼き込む構成なので、通常はソース変更のたびに
+`compose:rebuild`(--no-cache)が必要で重い。dev オーバーレイ
+(`docker/docker-compose.dev.yml`)はホストでビルドした `packages/web/build` を
+コンテナにマウントするため、イメージを焼き直さずに反映できる。
+
+```bash
+# 初回(or 大きく変えたとき): ホストで build してから dev オーバーレイ付きで起動
+bun run compose:dev:up
+
+# 以降の反復: 再 build してコンテナを再起動するだけ(イメージ再ビルド不要)
+bun run compose:dev:sync
+```
+
+native 依存(sqlite-vec 等)は image 側 `node_modules` に残るため、ホスト(macOS)
+ビルドの `build/` でも Linux コンテナで動作する。SSR/ハイドレーション等を本番同等で
+見たいときに有効。純粋な UI イテレーションは下の `bun run dev`(HMR)が最速。
+
 ## ローカル開発(コンテナ無しで動かす)
 
 UI を素早く回したい / `bun test` を書く場合は、Bun を直接動かすのが速い。
