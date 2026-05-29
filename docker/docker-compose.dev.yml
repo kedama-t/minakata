@@ -1,0 +1,15 @@
+# dev 用オーバーレイ。本番 compose に重ねて使う:
+#   podman compose -f docker/docker-compose.yml -f docker/docker-compose.dev.yml ... up
+#
+# ホストでビルドした packages/web/build をコンテナの同じパスにマウントし、
+# イメージを焼き直さずにアプリ更新を反映する(runtime は bun ./build/server/index.js
+# を実行するだけ)。native 依存(sqlite-vec 等)は image 側 node_modules に残るため、
+# ホスト(macOS)でビルドした build/ でも Linux コンテナでそのまま動作する。
+#
+# 使い方は package.json の compose:dev:up / compose:dev:sync を参照。
+name: minakata
+
+services:
+  minakata:
+    volumes:
+      - ../packages/web/build:/app/packages/web/build
