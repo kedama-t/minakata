@@ -31,8 +31,8 @@ function previewOf(content: string | null): string {
 
 function tabClass(active: boolean): string {
   return active
-    ? 'px-3 py-1 rounded-t border-b-2 border-blue-600 text-blue-700 font-medium'
-    : 'px-3 py-1 text-slate-500 hover:text-blue-600'
+    ? 'px-3 py-1 rounded-t border-b-2 border-blue-600 text-blue-700 dark:text-blue-300 font-medium'
+    : 'px-3 py-1 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400'
 }
 
 export default function Chats({ loaderData }: Route.ComponentProps) {
@@ -40,7 +40,7 @@ export default function Chats({ loaderData }: Route.ComponentProps) {
   return (
     <div className="max-w-4xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-4">チャット履歴</h1>
-      <div className="flex gap-2 mb-4 border-b border-slate-200">
+      <div className="flex gap-2 mb-4 border-b">
         <a className={tabClass(kind === 'dialogue')} href="/chats?kind=dialogue">
           対話
         </a>
@@ -51,53 +51,61 @@ export default function Chats({ loaderData }: Route.ComponentProps) {
           すべて
         </a>
         <div className="ml-auto flex items-center gap-3">
-          <a className="text-sm text-blue-600 hover:underline" href="/chat/new">
+          <a className="text-sm text-blue-600 dark:text-blue-400 hover:underline" href="/chat/new">
             + 新規対話
           </a>
-          <a className="text-sm text-blue-600 hover:underline" href="/chat/new?kind=knowledge">
+          <a
+            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            href="/chat/new?kind=knowledge"
+          >
             + ナレッジ質問
           </a>
         </div>
       </div>
       <ul className="space-y-2">
         {sessions.map((s) => (
-          <li key={s.id} className="bg-white p-3 rounded border">
+          <li
+            key={s.id}
+            className="bg-surface p-3 rounded-lg border transition-colors hover:border-border-strong"
+          >
             <a href={`/chat/${s.id}`} className="block">
               <div className="flex items-center gap-2">
                 <span
                   className={`text-xs px-2 py-0.5 rounded ${
                     s.kind === 'knowledge'
-                      ? 'bg-purple-100 text-purple-700'
-                      : 'bg-blue-100 text-blue-700'
+                      ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
+                      : 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
                   }`}
                 >
                   {s.kind}
                 </span>
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-slate-500 dark:text-slate-400">
                   {new Date(s.updated_at).toLocaleString('ja-JP')}
                 </span>
               </div>
-              <p className="text-sm mt-1 text-slate-700">
-                {s.last_message_role === 'user' && <span className="text-slate-400">あなた: </span>}
+              <p className="text-sm mt-1 text-slate-700 dark:text-slate-200">
+                {s.last_message_role === 'user' && (
+                  <span className="text-slate-400 dark:text-slate-500">あなた: </span>
+                )}
                 {s.last_message_role === 'agent' && (
-                  <span className="text-slate-400">エージェント: </span>
+                  <span className="text-slate-400 dark:text-slate-500">エージェント: </span>
                 )}
                 {previewOf(s.last_message) || (
-                  <span className="text-slate-400">（メッセージなし）</span>
+                  <span className="text-slate-400 dark:text-slate-500">（メッセージなし）</span>
                 )}
               </p>
             </a>
           </li>
         ))}
         {sessions.length === 0 && (
-          <p className="text-sm text-slate-500">対話履歴がまだありません。</p>
+          <p className="text-sm text-slate-500 dark:text-slate-400">対話履歴がまだありません。</p>
         )}
       </ul>
       {nextCursor && (
         <div className="mt-4">
           <a
             href={`/chats?kind=${kind}&before=${encodeURIComponent(nextCursor)}`}
-            className="text-sm text-blue-600 hover:underline"
+            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
           >
             さらに読み込む
           </a>

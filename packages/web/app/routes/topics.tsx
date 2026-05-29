@@ -116,7 +116,7 @@ export default function Topics({ loaderData, actionData }: Route.ComponentProps)
     <div className="max-w-3xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-4">購読トピック</h1>
 
-      <Form method="post" className="bg-white dark:bg-slate-800 p-4 rounded border space-y-2 mb-6">
+      <Form method="post" className="bg-surface p-4 rounded border space-y-2 mb-6">
         <input type="hidden" name="intent" value="create" />
         <input
           name="name"
@@ -180,7 +180,7 @@ export default function Topics({ loaderData, actionData }: Route.ComponentProps)
       <h2 className="text-lg font-bold mb-2">登録済み</h2>
       <ul className="space-y-2">
         {loaderData.topics.map((t) => (
-          <li key={t.id} className="bg-white dark:bg-slate-800 p-3 rounded border space-y-1">
+          <li key={t.id} className="bg-surface p-3 rounded border space-y-1">
             <div className="flex items-center gap-2">
               <span className="font-semibold">{t.name}</span>
               <span className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
@@ -233,7 +233,7 @@ export default function Topics({ loaderData, actionData }: Route.ComponentProps)
                 <summary className="cursor-pointer text-blue-700 dark:text-blue-300">
                   個別指示を表示
                 </summary>
-                <pre className="bg-slate-50 dark:bg-slate-950 p-2 mt-1 rounded whitespace-pre-wrap font-mono">
+                <pre className="bg-canvas p-2 mt-1 rounded whitespace-pre-wrap font-mono">
                   {t.instructions_md}
                 </pre>
               </details>

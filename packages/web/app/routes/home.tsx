@@ -38,7 +38,7 @@ function StatCard({
   href?: string
 }) {
   const content = (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-4 transition-colors hover:border-slate-300 dark:hover:border-slate-700">
+    <div className="bg-surface border border-border rounded-lg p-4 transition-colors hover:border-border-strong">
       <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
         {label}
       </p>
@@ -82,7 +82,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       </section>
 
       {recentActivity.length > 0 && (
-        <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-5">
+        <section className="bg-surface border border-border rounded-lg p-5">
           <div className="flex items-baseline justify-between mb-3">
             <h2 className="text-base font-semibold">エージェント稼働</h2>
             <a href="/monitor" className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
@@ -110,7 +110,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         </section>
       )}
       {changelogs.length > 0 && (
-        <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg p-5">
+        <section className="bg-surface border border-border rounded-lg p-5">
           <h2 className="text-base font-semibold mb-3">ChangeLog 日報</h2>
           <ul className="space-y-1.5 text-sm">
             {changelogs.map((c) => (
@@ -162,7 +162,7 @@ function ArticleList({
       {items.map((a) => (
         <li
           key={a.id}
-          className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-lg transition-colors hover:border-slate-300 dark:hover:border-slate-700"
+          className="bg-surface border border-border p-4 rounded-lg transition-colors hover:border-border-strong"
         >
           <a
             href={`/articles/${a.slug}`}

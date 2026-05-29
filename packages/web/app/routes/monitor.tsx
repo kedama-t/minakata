@@ -91,7 +91,7 @@ function AgentCard({ stat }: { stat: AgentStat }) {
   return (
     <a
       href={`/monitor?agent=${encodeURIComponent(stat.profile.key)}`}
-      className="block bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 transition-all hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-sm"
+      className="block bg-surface border border-border rounded-xl p-4 transition-all hover:border-border-strong hover:shadow-sm"
     >
       <div className="flex items-start gap-3">
         <Avatar profile={stat.profile} size="lg" />
@@ -114,7 +114,7 @@ function AgentCard({ stat }: { stat: AgentStat }) {
           </p>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+      <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-border">
         <div>
           <p className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500">
             最終活動
@@ -179,7 +179,7 @@ function EventRow({ event, now }: { event: Event; now: Date }) {
             <summary className="cursor-pointer text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 select-none">
               詳細を見る
             </summary>
-            <pre className="mt-1.5 p-2 bg-slate-50 dark:bg-slate-950/50 border border-slate-100 dark:border-slate-800 rounded text-[11px] overflow-x-auto">
+            <pre className="mt-1.5 p-2 bg-canvas/50 border border-border rounded text-[11px] overflow-x-auto">
               {meta}
             </pre>
           </details>
@@ -232,7 +232,7 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
         </section>
       )}
 
-      <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5">
+      <section className="bg-surface border border-border rounded-xl p-5">
         <Form method="get" className="flex flex-wrap items-end gap-3">
           <label className="text-sm">
             <span className="block text-xs text-slate-500 dark:text-slate-400 mb-1">
@@ -241,7 +241,7 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
             <select
               name="agent"
               defaultValue={agent}
-              className="px-2.5 py-1.5 border rounded-md bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-sm"
+              className="px-2.5 py-1.5 border rounded-md bg-surface border-border text-sm"
             >
               <option value="">すべて</option>
               {agents.map((a) => (
@@ -256,7 +256,7 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
             <select
               name="tool"
               defaultValue={tool}
-              className="px-2.5 py-1.5 border rounded-md bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-sm"
+              className="px-2.5 py-1.5 border rounded-md bg-surface border-border text-sm"
             >
               <option value="">すべて</option>
               {tools.map((t) => (
@@ -276,7 +276,7 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
               min={1}
               max={720}
               defaultValue={hours}
-              className="px-2.5 py-1.5 border rounded-md w-24 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-sm"
+              className="px-2.5 py-1.5 border rounded-md w-24 bg-surface border-border text-sm"
             />
           </label>
           <button
@@ -299,7 +299,7 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
       <section>
         <h2 className="text-base font-semibold mb-4">タイムライン</h2>
         {events.length === 0 ? (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-10 text-center">
+          <div className="bg-surface border border-border rounded-xl p-10 text-center">
             <p className="text-4xl mb-3">😴</p>
             <p className="text-sm text-slate-500 dark:text-slate-400">
               この期間にエージェントの活動はありませんでした

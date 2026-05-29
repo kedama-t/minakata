@@ -35,7 +35,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: theme init script is a static constant */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body className="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 min-h-screen antialiased">
+      <body className="bg-canvas text-slate-900 dark:text-slate-100 min-h-screen antialiased">
         {children}
         <ScrollRestoration />
         <Scripts />

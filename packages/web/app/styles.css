@@ -4,3 +4,46 @@
  * 切り替えは Cookie + inline script (root.tsx) で行うため、SSR 段階で
  * `<html data-theme="...">` が確定し FOUC を起こさない。 */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* ── セマンティックデザイントークン ──────────────────────────────
+ * light を既定値、dark で値を差し替える。`@theme inline` で各 utility が
+ * `var(--token)` を直接参照するため、クラス 1 つ(例: bg-surface)で
+ * light/dark の両方が切り替わる。
+ * コントラストを抑えた柔らかいトーンに調整している(border は slate-200/800
+ * より一段薄い)。 */
+:root {
+  --canvas: #f7f8fa; /* ページ背景 */
+  --surface: #ffffff; /* カード等の前面 */
+  --surface-muted: #f3f5f8; /* 副次的な塗り */
+  --surface-sunken: #eef1f5; /* code / inset */
+  --border: #e8ebf0; /* 既定の境界(柔らかめ) */
+  --border-strong: #d7dce3; /* hover / 強調境界 */
+}
+
+[data-theme="dark"] {
+  --canvas: #0a0f1a;
+  --surface: #121826;
+  --surface-muted: #0f1622;
+  --surface-sunken: #0c111c;
+  --border: #222b3a;
+  --border-strong: #313b4d;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+}
+
+/* Tailwind v4 では裸の `border` の既定色が currentColor(= テキスト色)になり
+ * コントラストが過剰になる。トークンの境界色を既定にして全体を落ち着かせる。 */
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-border);
+  }
+}

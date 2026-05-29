@@ -145,7 +145,7 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
           {comments.map((c) => (
             <li
               key={c.id}
-              className={`bg-slate-50 dark:bg-slate-950 p-2 rounded ${c.status === 'resolved' ? 'opacity-50' : ''}`}
+              className={`bg-canvas p-2 rounded ${c.status === 'resolved' ? 'opacity-50' : ''}`}
             >
               <div className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
                 {c.author_id} - {c.created_at}
@@ -173,10 +173,7 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
           )}
         </ul>
         {canEdit && (
-          <Form
-            method="post"
-            className="mt-4 space-y-2 bg-white dark:bg-slate-800 p-3 rounded border"
-          >
+          <Form method="post" className="mt-4 space-y-2 bg-surface p-3 rounded border">
             <input type="hidden" name="intent" value="add_comment" />
             <input
               name="anchor"

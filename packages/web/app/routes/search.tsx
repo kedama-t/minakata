@@ -43,7 +43,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
       )}
       <ul className="space-y-2">
         {hits.map((h) => (
-          <li key={h.id} className="bg-white dark:bg-slate-800 p-3 rounded border">
+          <li key={h.id} className="bg-surface p-3 rounded border">
             <a
               href={`/articles/${h.slug}`}
               className="text-blue-700 dark:text-blue-300 font-semibold"
