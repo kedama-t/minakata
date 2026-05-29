@@ -166,7 +166,7 @@ export default function Chat({ loaderData }: Route.ComponentProps) {
       </h1>
       <div
         ref={containerRef}
-        className="flex-1 overflow-y-auto bg-white dark:bg-slate-800 rounded border p-4 space-y-3"
+        className="flex-1 overflow-y-auto bg-surface rounded border p-4 space-y-3"
       >
         {merged.length === 0 && (
           <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">

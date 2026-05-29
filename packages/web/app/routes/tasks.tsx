@@ -54,13 +54,13 @@ export async function loader({ request }: Route.LoaderArgs) {
 function statusBadge(status: TaskStatus): string {
   switch (status) {
     case 'queued':
-      return 'bg-slate-100 text-slate-700'
+      return 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200'
     case 'claimed':
-      return 'bg-blue-100 text-blue-700'
+      return 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
     case 'done':
-      return 'bg-green-100 text-green-700'
+      return 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
     case 'failed':
-      return 'bg-red-100 text-red-700'
+      return 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
   }
 }
 
@@ -79,8 +79,8 @@ function statusLabel(status: TaskStatus): string {
 
 function tabClass(active: boolean): string {
   return active
-    ? 'px-3 py-1 rounded-t border-b-2 border-blue-600 text-blue-700 font-medium'
-    : 'px-3 py-1 text-slate-500 hover:text-blue-600'
+    ? 'px-3 py-1 rounded-t border-b-2 border-blue-600 text-blue-700 dark:text-blue-300 font-medium'
+    : 'px-3 py-1 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400'
 }
 
 function elapsed(from: string, to: string | null): string {
@@ -99,7 +99,7 @@ export default function Tasks({ loaderData }: Route.ComponentProps) {
   return (
     <div className="max-w-5xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-4">タスク履歴</h1>
-      <div className="flex gap-2 mb-4 border-b border-slate-200">
+      <div className="flex gap-2 mb-4 border-b">
         <a
           className={tabClass(status === 'all')}
           href={`/tasks${showAll ? '?all=true' : ''}${type ? `${showAll ? '&' : '?'}type=${encodeURIComponent(type)}` : ''}`}
@@ -120,7 +120,7 @@ export default function Tasks({ loaderData }: Route.ComponentProps) {
         <div className="ml-auto flex items-center gap-3">
           {isAdmin && (
             <a
-              className="text-sm text-blue-600 hover:underline"
+              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
               href={
                 showAll
                   ? `/tasks${status !== 'all' ? `?status=${status}` : ''}`
@@ -137,31 +137,38 @@ export default function Tasks({ loaderData }: Route.ComponentProps) {
           const articleId = typeof t.payload.article_id === 'string' ? t.payload.article_id : null
           const slug = articleId ? articleSlugs[articleId] : null
           return (
-            <li key={t.id} className="bg-white p-3 rounded border">
+            <li
+              key={t.id}
+              className="bg-surface p-3 rounded-lg border transition-colors hover:border-border-strong"
+            >
               <div className="flex items-center gap-2 text-xs">
                 <span className={`px-2 py-0.5 rounded ${statusBadge(t.status)}`}>
                   {statusLabel(t.status)}
                 </span>
-                <span className="text-slate-500">{t.type}</span>
-                <span className="text-slate-400">priority: {t.priority}</span>
-                <span className="ml-auto text-slate-400">
+                <span className="text-slate-500 dark:text-slate-400">{t.type}</span>
+                <span className="text-slate-400 dark:text-slate-500">priority: {t.priority}</span>
+                <span className="ml-auto text-slate-400 dark:text-slate-500">
                   {new Date(t.created_at).toLocaleString('ja-JP')}
                 </span>
               </div>
-              <div className="text-sm text-slate-700 mt-1 flex items-center gap-3">
+              <div className="text-sm text-slate-700 dark:text-slate-200 mt-1 flex items-center gap-3">
                 <span>
                   経過: {elapsed(t.created_at, t.completed_at)}
                   {t.cost_usd > 0 && (
-                    <span className="ml-2 text-slate-500">${t.cost_usd.toFixed(4)}</span>
+                    <span className="ml-2 text-slate-500 dark:text-slate-400">
+                      ${t.cost_usd.toFixed(4)}
+                    </span>
                   )}
                   {t.attempts > 0 && t.status !== 'done' && (
-                    <span className="ml-2 text-orange-600">attempts: {t.attempts}</span>
+                    <span className="ml-2 text-orange-600 dark:text-orange-400">
+                      attempts: {t.attempts}
+                    </span>
                   )}
                 </span>
                 {slug && (
                   <a
                     href={`/articles/${slug}`}
-                    className="ml-auto text-blue-600 hover:underline text-sm"
+                    className="ml-auto text-blue-600 dark:text-blue-400 hover:underline text-sm"
                   >
                     記事を開く →
                   </a>
@@ -171,7 +178,7 @@ export default function Tasks({ loaderData }: Route.ComponentProps) {
           )
         })}
         {tasks.length === 0 && (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             該当するタスクはありません
             {!showAll && '（記事ページから追加調査を依頼するとここに表示されます）'}
           </p>
@@ -188,7 +195,7 @@ export default function Tasks({ loaderData }: Route.ComponentProps) {
               params.set('before', nextCursor)
               return `/tasks?${params.toString()}`
             })()}
-            className="text-sm text-blue-600 hover:underline"
+            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
           >
             さらに読み込む
           </a>

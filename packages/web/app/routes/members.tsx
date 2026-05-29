@@ -82,7 +82,7 @@ export default function Members({ loaderData, actionData }: Route.ComponentProps
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <h1 className="text-2xl font-bold">メンバー管理</h1>
 
-      <section className="bg-white dark:bg-slate-800 p-4 rounded border">
+      <section className="bg-surface p-4 rounded border">
         <h2 className="text-lg font-bold mb-2">招待を発行</h2>
         <Form method="post" className="flex gap-2 items-end">
           <input

@@ -140,7 +140,7 @@ function ThemeToggle({ current }: { current: Theme }) {
           aria-label={label}
           className={`flex-1 flex items-center justify-center py-1.5 rounded text-xs transition-colors ${
             current === value
-              ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-slate-100 shadow-sm'
+              ? 'bg-surface text-slate-900 dark:text-slate-100 shadow-sm'
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
           }`}
         >
@@ -160,7 +160,7 @@ function UserPanel({
 }) {
   const initial = user.email.charAt(0).toUpperCase()
   return (
-    <div className="flex flex-col gap-2 p-3 border-t border-slate-200 dark:border-slate-800">
+    <div className="flex flex-col gap-2 p-3 border-t border-border">
       <ThemeToggle current={theme} />
       <div className="flex items-center gap-2.5">
         <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium flex-shrink-0">
@@ -197,7 +197,7 @@ function SearchTrigger() {
     <button
       type="button"
       onClick={openPalette}
-      className="w-full flex items-center gap-2 px-3 py-2 rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 transition-colors"
+      className="w-full flex items-center gap-2 px-3 py-2 rounded-md border border-border bg-surface text-sm text-slate-500 dark:text-slate-400 hover:border-border-strong transition-colors"
     >
       <SearchIcon size={14} />
       <span className="flex-1 text-left">検索…</span>
@@ -221,7 +221,7 @@ function NewChatActions({ canEdit }: { canEdit: boolean }) {
       </a>
       <a
         href="/chat/new?kind=knowledge"
-        className="flex items-center gap-2 px-3 py-2 rounded-md border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm transition-colors"
+        className="flex items-center gap-2 px-3 py-2 rounded-md border border-border text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm transition-colors"
       >
         <SparkleIcon size={14} />
         ナレッジ質問
@@ -298,7 +298,7 @@ export function Sidebar({
   return (
     <>
       {/* モバイル用上部バー */}
-      <header className="lg:hidden sticky top-0 z-30 flex items-center gap-3 px-4 py-2.5 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
+      <header className="lg:hidden sticky top-0 z-30 flex items-center gap-3 px-4 py-2.5 bg-surface border-b border-border">
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -324,7 +324,7 @@ export function Sidebar({
       </header>
 
       {/* デスクトップ用固定サイドバー */}
-      <aside className="hidden lg:flex fixed top-0 left-0 bottom-0 w-64 flex-col bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 z-20">
+      <aside className="hidden lg:flex fixed top-0 left-0 bottom-0 w-64 flex-col bg-surface border-r border-border z-20">
         <SidebarContent user={user} theme={theme} currentPath={currentPath} />
       </aside>
 
@@ -337,8 +337,8 @@ export function Sidebar({
             onClick={() => setOpen(false)}
             aria-label="メニューを閉じる"
           />
-          <aside className="lg:hidden fixed top-0 left-0 bottom-0 w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 z-50 flex flex-col">
-            <div className="flex items-center justify-end p-2 border-b border-slate-200 dark:border-slate-800">
+          <aside className="lg:hidden fixed top-0 left-0 bottom-0 w-72 bg-surface border-r border-border z-50 flex flex-col">
+            <div className="flex items-center justify-end p-2 border-b border-border">
               <button
                 type="button"
                 onClick={() => setOpen(false)}

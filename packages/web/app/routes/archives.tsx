@@ -71,7 +71,7 @@ export default function Archives({ loaderData, actionData }: Route.ComponentProp
       )}
       <ul className="space-y-3">
         {proposals.map((p) => (
-          <li key={p.id} className="bg-white dark:bg-slate-800 border rounded p-4 space-y-2">
+          <li key={p.id} className="bg-surface border rounded p-4 space-y-2">
             <div className="flex items-center justify-between">
               {p.article_slug ? (
                 <a
@@ -91,7 +91,7 @@ export default function Archives({ loaderData, actionData }: Route.ComponentProp
               提案者: {p.proposed_by}
             </p>
             {p.reason && (
-              <p className="text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-950 rounded p-2">
+              <p className="text-sm text-slate-700 dark:text-slate-300 bg-canvas rounded p-2">
                 {p.reason}
               </p>
             )}

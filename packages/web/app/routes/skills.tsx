@@ -40,7 +40,7 @@ export default function Skills({ loaderData, actionData }: Route.ComponentProps)
       )}
       <ul className="space-y-3">
         {loaderData.proposals.map((p) => (
-          <li key={p.id} className="bg-white dark:bg-slate-800 p-4 rounded border">
+          <li key={p.id} className="bg-surface p-4 rounded border">
             <div className="flex items-center justify-between">
               <h2 className="font-bold">
                 {p.name}{' '}
@@ -67,9 +67,7 @@ export default function Skills({ loaderData, actionData }: Route.ComponentProps)
               <summary className="text-xs text-blue-700 dark:text-blue-300 cursor-pointer">
                 コードを表示
               </summary>
-              <pre className="text-xs bg-slate-50 dark:bg-slate-950 p-2 rounded mt-1 whitespace-pre-wrap">
-                {p.code}
-              </pre>
+              <pre className="text-xs bg-canvas p-2 rounded mt-1 whitespace-pre-wrap">{p.code}</pre>
             </details>
             {p.status === 'proposed' && (
               <div className="mt-2 flex gap-2">

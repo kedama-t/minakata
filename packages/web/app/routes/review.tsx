@@ -51,7 +51,7 @@ export default function ReviewPage({ loaderData, actionData }: Route.ComponentPr
         </p>
       </header>
 
-      <section className="bg-white dark:bg-slate-800 border rounded p-4">
+      <section className="bg-surface border rounded p-4">
         <h2 className="text-lg font-bold mb-2">差分</h2>
         <pre className="text-sm font-mono leading-tight whitespace-pre-wrap">
           {diff.map((chunk, i) => (
@@ -73,7 +73,7 @@ export default function ReviewPage({ loaderData, actionData }: Route.ComponentPr
       </section>
 
       {review.status === 'pending' && (
-        <section className="bg-white dark:bg-slate-800 border rounded p-4 space-y-3">
+        <section className="bg-surface border rounded p-4 space-y-3">
           <h2 className="text-lg font-bold">判定</h2>
           <Form method="post" className="flex gap-2">
             <button
@@ -108,7 +108,7 @@ export default function ReviewPage({ loaderData, actionData }: Route.ComponentPr
         </section>
       )}
 
-      <section className="bg-white dark:bg-slate-800 border rounded p-4">
+      <section className="bg-surface border rounded p-4">
         <h2 className="text-lg font-bold mb-2">コメント</h2>
         <ul className="space-y-1 text-sm">
           {comments.map((c) => (
