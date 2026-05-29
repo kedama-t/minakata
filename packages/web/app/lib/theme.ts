@@ -29,9 +29,21 @@ export function resolvedThemeAttr(theme: Theme): 'light' | 'dark' {
 }
 
 /**
- * head に差し込む inline script。Cookie + `prefers-color-scheme` から
- * 実際の data-theme を確定して `<html>` に setAttribute する。
- * SSR よりも先に評価する必要があるので Layout の `<head>` 内・他の <script> より前に置く。
+ * クライアントで Theme(system 含む)を実際の light/dark に解決する。
+ * SSR では window が無いため呼ばない。
+ */
+export function resolveTheme(theme: Theme): 'light' | 'dark' {
+  if (theme === 'system') {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  }
+  return theme
+}
+
+/**
+ * head に差し込む inline script。初期表示の FOUC を防ぐため、Cookie +
+ * `prefers-color-scheme` から data-theme を「初回だけ」確定する。
+ * 切替後のライブ同期と system 追従は root の ThemeManager(effect)が担うため、
+ * ここでは永続リスナーを張らない(切替後に古いリスナーが残る不具合を避ける)。
  */
 export const THEME_INIT_SCRIPT = `(() => {
   try {
@@ -39,11 +51,5 @@ export const THEME_INIT_SCRIPT = `(() => {
     const pref = c ? decodeURIComponent(c.slice('minakata_theme='.length)) : 'system';
     const resolved = pref === 'dark' || (pref === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', resolved);
-    if (pref === 'system') {
-      const m = window.matchMedia('(prefers-color-scheme: dark)');
-      m.addEventListener('change', (e) => {
-        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
-      });
-    }
   } catch {}
 })();`

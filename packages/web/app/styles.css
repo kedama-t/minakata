@@ -12,6 +12,7 @@
  * コントラストを抑えた柔らかいトーンに調整している(border は slate-200/800
  * より一段薄い)。 */
 :root {
+  color-scheme: light; /* dialog / 入力欄など UA 要素の配色を追従させる */
   --canvas: #f7f8fa; /* ページ背景 */
   --surface: #ffffff; /* カード等の前面 */
   --surface-muted: #f3f5f8; /* 副次的な塗り */
@@ -21,6 +22,7 @@
 }
 
 [data-theme="dark"] {
+  color-scheme: dark;
   --canvas: #0a0f1a;
   --surface: #121826;
   --surface-muted: #0f1622;
