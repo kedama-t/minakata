@@ -16,6 +16,7 @@
     "compose:down": "podman compose -f docker/docker-compose.yml --env-file .env down",
     "compose:rebuild": "podman compose -f docker/docker-compose.yml --env-file .env build --no-cache minakata",
     "compose:dev:up": "bun run --filter @minakata/web build && podman compose -f docker/docker-compose.yml -f docker/docker-compose.dev.yml --env-file .env up",
+    "compose:dev:up:agent": "bun run --filter @minakata/web build && podman compose -f docker/docker-compose.yml -f docker/docker-compose.dev.yml --env-file .env --profile agent up",
     "compose:dev:sync": "bun run --filter @minakata/web build && podman compose -f docker/docker-compose.yml -f docker/docker-compose.dev.yml --env-file .env restart minakata"
   },
   "devDependencies": {
