@@ -168,7 +168,7 @@ export function CommandPalette() {
     >
       <dialog
         open
-        className="bg-surface border border-border rounded shadow-xl w-full max-w-xl overflow-hidden static relative"
+        className="bg-surface text-slate-900 dark:text-slate-100 border border-border rounded shadow-xl w-full max-w-xl overflow-hidden static relative"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
         aria-label="コマンドパレット"

@@ -1,10 +1,11 @@
+import { useEffect } from 'react'
 import { Links, Meta, Outlet, Scripts, ScrollRestoration, redirect } from 'react-router'
 import type { Route } from './+types/root.ts'
 import { CommandPalette } from './components/command-palette.tsx'
 import { Sidebar } from './components/sidebar.tsx'
 import { getCurrentUser } from './lib/auth.ts'
 import { getServices } from './lib/services.ts'
-import { THEME_INIT_SCRIPT, readThemeCookie } from './lib/theme.ts'
+import { THEME_INIT_SCRIPT, type Theme, readThemeCookie, resolveTheme } from './lib/theme.ts'
 import './styles.css'
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -44,6 +45,27 @@ export function Layout({ children }: { children: React.ReactNode }) {
   )
 }
 
+/**
+ * 永続化された theme(cookie 由来)を `<html data-theme>` にライブ同期する。
+ * テーマ切替は /theme への POST → クライアントナビ(再検証)で行われ、`<head>` の
+ * inline script は再実行されない。そのため loader が返す theme の変化を effect で
+ * 捕捉して属性を更新し、切替を即時反映する。system のときは OS の配色変更にも追従。
+ */
+function ThemeManager({ theme }: { theme: Theme }) {
+  useEffect(() => {
+    const apply = () => {
+      document.documentElement.setAttribute('data-theme', resolveTheme(theme))
+    }
+    apply()
+    if (theme === 'system') {
+      const m = window.matchMedia('(prefers-color-scheme: dark)')
+      m.addEventListener('change', apply)
+      return () => m.removeEventListener('change', apply)
+    }
+  }, [theme])
+  return null
+}
+
 export default function App({ loaderData }: Route.ComponentProps) {
   const user = loaderData?.user ?? null
   const theme = loaderData?.theme ?? 'system'
@@ -51,14 +73,18 @@ export default function App({ loaderData }: Route.ComponentProps) {
   // 未ログイン (login / setup / invitation 画面) はサイドバーなしで全幅レンダリング
   if (!user) {
     return (
-      <main className="min-h-screen">
-        <Outlet />
-      </main>
+      <>
+        <ThemeManager theme={theme} />
+        <main className="min-h-screen">
+          <Outlet />
+        </main>
+      </>
     )
   }
 
   return (
     <div className="min-h-screen">
+      <ThemeManager theme={theme} />
       <Sidebar user={user} theme={theme} />
       <main className="lg:ml-64 min-h-screen">
         <Outlet />
