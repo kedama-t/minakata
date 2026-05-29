@@ -14,20 +14,25 @@ interface DisplayMessage {
   streaming?: boolean
 }
 
+function draftKind(request: Request): 'dialogue' | 'knowledge' {
+  const url = new URL(request.url)
+  return url.searchParams.get('kind') === 'knowledge' ? 'knowledge' : 'dialogue'
+}
+
 export async function loader({ request, params }: Route.LoaderArgs) {
   const user = requireEditor(request)
   const services = getServices()
   if (!params.sessionId) throw new Response('Bad Request', { status: 400 })
+  // 空セッションを残さないため /chat/new ではセッションを作らず draft 状態で開く。
+  // 実体は初回メッセージ送信時に action 側で作成する。
   if (params.sessionId === 'new') {
-    const url = new URL(request.url)
-    const kind = url.searchParams.get('kind') === 'knowledge' ? 'knowledge' : 'dialogue'
-    const created = services.messages.createSession({ user_id: user.id, kind })
-    throw redirect(`/chat/${created.id}`)
+    const messages: ReturnType<typeof services.messages.listBySession> = []
+    return { session: null, messages, kind: draftKind(request) }
   }
   const session = services.messages.getSession(params.sessionId)
   if (!session || session.user_id !== user.id) throw new Response('Not Found', { status: 404 })
   const messages = services.messages.listBySession(session.id)
-  return { session, messages }
+  return { session, messages, kind: session.kind }
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
@@ -36,6 +41,14 @@ export async function action({ request, params }: Route.ActionArgs) {
   const content = String(form.get('content') ?? '').trim()
   if (!content) return { error: '空のメッセージは送信できません' }
   const services = getServices()
+  // draft からの初回送信時にセッションを実体化して即リダイレクト。
+  // kind はフォームの hidden input で受け取る(POST では search params が落ちるため)
+  if (params.sessionId === 'new') {
+    const kind = String(form.get('kind') ?? '') === 'knowledge' ? 'knowledge' : 'dialogue'
+    const created = services.messages.createSession({ user_id: user.id, kind })
+    services.messages.postUser(created.id, content)
+    throw redirect(`/chat/${created.id}`)
+  }
   const session = services.messages.getSession(params.sessionId ?? '')
   if (!session || session.user_id !== user.id) throw new Response('Not Found', { status: 404 })
   services.messages.postUser(session.id, content)
@@ -43,16 +56,18 @@ export async function action({ request, params }: Route.ActionArgs) {
 }
 
 export default function Chat({ loaderData }: Route.ComponentProps) {
-  const { session, messages: initialMessages } = loaderData
+  const { session, messages: initialMessages, kind } = loaderData
+  const sessionId = session?.id ?? null
   const fetcher = useFetcher<typeof action>()
   const revalidator = useRevalidator()
   const [liveMessages, setLiveMessages] = useState<DisplayMessage[]>([])
   const formRef = useRef<HTMLFormElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // 入力中チャンクは agent message id をキーに連結する
+  // 入力中チャンクは agent message id をキーに連結する。draft (未作成) では購読しない
   useEffect(() => {
-    const source = new EventSource(`/chat/${session.id}/stream`)
+    if (!sessionId) return
+    const source = new EventSource(`/chat/${sessionId}/stream`)
     let activeAgentId: string | null = null
 
     source.onmessage = (event) => {
@@ -119,7 +134,7 @@ export default function Chat({ loaderData }: Route.ComponentProps) {
     return () => {
       source.close()
     }
-  }, [session.id, revalidator])
+  }, [sessionId, revalidator])
 
   // loader メッセージ + SSE 経由のメッセージをマージ(id 衝突は loader 側を優先)
   const merged = useMemo<DisplayMessage[]>(() => {
@@ -153,15 +168,15 @@ export default function Chat({ loaderData }: Route.ComponentProps) {
   return (
     <div className="max-w-3xl mx-auto p-6 flex flex-col h-[calc(100vh-80px)]">
       <h1 className="text-xl font-bold mb-2">
-        {session.kind === 'knowledge' ? 'ナレッジ質問' : '対話'}: {session.id.slice(-8)}
+        {kind === 'knowledge' ? 'ナレッジ質問' : '対話'}: {session ? session.id.slice(-8) : '新規'}
         <span
           className={`ml-2 text-xs px-2 py-0.5 rounded ${
-            session.kind === 'knowledge'
+            kind === 'knowledge'
               ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
               : 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
           }`}
         >
-          {session.kind}
+          {kind}
         </span>
       </h1>
       <div
@@ -191,6 +206,7 @@ export default function Chat({ loaderData }: Route.ComponentProps) {
         ))}
       </div>
       <fetcher.Form ref={formRef} method="post" className="mt-3 flex gap-2">
+        {!session && <input type="hidden" name="kind" value={kind} />}
         <input
           name="content"
           required
