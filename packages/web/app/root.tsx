@@ -1,11 +1,25 @@
 import { useEffect } from 'react'
-import { Links, Meta, Outlet, Scripts, ScrollRestoration, redirect } from 'react-router'
+import {
+  Links,
+  Meta,
+  Outlet,
+  Scripts,
+  ScrollRestoration,
+  redirect,
+  useRouteLoaderData,
+} from 'react-router'
 import type { Route } from './+types/root.ts'
 import { CommandPalette } from './components/command-palette.tsx'
 import { Sidebar } from './components/sidebar.tsx'
 import { getCurrentUser } from './lib/auth.ts'
 import { getServices } from './lib/services.ts'
-import { THEME_INIT_SCRIPT, type Theme, readThemeCookie, resolveTheme } from './lib/theme.ts'
+import {
+  THEME_INIT_SCRIPT,
+  type Theme,
+  readThemeCookie,
+  resolveTheme,
+  resolvedThemeAttr,
+} from './lib/theme.ts'
 import './styles.css'
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -23,10 +37,15 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  // Layout は loader データを直接受け取れないため、root は通常レンダリング側で利用する。
-  // ここでは SSR 時の data-theme を中立(light)にしておき、inline script で確定させる。
+  // root loader の theme(cookie 由来)から SSR 段階で data-theme を確定する。
+  // explicit な light/dark はこれでフラッシュ無し。system は light を仮置きし
+  // inline script が prefers-color-scheme で上書きする。
+  // suppressHydrationWarning: inline script が変えた data-theme を React が
+  // ハイドレーション時にサーバ値へ巻き戻すのを防ぐ(暗→light の戻り対策)。
+  const data = useRouteLoaderData('root') as { theme?: Theme } | undefined
+  const themeAttr = resolvedThemeAttr(data?.theme ?? 'system')
   return (
-    <html lang="ja" data-theme="light">
+    <html lang="ja" data-theme={themeAttr} suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
