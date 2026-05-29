@@ -37,3 +37,4 @@ metadata:
 
 - このエージェントは**ディスパッチのみ**で、実際の Web 検索や記事作成は行わない(researcher の責務)
 - model は軽量で十分(JSON 出力だけなので)
+- Minakata MCP サーバーが到達不能な場合の対処は `researcher` スキルの「エラーハンドリング: MCP サーバー不在」および `references/mcp-server-troubleshooting.md` を参照

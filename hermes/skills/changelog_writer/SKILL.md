@@ -46,3 +46,7 @@ metadata:
 
 - この subagent は実時間で 5 秒以内に終わる軽量タスク
 - 失敗時は再キューせず admin に通知(まだ通知 ML 連携は無いので audit_log を見る運用)
+
+## MCP サーバー障害時
+
+Minakata MCP サーバーが到達不能な場合の対処は `researcher` スキルの「エラーハンドリング: MCP サーバー不在」および `references/mcp-server-troubleshooting.md` を参照。

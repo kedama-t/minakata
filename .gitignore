@@ -19,6 +19,7 @@ models/
 hermes/data/
 hermes/memory/
 hermes/conversations/
+hermes/*.db.init.lock
 searxng/uci/
 
 # エディタ

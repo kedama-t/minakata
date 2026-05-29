@@ -38,3 +38,7 @@ metadata:
 ## 冪等性
 
 `dedup_key` を `refresh:{article_id}:{今日の日付}` にすることで、同じ日に複数回トリガーされても 1 つしか積まれない。
+
+## MCP サーバー障害時
+
+Minakata MCP サーバーが到達不能な場合の対処は `researcher` スキルの「エラーハンドリング: MCP サーバー不在」および `references/mcp-server-troubleshooting.md` を参照。
