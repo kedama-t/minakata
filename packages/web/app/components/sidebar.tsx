@@ -8,6 +8,7 @@ import {
   ChatIcon,
   CheckCircleIcon,
   CommandIcon,
+  FileTextIcon,
   HomeIcon,
   ListIcon,
   LogOutIcon,
@@ -40,12 +41,18 @@ const MAIN_GROUPS: NavGroup[] = [
     heading: 'メイン',
     items: [
       { to: '/', label: 'ダッシュボード', icon: HomeIcon, matchPrefixes: ['/'] },
-      { to: '/search', label: '検索', icon: SearchIcon, matchPrefixes: ['/search', '/articles'] },
+      { to: '/search', label: '検索', icon: SearchIcon, matchPrefixes: ['/search'] },
     ],
   },
   {
     heading: 'ナレッジ',
     items: [
+      {
+        to: '/articles',
+        label: '記事一覧',
+        icon: FileTextIcon,
+        matchPrefixes: ['/articles'],
+      },
       { to: '/topics', label: '購読トピック', icon: BookmarkIcon },
       { to: '/reviews', label: 'レビュー', icon: CheckCircleIcon },
     ],

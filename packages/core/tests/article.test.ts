@@ -172,6 +172,42 @@ describe('ArticleService', () => {
     cleanup()
   })
 
+  test('listTags はタグ件数を降順集計し、list({ tag }) で絞り込める', async () => {
+    const { db, articles, cleanup } = setup()
+    await articles.create({
+      title: 'a',
+      slug: 'a',
+      body: 'b',
+      tags: ['llm', 'agent'],
+      author: 'agent:researcher',
+    })
+    await articles.create({
+      title: 'b',
+      slug: 'b',
+      body: 'b',
+      tags: ['llm'],
+      author: 'agent:researcher',
+    })
+    await articles.create({
+      title: 'c',
+      slug: 'c',
+      body: 'b',
+      tags: [],
+      author: 'agent:researcher',
+    })
+
+    const tags = articles.listTags({ status: 'published' })
+    expect(tags[0]).toEqual({ tag: 'llm', count: 2 })
+    expect(tags.find((t) => t.tag === 'agent')?.count).toBe(1)
+
+    const byLlm = articles.list({ status: 'published', tag: 'llm' })
+    expect(byLlm.map((a) => a.slug).sort()).toEqual(['a', 'b'])
+    const byAgent = articles.list({ status: 'published', tag: 'agent' })
+    expect(byAgent.map((a) => a.slug)).toEqual(['a'])
+    db.close()
+    cleanup()
+  })
+
   test('create / update / read は SHA-256 hex(64文字)の content_hash を返す', async () => {
     const { db, articles, cleanup } = setup()
     const created = await articles.create({

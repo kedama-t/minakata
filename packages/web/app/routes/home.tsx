@@ -181,7 +181,7 @@ function ArticleList({
               {a.tags.map((t) => (
                 <a
                   key={t}
-                  href={`/search?tag=${encodeURIComponent(t)}`}
+                  href={`/articles?tag=${encodeURIComponent(t)}`}
                   className="text-xs bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 px-2 py-0.5 rounded transition-colors"
                 >
                   {t}

@@ -97,6 +97,7 @@ export class ArticleService {
   list(
     opts: {
       status?: ArticleStatus | undefined
+      tag?: string | undefined
       limit?: number | undefined
       offset?: number | undefined
     } = {},
@@ -104,17 +105,46 @@ export class ArticleService {
     const limit = opts.limit ?? 50
     const offset = opts.offset ?? 0
     const status = opts.status
+    // tag 絞り込みは tags_json(JSON 配列)を JS 側で評価。全件取得後にページング(MVP 規模)
+    if (opts.tag) {
+      const sql = status
+        ? `SELECT ${LIST_COLS} FROM articles WHERE status = ? ORDER BY updated_at DESC`
+        : `SELECT ${LIST_COLS} FROM articles ORDER BY updated_at DESC`
+      const rows = status
+        ? this.db.query<RawListRow, [string]>(sql).all(status)
+        : this.db.query<RawListRow, []>(sql).all()
+      return rows
+        .map(toListItem)
+        .filter((a) => a.tags.includes(opts.tag as string))
+        .slice(offset, offset + limit)
+    }
     const sql = status
-      ? `SELECT id, slug, title, status, source, tags_json, freshness_rank, updated_at,
-                last_accessed_at, summary
-         FROM articles WHERE status = ? ORDER BY updated_at DESC LIMIT ? OFFSET ?`
-      : `SELECT id, slug, title, status, source, tags_json, freshness_rank, updated_at,
-                last_accessed_at, summary
-         FROM articles ORDER BY updated_at DESC LIMIT ? OFFSET ?`
+      ? `SELECT ${LIST_COLS} FROM articles WHERE status = ? ORDER BY updated_at DESC LIMIT ? OFFSET ?`
+      : `SELECT ${LIST_COLS} FROM articles ORDER BY updated_at DESC LIMIT ? OFFSET ?`
     const rows = status
       ? this.db.query<RawListRow, [string, number, number]>(sql).all(status, limit, offset)
       : this.db.query<RawListRow, [number, number]>(sql).all(limit, offset)
     return rows.map(toListItem)
+  }
+
+  /** タグごとの記事件数を集計して降順で返す(記事一覧のタグ絞り込み UI 用) */
+  listTags(opts: { status?: ArticleStatus | undefined } = {}): { tag: string; count: number }[] {
+    const status = opts.status
+    const sql = status
+      ? 'SELECT tags_json FROM articles WHERE status = ?'
+      : 'SELECT tags_json FROM articles'
+    const rows = status
+      ? this.db.query<{ tags_json: string }, [string]>(sql).all(status)
+      : this.db.query<{ tags_json: string }, []>(sql).all()
+    const counts = new Map<string, number>()
+    for (const r of rows) {
+      for (const t of JSON.parse(r.tags_json) as string[]) {
+        counts.set(t, (counts.get(t) ?? 0) + 1)
+      }
+    }
+    return [...counts.entries()]
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag))
   }
 
   // --- 書き込み ---
@@ -331,6 +361,10 @@ export class ArticleService {
       .run(article_id, rowid)
   }
 }
+
+/** list 系クエリで共通利用する SELECT カラム列 */
+const LIST_COLS = `id, slug, title, status, source, tags_json, freshness_rank, updated_at,
+                last_accessed_at, summary`
 
 interface RawListRow {
   id: string
