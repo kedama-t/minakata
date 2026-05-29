@@ -107,6 +107,9 @@ docker compose -f docker/docker-compose.yml --env-file .env down
 # 初回(or 大きく変えたとき): ホストで build してから dev オーバーレイ付きで起動
 bun run compose:dev:up
 
+# エージェント(hermes)込みで確認したい場合(--profile agent 相当)
+bun run compose:dev:up:agent
+
 # 以降の反復: 再 build してコンテナを再起動するだけ(イメージ再ビルド不要)
 bun run compose:dev:sync
 ```
@@ -114,6 +117,11 @@ bun run compose:dev:sync
 native 依存(sqlite-vec 等)は image 側 `node_modules` に残るため、ホスト(macOS)
 ビルドの `build/` でも Linux コンテナで動作する。SSR/ハイドレーション等を本番同等で
 見たいときに有効。純粋な UI イテレーションは下の `bun run dev`(HMR)が最速。
+
+> `hermes` は pull 済みイメージ(`nousresearch/hermes-agent:main`)で、ビルド対象は
+> `minakata` のみ。そのため agent 込みでも `--profile agent` を足すだけでよく、
+> 別途のイメージ再ビルドは不要。反復時の `compose:dev:sync` も minakata の build
+> 差し替え + 再起動だけで、agent はそのまま使い続けられる。
 
 ## ローカル開発(コンテナ無しで動かす)
 
