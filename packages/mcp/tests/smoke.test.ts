@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import {
+  ActivityService,
   ArchiveProposalService,
   ArticleService,
   AuditService,
@@ -32,6 +33,7 @@ function buildServices(): { services: McpServices; cleanup: () => void } {
     messages: new MessageService(db),
     tasks,
     audit: new AuditService(db),
+    activity: new ActivityService(db),
     maintenance: new MaintenanceService(db),
     reviews: new ReviewService(db, articles, tasks),
     policy: new PolicyService(db),
@@ -49,6 +51,49 @@ describe('mountMcp', () => {
     mountMcp(app, { token: 't', services })
     const res = await app.request('/mcp', { method: 'POST' })
     expect(res.status).toBe(401)
+    cleanup()
+  })
+
+  test('report_progress が activity に記録され audit_log には記録されない', async () => {
+    const { services, cleanup } = buildServices()
+    const app = new Hono()
+    mountMcp(app, { token: 't', services })
+    const call = async (method: string, params: unknown, id: number) => {
+      const res = await app.request('/mcp', {
+        method: 'POST',
+        headers: {
+          authorization: 'Bearer t',
+          'content-type': 'application/json',
+          accept: 'application/json, text/event-stream',
+        },
+        body: JSON.stringify({ jsonrpc: '2.0', id, method, params }),
+      })
+      return (await res.json()) as { result?: { structuredContent?: Record<string, unknown> } }
+    }
+    await call(
+      'initialize',
+      {
+        protocolVersion: '2025-06-18',
+        clientInfo: { name: 'test', version: '0.0.1' },
+        capabilities: {},
+      },
+      0,
+    )
+    const result = await call(
+      'tools/call',
+      { name: 'minakata.report_progress', arguments: { phase: '調査中', detail: 'テスト' } },
+      1,
+    )
+    const sc = result.result?.structuredContent as { id: string }
+    expect(sc.id).toMatch(/^[0-9A-HJKMNP-TV-Z]{26}$/)
+    // activity に記録される
+    const actList = services.activity.list()
+    expect(actList.length).toBe(1)
+    expect(actList[0]?.phase).toBe('調査中')
+    expect(actList[0]?.detail).toBe('テスト')
+    // audit_log には記録されない
+    const auditList = services.audit.list()
+    expect(auditList.length).toBe(0)
     cleanup()
   })
 

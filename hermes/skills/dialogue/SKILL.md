@@ -18,12 +18,12 @@ metadata:
 
 - **cadence**: every 30 seconds
 - **model**: `opencode-go/deepseek-v4-flash`(低レイテンシ重視)
-- **permitted MCP tools**: `minakata.poll_messages` / `minakata.claim_message` / `minakata.post_agent_response` / `minakata.fulltext_search` / `minakata.read_article` / `minakata.enqueue_task` / `minakata.get_research_policy`
+- **permitted MCP tools**: `minakata.poll_messages` / `minakata.claim_message` / `minakata.post_agent_response` / `minakata.fulltext_search` / `minakata.read_article` / `minakata.enqueue_task` / `minakata.get_research_policy` / `minakata.report_progress`
 
 ## 行動ルール
 
 0. **事前確認**: `poll_messages` を呼ぶ前に、MCP サーバーが接続状態かを簡易確認する。前回の poll が成功していれば続行。初回または前回が失敗の場合は `minakata.get_research_policy()` をプローブとして使い、成功すれば MCP は生きた状態とみなす。
-1. **30 秒周期で `minakata.poll_messages`** を呼び、未取得の user メッセージを取り出す
+1. **30 秒周期で `minakata.poll_messages`** を呼び、未取得の user メッセージを取り出す。メッセージを claim したら **`minakata.report_progress({ phase: "応答中", detail: <セッション ID の末尾 6 文字> })`** で実況する(失敗しても無視してよい)
 2. メッセージごとに以下の手順を踏む:
    1. `minakata.claim_message(message_id, "dialogue")` で claim する(他の worker と競合しないため)
    2. セッションの `kind` を判別(`kind = 'knowledge'` なら回答は引用必須)

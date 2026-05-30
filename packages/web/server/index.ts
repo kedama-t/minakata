@@ -29,6 +29,7 @@ export default createHonoServer({
         messages: services.messages,
         tasks: services.tasks,
         audit: services.audit,
+        activity: services.activity,
         maintenance: services.maintenance,
         reviews: services.reviews,
         policy: services.policy,

@@ -18,18 +18,19 @@ metadata:
 
 - **cadence**: every day at 07:00
 - **model**: `opencode-go/deepseek-v4-flash`
-- **permitted MCP tools**: `minakata.list_articles` / `minakata.create_article` / `minakata.fulltext_search`
+- **permitted MCP tools**: `minakata.list_articles` / `minakata.create_article` / `minakata.fulltext_search` / `minakata.report_progress`
 
 ## 行動ルール
 
-1. `minakata.list_articles({limit: 200})` で記事一覧を取得し、`updated_at` が前日 03:00〜本日 07:00 のものを抽出
-2. 同じ手順で `source = 'agent_research'` の新規作成記事を抽出
-3. 抽出結果から以下のセクションを持つ Markdown を生成:
+1. **`minakata.report_progress({ phase: "ChangeLog 執筆中", detail: "記事一覧を集計しています" })`** で実況する(失敗しても無視してよい)
+2. `minakata.list_articles({limit: 200})` で記事一覧を取得し、`updated_at` が前日 03:00〜本日 07:00 のものを抽出
+3. 同じ手順で `source = 'agent_research'` の新規作成記事を抽出
+4. 抽出結果から以下のセクションを持つ Markdown を生成:
    - 新規作成された記事一覧(タイトル + 要約 + ID)
    - 更新された記事一覧(タイトル + 差分要約 + ID)
    - 失敗したタスク(DLQ 件数。MCP で取得可能になるまでは件数だけ)
    - LLM コスト集計(各記事の `cost_usd` 合計)
-4. `minakata.create_article` を以下のパラメータで呼ぶ:
+5. `minakata.create_article` を以下のパラメータで呼ぶ:
    - `slug`: `changelog/{YYYY-MM-DD}`
    - `title`: `ChangeLog {YYYY-MM-DD}`
    - `source`: `agent_changelog`

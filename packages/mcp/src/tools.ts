@@ -393,6 +393,28 @@ export function registerMessageTools(
       return ok({ id: m.id })
     },
   )
+
+  server.registerTool(
+    'minakata.report_progress',
+    {
+      description:
+        '現在の作業状況を実況する。モニターのタイムラインとエージェントカードに反映される(監査ログとは別)',
+      inputSchema: {
+        phase: z.string(),
+        detail: z.string().optional(),
+        target_article_id: z.string().optional(),
+      },
+    },
+    async (args) => {
+      const id = s.activity.log({
+        actor: ctx.agent ?? 'agent',
+        phase: args.phase,
+        detail: args.detail ?? null,
+        target_article_id: args.target_article_id ?? null,
+      })
+      return ok({ id })
+    },
+  )
 }
 
 export function registerTaskTools(server: McpServer, s: McpServices, ctx: CallContext = {}): void {

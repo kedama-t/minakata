@@ -18,13 +18,14 @@ metadata:
 
 - **cadence**: every 5 minutes
 - **model**: `opencode-go/glm-5.1`(汎用 OSS coding model、夜間バッチに十分)
-- **permitted MCP tools**: `minakata.poll_tasks` / `minakata.complete_task` / `minakata.fail_task` / `minakata.read_article` / `minakata.create_article` / `minakata.update_article` / `minakata.fulltext_search` / `minakata.get_research_policy`
+- **permitted MCP tools**: `minakata.poll_tasks` / `minakata.complete_task` / `minakata.fail_task` / `minakata.read_article` / `minakata.create_article` / `minakata.update_article` / `minakata.fulltext_search` / `minakata.get_research_policy` / `minakata.report_progress`
 - **その他必要なツール**: `web_search` / `web_extract`(Hermes 標準。Capability 分離の対象外)
 
 ## 行動ルール
 
 1. **5 分周期で `minakata.poll_tasks`** を呼び、待機中のタスクを 1 件取り出す(priority urgent → interactive → scheduled → maintenance の順)。`poll_tasks` は内部で claim まで完了するので、別の `claim_task` ツールは存在しない
-2. タスク種別ごとに処理:
+2. タスク取得直後に **`minakata.report_progress({ phase: "調査中", detail: <トピックやタスク種別> })`** を呼び、作業開始を実況する。`minakata.create_article` / `minakata.update_article` を呼ぶ直前には `phase: "記事執筆中"` で更新する。実況は失敗しても無視してよい。
+3. タスク種別ごとに処理:
    - `type="research"` (新規調査): `web_search` → `web_extract` → 統合 → `minakata.create_article`(新規) または `minakata.update_article`(既存に追記)
    - `type="daily_research"` (購読バッチ): 同じ流れだが、既存トピック記事があれば追記モード
    - `type="refresh"` (鮮度更新): 既存記事を `read_article` し、最新情報を `web_search` で確認 → 差分があれば `update_article(body=..., last_researched_at=now)`、無ければ `last_researched_at` のみ更新

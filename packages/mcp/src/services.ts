@@ -1,4 +1,5 @@
 import type {
+  ActivityService,
   ArchiveProposalService,
   ArticleService,
   AuditService,
@@ -22,6 +23,7 @@ export interface McpServices {
   messages: MessageService
   tasks: TaskService
   audit: AuditService
+  activity: ActivityService
   maintenance: MaintenanceService
   reviews: ReviewService
   policy: PolicyService

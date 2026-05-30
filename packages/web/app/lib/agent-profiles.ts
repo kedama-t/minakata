@@ -254,6 +254,7 @@ const TOOL_DICT: Record<string, { phrase: string; category: ToolCategory }> = {
   'minakata.poll_messages': { phrase: '新着メッセージを確認しました', category: 'message' },
   'minakata.claim_message': { phrase: 'メッセージを受け取りました', category: 'message' },
   'minakata.post_agent_response': { phrase: 'お返事を投稿しました', category: 'message' },
+  'minakata.report_progress': { phrase: '近況を報告しました', category: 'message' },
 
   'minakata.update_research_policy': {
     phrase: 'リサーチ方針を更新しました',
