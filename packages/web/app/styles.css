@@ -1,9 +1,20 @@
 @import "tailwindcss";
 
-/* `dark:` variant を `data-theme="dark"` 属性ベースに切り替える。
- * 切り替えは Cookie + inline script (root.tsx) で行うため、SSR 段階で
- * `<html data-theme="...">` が確定し FOUC を起こさない。 */
-@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+/* `dark:` variant の適用条件。
+ * (1) 明示 `data-theme="dark"`、または
+ * (2) data-theme 属性なし(= cookie が system) かつ OS がダーク。
+ * SSR は system のとき属性を出さないため、初期テーマは CSS だけで確定し
+ * JS の実行タイミングに依存せず FOUC が起きない。 */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(html:not([data-theme]), html:not([data-theme]) *) {
+      @slot;
+    }
+  }
+}
 
 /* ── セマンティックデザイントークン ──────────────────────────────
  * light を既定値、dark で値を差し替える。`@theme inline` で各 utility が
@@ -21,6 +32,8 @@
   --border-strong: #d7dce3; /* hover / 強調境界 */
 }
 
+/* 明示ダーク、または system(属性なし)+ OS ダークの両方で dark トークンを適用。
+ * media query 側にも同値を置くことで初期表示が CSS だけで確定する。 */
 [data-theme="dark"] {
   color-scheme: dark;
   --canvas: #0a0f1a;
@@ -29,6 +42,18 @@
   --surface-sunken: #0c111c;
   --border: #222b3a;
   --border-strong: #313b4d;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    color-scheme: dark;
+    --canvas: #0a0f1a;
+    --surface: #121826;
+    --surface-muted: #0f1622;
+    --surface-sunken: #0c111c;
+    --border: #222b3a;
+    --border-strong: #313b4d;
+  }
 }
 
 @theme inline {

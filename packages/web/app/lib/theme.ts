@@ -21,35 +21,10 @@ export function serializeThemeCookie(theme: Theme): string {
 
 /**
  * SSR で `<html data-theme>` に書き出す値を決める。
- * cookie が `system` のときは light を仮置きし、クライアント inline script が
- * `prefers-color-scheme` を読んで上書きする(FOUC 防止)。
+ * `system` のときは属性を付けず(undefined)、CSS の `@media (prefers-color-scheme)`
+ * に初期テーマを委ねる。これにより JS の実行タイミングに依存せず FOUC が起きない。
+ * 明示 `light`/`dark` のときだけ属性を出して media query を上書きする。
  */
-export function resolvedThemeAttr(theme: Theme): 'light' | 'dark' {
-  return theme === 'dark' ? 'dark' : 'light'
+export function resolvedThemeAttr(theme: Theme): 'light' | 'dark' | undefined {
+  return theme === 'system' ? undefined : theme
 }
-
-/**
- * クライアントで Theme(system 含む)を実際の light/dark に解決する。
- * SSR では window が無いため呼ばない。
- */
-export function resolveTheme(theme: Theme): 'light' | 'dark' {
-  if (theme === 'system') {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
-  }
-  return theme
-}
-
-/**
- * head に差し込む inline script。初期表示の FOUC を防ぐため、Cookie +
- * `prefers-color-scheme` から data-theme を「初回だけ」確定する。
- * 切替後のライブ同期と system 追従は root の ThemeManager(effect)が担うため、
- * ここでは永続リスナーを張らない(切替後に古いリスナーが残る不具合を避ける)。
- */
-export const THEME_INIT_SCRIPT = `(() => {
-  try {
-    const c = document.cookie.split('; ').find((x) => x.startsWith('minakata_theme='));
-    const pref = c ? decodeURIComponent(c.slice('minakata_theme='.length)) : 'system';
-    const resolved = pref === 'dark' || (pref === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
-    document.documentElement.setAttribute('data-theme', resolved);
-  } catch {}
-})();`
