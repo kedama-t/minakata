@@ -137,8 +137,11 @@ export class MessageService extends EventEmitter {
     return rows.map(hydrate)
   }
 
-  /** メッセージを claim する(複数 Hermes worker 同時実行向け) */
-  claim(messageId: string, claimedBy: string): boolean {
+  /** メッセージを claim する。成功時はセッションの kind も返す */
+  claim(
+    messageId: string,
+    claimedBy: string,
+  ): { claimed: false } | { claimed: true; kind: 'dialogue' | 'knowledge' | undefined } {
     const ts = now()
     const res = this.db
       .prepare(
@@ -146,7 +149,15 @@ export class MessageService extends EventEmitter {
          WHERE id = ? AND claimed_at IS NULL`,
       )
       .run(ts, claimedBy, messageId)
-    return res.changes > 0
+    if (res.changes === 0) return { claimed: false }
+    const row = this.db
+      .query<{ kind: 'dialogue' | 'knowledge' }, [string]>(
+        `SELECT s.kind FROM chat_sessions s
+         JOIN messages m ON m.session_id = s.id
+         WHERE m.id = ?`,
+      )
+      .get(messageId)
+    return { claimed: true, kind: row?.kind }
   }
 
   /**

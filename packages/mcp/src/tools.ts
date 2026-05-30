@@ -370,8 +370,7 @@ export function registerMessageTools(
       description: 'メッセージを claim して処理開始を宣言する',
       inputSchema: { message_id: z.string(), claimed_by: z.string() },
     },
-    async ({ message_id, claimed_by }) =>
-      ok({ claimed: s.messages.claim(message_id, ctx.agent ?? claimed_by) }),
+    async ({ message_id, claimed_by }) => ok(s.messages.claim(message_id, ctx.agent ?? claimed_by)),
   )
 
   server.registerTool(
