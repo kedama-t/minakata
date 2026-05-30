@@ -2,8 +2,8 @@ import { useEffect, useMemo } from 'react'
 import { Form, useRevalidator } from 'react-router'
 import {
   type AgentProfile,
+  SYSTEM_PROFILE,
   describeTool,
-  getActorProfile,
   getAgentProfile,
   relativeTime,
 } from '../lib/agent-profiles.ts'
@@ -28,7 +28,6 @@ export async function loader({ request }: Route.LoaderArgs) {
   const auditRows = services.audit.list({
     limit: PAGE_SIZE,
     since,
-    agent_name: agent,
     tool_name: tool,
   })
   // ツール絞り込み時は実況を除外(audit ツール検索の邪魔にならないように)
@@ -135,22 +134,19 @@ function buildAgentStats(
   for (const item of timeline) {
     if (item.kind === 'audit') {
       const e = item.data
-      const key = e.agent_name || e.actor
+      const key = SYSTEM_PROFILE.key
       const existing = map.get(key)
       if (existing) {
         existing.count += 1
         if (item.timestamp > existing.lastAt) existing.lastAt = item.timestamp
         existing.toolCounts.set(e.tool_name, (existing.toolCounts.get(e.tool_name) ?? 0) + 1)
       } else {
-        const profile = e.agent_name
-          ? getAgentProfile(e.agent_name)
-          : getActorProfile(e.actor, e.agent_name)
         map.set(key, {
-          profile,
+          profile: SYSTEM_PROFILE,
           count: 1,
           lastAt: item.timestamp,
           toolCounts: new Map([[e.tool_name, 1]]),
-          latestPhase: latestPhaseMap.get(key) ?? null,
+          latestPhase: null,
         })
       }
     } else {
@@ -259,9 +255,7 @@ function AuditRow({
   now: Date
 }) {
   const e = event.data
-  const profile = e.agent_name
-    ? getAgentProfile(e.agent_name)
-    : getActorProfile(e.actor, e.agent_name)
+  const profile = SYSTEM_PROFILE
   const action = describeTool(e.tool_name)
   const meta = e.metadata ? JSON.stringify(e.metadata, null, 2) : ''
   return (
