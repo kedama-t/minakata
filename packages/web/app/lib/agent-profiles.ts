@@ -7,6 +7,8 @@ export type AgentProfile = {
   emoji: string
   displayName: string
   role: string
+  /** 任意のアイコンURL。なければ絵文字のみで表現する */
+  avatar?: string
   /** Tailwind の bg-gradient-to-br 用クラス。例: "from-blue-400 to-indigo-500" */
   gradient: string
   /** バッジ等で使う薄色 */
@@ -18,17 +20,19 @@ const KNOWN_PROFILES: Record<string, AgentProfile> = {
   dialogue: {
     key: 'dialogue',
     emoji: '💬',
-    displayName: '対話担当',
-    role: 'ユーザーとのチャットに応えます',
+    displayName: 'ミミー',
+    role: '対話エージェント：ユーザーとのチャットに応えます',
     gradient: 'from-purple-400 to-pink-500',
+    avatar: 'agents/mimy.png',
     tintBg: 'bg-purple-50 dark:bg-purple-500/15',
     tintText: 'text-purple-700 dark:text-purple-300',
   },
   researcher: {
     key: 'researcher',
     emoji: '🔎',
-    displayName: 'リサーチャー',
-    role: 'タスクをこなして記事を書き足します',
+    displayName: 'リズ',
+    role: 'リサーチエージェント：タスクをこなして記事を書き足します',
+    avatar: 'agents/lyz.png',
     gradient: 'from-blue-400 to-indigo-500',
     tintBg: 'bg-blue-50 dark:bg-blue-500/15',
     tintText: 'text-blue-700 dark:text-blue-300',
@@ -36,8 +40,9 @@ const KNOWN_PROFILES: Record<string, AgentProfile> = {
   daily_research: {
     key: 'daily_research',
     emoji: '🌅',
-    displayName: '朝のリサーチ',
-    role: '毎朝、新しい話題を集めてきます',
+    displayName: 'ヨナ',
+    role: '夜中に飛び回って新しい話題を集めてきます',
+    avatar: 'agents/yona.png',
     gradient: 'from-amber-400 to-orange-500',
     tintBg: 'bg-amber-50 dark:bg-amber-500/15',
     tintText: 'text-amber-700 dark:text-amber-300',
@@ -45,8 +50,9 @@ const KNOWN_PROFILES: Record<string, AgentProfile> = {
   freshness_checker: {
     key: 'freshness_checker',
     emoji: '🍃',
-    displayName: 'フレッシュ番',
-    role: '記事の鮮度を見守ります',
+    displayName: 'セン',
+    role: '記事の鮮度管理：記事の鮮度を見守ります',
+    avatar: 'agents/sen.png',
     gradient: 'from-emerald-400 to-teal-500',
     tintBg: 'bg-emerald-50 dark:bg-emerald-500/15',
     tintText: 'text-emerald-700 dark:text-emerald-300',
@@ -54,8 +60,9 @@ const KNOWN_PROFILES: Record<string, AgentProfile> = {
   changelog_writer: {
     key: 'changelog_writer',
     emoji: '📝',
-    displayName: 'ろぐ書き',
+    displayName: 'チロ',
     role: '日々の出来事を ChangeLog にまとめます',
+    avatar: 'agents/chiro.png',
     gradient: 'from-yellow-400 to-amber-500',
     tintBg: 'bg-yellow-50 dark:bg-yellow-500/15',
     tintText: 'text-yellow-700 dark:text-yellow-300',

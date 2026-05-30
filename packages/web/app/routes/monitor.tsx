@@ -36,7 +36,13 @@ export async function loader({ request }: Route.LoaderArgs) {
   return { events, agents, tools, agent: agent ?? '', tool: tool ?? '', hours }
 }
 
-function Avatar({ profile, size = 'md' }: { profile: AgentProfile; size?: 'sm' | 'md' | 'lg' }) {
+function Avatar({
+  profile,
+  size = 'md',
+}: {
+  profile: AgentProfile
+  size?: 'sm' | 'md' | 'lg'
+}) {
   const dim =
     size === 'lg' ? 'w-14 h-14 text-2xl' : size === 'sm' ? 'w-7 h-7 text-sm' : 'w-10 h-10 text-lg'
   return (
@@ -45,7 +51,15 @@ function Avatar({ profile, size = 'md' }: { profile: AgentProfile; size?: 'sm' |
       title={profile.displayName}
       aria-label={profile.displayName}
     >
-      <span className="leading-none">{profile.emoji}</span>
+      <img
+        src={profile.avatar}
+        alt={profile.displayName}
+        className="w-full h-full rounded-full object-cover"
+        onError={(e) => {
+          ;(e.currentTarget as HTMLImageElement).style.display = 'none'
+        }}
+      />
+      {!profile.avatar && <span>{profile.emoji}</span>}
     </div>
   )
 }
@@ -204,12 +218,16 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
   const activeCount = stats.filter(
     (s) => Date.now() - new Date(s.lastAt).getTime() <= ACTIVE_THRESHOLD_MS,
   ).length
+  console.log({ stats, activeCount })
+  console.log({ events })
 
   return (
     <div className="max-w-6xl mx-auto px-4 lg:px-8 py-6 lg:py-10 space-y-8">
       <header className="flex flex-wrap items-baseline justify-between gap-3">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">みなさんの様子</h1>
+          <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">
+            エージェントたちの様子
+          </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
             直近 {hours} 時間で {events.length} 件のアクティビティ ·{' '}
             <span className="inline-flex items-center gap-1">
