@@ -37,7 +37,10 @@ export async function loader({ request }: Route.LoaderArgs) {
     : services.activity.list({ limit: PAGE_SIZE, since, ...(agent ? { actor: agent } : {}) })
   const latestActivityEntries = [...services.activity.latestByActor().entries()].map(
     ([actor, row]) =>
-      [actor, { phase: row.phase, detail: row.detail, timestamp: row.timestamp }] as const,
+      [
+        row.agent_name || actor,
+        { phase: row.phase, detail: row.detail, timestamp: row.timestamp },
+      ] as const,
   )
 
   type AuditItem = {
@@ -152,10 +155,10 @@ function buildAgentStats(
       }
     } else {
       const e = item.data
-      const key = e.actor
+      const key = e.agent_name || e.actor
       if (!map.has(key)) {
         map.set(key, {
-          profile: getAgentProfile(e.actor),
+          profile: e.agent_name ? getAgentProfile(e.agent_name) : getAgentProfile(e.actor),
           count: 0,
           lastAt: item.timestamp,
           toolCounts: new Map(),
@@ -314,7 +317,7 @@ function ActivityRow({
   now: Date
 }) {
   const e = item.data
-  const profile = getAgentProfile(e.actor)
+  const profile = e.agent_name ? getAgentProfile(e.agent_name) : getAgentProfile(e.actor)
   return (
     <li className="flex gap-3 group">
       <div className="flex flex-col items-center pt-1 flex-shrink-0">

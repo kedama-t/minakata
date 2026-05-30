@@ -408,6 +408,7 @@ export function registerMessageTools(
     async (args) => {
       const id = s.activity.log({
         actor: ctx.agent ?? args.agent_name ?? 'agent',
+        agent_name: args.agent_name ?? null,
         phase: args.phase,
         detail: args.detail ?? null,
         target_article_id: args.target_article_id ?? null,
