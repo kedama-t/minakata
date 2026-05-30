@@ -93,7 +93,15 @@ function Avatar({
       title={profile.displayName}
       aria-label={profile.displayName}
     >
-      <span>{profile.emoji}</span>
+      <img
+        src={profile.avatar}
+        alt={profile.displayName}
+        className="w-full h-full rounded-full object-cover"
+        onError={(e) => {
+          ;(e.currentTarget as HTMLImageElement).style.display = 'none'
+        }}
+      />
+      {!profile.avatar && <span>{profile.emoji}</span>}
     </div>
   )
 }
@@ -358,6 +366,8 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
   const activeCount = stats.filter(
     (s) => Date.now() - new Date(s.lastAt).getTime() <= ACTIVE_THRESHOLD_MS,
   ).length
+  console.log({ stats, activeCount })
+  console.log({ events })
 
   return (
     <div className="max-w-6xl mx-auto px-4 lg:px-8 py-6 lg:py-10 space-y-8">
