@@ -7,6 +7,8 @@ const MAX_PER_ACTOR = 50
 
 export interface ActivityLogInput {
   actor: string
+  /** スキルが自己申告する論理名(agent-profiles.ts のキーに対応) */
+  agent_name?: string | null
   phase: string
   detail?: string | null
   target_article_id?: string | null
@@ -16,6 +18,7 @@ export interface ActivityLogRow extends ActivityLogInput {
   id: string
   timestamp: string
   actor: string
+  agent_name: string | null
   phase: string
   detail: string | null
   target_article_id: string | null
@@ -33,13 +36,14 @@ export class ActivityService extends EventEmitter {
     const ts = now()
     this.db
       .prepare(
-        `INSERT INTO agent_activity (id, timestamp, actor, phase, detail, target_article_id)
-         VALUES ($id, $ts, $actor, $phase, $detail, $target)`,
+        `INSERT INTO agent_activity (id, timestamp, actor, agent_name, phase, detail, target_article_id)
+         VALUES ($id, $ts, $actor, $agent_name, $phase, $detail, $target)`,
       )
       .run({
         id,
         ts,
         actor: input.actor,
+        agent_name: input.agent_name ?? null,
         phase: input.phase,
         detail: input.detail ?? null,
         target: input.target_article_id ?? null,
@@ -63,6 +67,7 @@ export class ActivityService extends EventEmitter {
       id,
       timestamp: ts,
       actor: input.actor,
+      agent_name: input.agent_name ?? null,
       phase: input.phase,
       detail: input.detail ?? null,
       target_article_id: input.target_article_id ?? null,
@@ -91,6 +96,7 @@ export class ActivityService extends EventEmitter {
           id: string
           timestamp: string
           actor: string
+          agent_name: string | null
           phase: string
           detail: string | null
           target_article_id: string | null
@@ -109,6 +115,7 @@ export class ActivityService extends EventEmitter {
           id: string
           timestamp: string
           actor: string
+          agent_name: string | null
           phase: string
           detail: string | null
           target_article_id: string | null
