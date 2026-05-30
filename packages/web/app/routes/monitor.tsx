@@ -366,9 +366,6 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
   const activeCount = stats.filter(
     (s) => Date.now() - new Date(s.lastAt).getTime() <= ACTIVE_THRESHOLD_MS,
   ).length
-  console.log({ stats, activeCount })
-  console.log({ events })
-
   return (
     <div className="max-w-6xl mx-auto px-4 lg:px-8 py-6 lg:py-10 space-y-8">
       <header className="flex flex-wrap items-baseline justify-between gap-3">
