@@ -79,6 +79,17 @@ const HERMES_PROFILE: AgentProfile = {
   tintText: 'text-slate-700 dark:text-slate-200',
 }
 
+export const SYSTEM_PROFILE: AgentProfile = {
+  key: 'system',
+  emoji: '⚙️',
+  displayName: 'システム',
+  role: 'システム自動処理',
+  avatar: 'agents/system.png',
+  gradient: 'from-slate-400 to-slate-600',
+  tintBg: 'bg-slate-100 dark:bg-slate-700/40',
+  tintText: 'text-slate-600 dark:text-slate-300',
+}
+
 const FALLBACK_GRADIENTS = [
   'from-rose-400 to-red-500',
   'from-sky-400 to-cyan-500',

@@ -399,7 +399,7 @@ export function registerMessageTools(
       description:
         '現在の作業状況を実況する。モニターのタイムラインとエージェントカードに反映される(監査ログとは別)',
       inputSchema: {
-        agent_name: z.string().optional(),
+        agent_name: z.string(),
         phase: z.string(),
         detail: z.string().optional(),
         target_article_id: z.string().optional(),
@@ -407,8 +407,8 @@ export function registerMessageTools(
     },
     async (args) => {
       const id = s.activity.log({
-        actor: ctx.agent ?? args.agent_name ?? 'agent',
-        agent_name: args.agent_name ?? null,
+        actor: ctx.agent ?? args.agent_name,
+        agent_name: args.agent_name,
         phase: args.phase,
         detail: args.detail ?? null,
         target_article_id: args.target_article_id ?? null,

@@ -81,7 +81,10 @@ describe('mountMcp', () => {
     )
     const result = await call(
       'tools/call',
-      { name: 'minakata.report_progress', arguments: { phase: '調査中', detail: 'テスト' } },
+      {
+        name: 'minakata.report_progress',
+        arguments: { agent_name: 'researcher', phase: '調査中', detail: 'テスト' },
+      },
       1,
     )
     const sc = result.result?.structuredContent as { id: string }
