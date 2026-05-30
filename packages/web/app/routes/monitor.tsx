@@ -64,7 +64,6 @@ export async function loader({ request }: Route.LoaderArgs) {
   ]
     .sort((a, b) => (a.timestamp > b.timestamp ? -1 : 1))
     .slice(0, PAGE_SIZE)
-
   const agents = services.audit.distinctAgents()
   const tools = services.audit.distinctTools()
   return {
@@ -366,6 +365,7 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
   const activeCount = stats.filter(
     (s) => Date.now() - new Date(s.lastAt).getTime() <= ACTIVE_THRESHOLD_MS,
   ).length
+
   return (
     <div className="max-w-6xl mx-auto px-4 lg:px-8 py-6 lg:py-10 space-y-8">
       <header className="flex flex-wrap items-baseline justify-between gap-3">
