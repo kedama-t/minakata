@@ -258,6 +258,14 @@ minakata/
 - 開発・初期運用は `@minakata/web` と同一プロセス(Hono の `/mcp` ルートにマウント)
 - 負荷増・障害分離が必要になったら別コンテナへ。`core` 経由なのでコード変更小
 
+**Hermes からの接続と障害時の扱い**:
+
+- **トランスポート**: HTTP Streamable、`/mcp` 単一ルート、ポート 3000（`PORT` env で変更可）、Bearer Token（`MCP_TOKEN`）。SSE / stdio エンドポイントは存在しない。`uvx` / `npx` でのプロセス起動ではなく `url` ベースの HTTP 接続（`hermes/config.yaml`: `mcp_servers.minakata.url: "http://minakata:3000/mcp"`）
+- **疎通確認**: `curl -fsS http://minakata:3000/health` → `{"status":"ok"}`（認証不要）。`/mcp` 自体は Bearer 必須なので curl では叩けない
+- **DB 初期化**: 起動シーケンスで `runMigrations()` が同期実行される（`packages/web/server/index.ts`）ため、`/health` が返る時点で DB は初期化済み。手動 migrate は不要
+- **起動順保証**: Docker healthcheck（interval 15s / retries 3）と Hermes コンテナの `depends_on: minakata: condition: service_healthy` により、Hermes 起動時に Minakata は healthy 保証済み
+- **接続不能時の確認順**: ① `curl http://minakata:3000/health` で疎通 → ② `MCP_TOKEN` が `.env` と一致しているか → ③ `podman compose ps` で minakata コンテナの health 状態。**`uvx` / `npx` / PATH / プロファイル診断は Minakata には無関係なので行わない**
+
 ### 5.4 エージェントハーネス
 
 | 領域                 | 選定                                                   | 備考                                    |
