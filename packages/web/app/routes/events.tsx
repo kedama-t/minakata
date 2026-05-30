@@ -1,10 +1,10 @@
-import type { AuditLogRow, MessageRow, TaskRow } from '@minakata/core'
+import type { ActivityLogRow, AuditLogRow, MessageRow, TaskRow } from '@minakata/core'
 import { requireUser } from '../lib/auth.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/events.ts'
 
 const HEARTBEAT_INTERVAL_MS = 15_000
-const ALL_TOPICS = ['messages', 'tasks', 'audit'] as const
+const ALL_TOPICS = ['messages', 'tasks', 'audit', 'activity'] as const
 type Topic = (typeof ALL_TOPICS)[number]
 
 /**
@@ -91,6 +91,11 @@ export async function loader({ request }: Route.LoaderArgs) {
       if (topics.has('audit')) {
         register(services.audit, 'audit-logged', (row) =>
           sendEvent('audit', { kind: 'logged', row: row as AuditLogRow }),
+        )
+      }
+      if (topics.has('activity')) {
+        register(services.activity, 'activity-logged', (row) =>
+          sendEvent('activity', { kind: 'activity', row: row as ActivityLogRow }),
         )
       }
 

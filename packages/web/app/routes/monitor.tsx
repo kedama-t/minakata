@@ -25,18 +25,66 @@ export async function loader({ request }: Route.LoaderArgs) {
   const since = new Date(Date.now() - hours * 3_600_000).toISOString()
 
   const services = getServices()
-  const events = services.audit.list({
+  const auditRows = services.audit.list({
     limit: PAGE_SIZE,
     since,
     agent_name: agent,
     tool_name: tool,
   })
+  // ツール絞り込み時は実況を除外(audit ツール検索の邪魔にならないように)
+  const activityRows = tool
+    ? []
+    : services.activity.list({ limit: PAGE_SIZE, since, ...(agent ? { actor: agent } : {}) })
+  const latestActivityEntries = [...services.activity.latestByActor().entries()].map(
+    ([actor, row]) =>
+      [actor, { phase: row.phase, detail: row.detail, timestamp: row.timestamp }] as const,
+  )
+
+  type AuditItem = {
+    kind: 'audit'
+    id: string
+    timestamp: string
+    data: (typeof auditRows)[number]
+  }
+  type ActivityItem = {
+    kind: 'activity'
+    id: string
+    timestamp: string
+    data: (typeof activityRows)[number]
+  }
+  type TimelineItem = AuditItem | ActivityItem
+
+  const timeline: TimelineItem[] = [
+    ...auditRows.map(
+      (r): AuditItem => ({ kind: 'audit', id: r.id, timestamp: r.timestamp, data: r }),
+    ),
+    ...activityRows.map(
+      (r): ActivityItem => ({ kind: 'activity', id: r.id, timestamp: r.timestamp, data: r }),
+    ),
+  ]
+    .sort((a, b) => (a.timestamp > b.timestamp ? -1 : 1))
+    .slice(0, PAGE_SIZE)
+
   const agents = services.audit.distinctAgents()
   const tools = services.audit.distinctTools()
-  return { events, agents, tools, agent: agent ?? '', tool: tool ?? '', hours }
+  return {
+    timeline,
+    agents,
+    tools,
+    agent: agent ?? '',
+    tool: tool ?? '',
+    hours,
+    latestActivityEntries,
+  }
 }
 
-function Avatar({ profile, size = 'md' }: { profile: AgentProfile; size?: 'sm' | 'md' | 'lg' }) {
+function Avatar({
+  profile,
+  size = 'md',
+}: {
+  profile: AgentProfile
+  size?: 'sm' | 'md' | 'lg'
+}) {
   const dim =
     size === 'lg' ? 'w-14 h-14 text-2xl' : size === 'sm' ? 'w-7 h-7 text-sm' : 'w-10 h-10 text-lg'
   return (
@@ -45,41 +93,87 @@ function Avatar({ profile, size = 'md' }: { profile: AgentProfile; size?: 'sm' |
       title={profile.displayName}
       aria-label={profile.displayName}
     >
-      <span className="leading-none">{profile.emoji}</span>
+      <span>{profile.emoji}</span>
     </div>
   )
 }
 
-type Event = Route.ComponentProps['loaderData']['events'][number]
+type LoaderData = Route.ComponentProps['loaderData']
+type TimelineItem = LoaderData['timeline'][number]
 
 type AgentStat = {
   profile: AgentProfile
   count: number
   lastAt: string
   toolCounts: Map<string, number>
+  latestPhase: { phase: string; detail: string | null; at: string } | null
 }
 
-function buildAgentStats(events: Event[]): AgentStat[] {
+function buildAgentStats(
+  timeline: TimelineItem[],
+  latestActivityEntries: ReadonlyArray<
+    readonly [string, { phase: string; detail: string | null; timestamp: string }]
+  >,
+): AgentStat[] {
   const map = new Map<string, AgentStat>()
-  for (const e of events) {
-    const key = e.agent_name || e.actor
-    const existing = map.get(key)
-    if (existing) {
-      existing.count += 1
-      if (e.timestamp > existing.lastAt) existing.lastAt = e.timestamp
-      existing.toolCounts.set(e.tool_name, (existing.toolCounts.get(e.tool_name) ?? 0) + 1)
+
+  const latestPhaseMap = new Map<string, { phase: string; detail: string | null; at: string }>()
+  for (const [actor, row] of latestActivityEntries) {
+    latestPhaseMap.set(actor, { phase: row.phase, detail: row.detail, at: row.timestamp })
+  }
+
+  for (const item of timeline) {
+    if (item.kind === 'audit') {
+      const e = item.data
+      const key = e.agent_name || e.actor
+      const existing = map.get(key)
+      if (existing) {
+        existing.count += 1
+        if (item.timestamp > existing.lastAt) existing.lastAt = item.timestamp
+        existing.toolCounts.set(e.tool_name, (existing.toolCounts.get(e.tool_name) ?? 0) + 1)
+      } else {
+        const profile = e.agent_name
+          ? getAgentProfile(e.agent_name)
+          : getActorProfile(e.actor, e.agent_name)
+        map.set(key, {
+          profile,
+          count: 1,
+          lastAt: item.timestamp,
+          toolCounts: new Map([[e.tool_name, 1]]),
+          latestPhase: latestPhaseMap.get(key) ?? null,
+        })
+      }
     } else {
-      const profile = e.agent_name
-        ? getAgentProfile(e.agent_name)
-        : getActorProfile(e.actor, e.agent_name)
-      map.set(key, {
-        profile,
-        count: 1,
-        lastAt: e.timestamp,
-        toolCounts: new Map([[e.tool_name, 1]]),
+      const e = item.data
+      const key = e.actor
+      if (!map.has(key)) {
+        map.set(key, {
+          profile: getAgentProfile(e.actor),
+          count: 0,
+          lastAt: item.timestamp,
+          toolCounts: new Map(),
+          latestPhase: latestPhaseMap.get(key) ?? null,
+        })
+      } else {
+        const existing = map.get(key)
+        if (existing && item.timestamp > existing.lastAt) existing.lastAt = item.timestamp
+      }
+    }
+  }
+
+  // latestPhase だけあって timeline に出ていない actor も補完
+  for (const [actor, phase] of latestPhaseMap) {
+    if (!map.has(actor)) {
+      map.set(actor, {
+        profile: getAgentProfile(actor),
+        count: 0,
+        lastAt: phase.at,
+        toolCounts: new Map(),
+        latestPhase: phase,
       })
     }
   }
+
   return [...map.values()].sort((a, b) => (a.lastAt > b.lastAt ? -1 : 1))
 }
 
@@ -128,22 +222,38 @@ function AgentCard({ stat }: { stat: AgentStat }) {
           <p className="text-sm font-medium tabular-nums mt-0.5">{stat.count} 件</p>
         </div>
       </div>
-      {favoriteAction && (
+      {/* 最新の実況を優先表示。なければ最頻ツールにフォールバック */}
+      {stat.latestPhase ? (
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-1.5 truncate">
+          <span>💭</span>
+          <span className="truncate">
+            {stat.latestPhase.phase}
+            {stat.latestPhase.detail ? ` · ${stat.latestPhase.detail}` : ''}
+          </span>
+        </p>
+      ) : favoriteAction ? (
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-1.5">
           <span>{favoriteAction.icon}</span>
           <span className="truncate">{favoriteAction.phrase}</span>
         </p>
-      )}
+      ) : null}
     </a>
   )
 }
 
-function EventRow({ event, now }: { event: Event; now: Date }) {
-  const profile = event.agent_name
-    ? getAgentProfile(event.agent_name)
-    : getActorProfile(event.actor, event.agent_name)
-  const action = describeTool(event.tool_name)
-  const meta = event.metadata ? JSON.stringify(event.metadata, null, 2) : ''
+function AuditRow({
+  event,
+  now,
+}: {
+  event: Extract<TimelineItem, { kind: 'audit' }>
+  now: Date
+}) {
+  const e = event.data
+  const profile = e.agent_name
+    ? getAgentProfile(e.agent_name)
+    : getActorProfile(e.actor, e.agent_name)
+  const action = describeTool(e.tool_name)
+  const meta = e.metadata ? JSON.stringify(e.metadata, null, 2) : ''
   return (
     <li className="flex gap-3 group">
       <div className="flex flex-col items-center pt-1 flex-shrink-0">
@@ -158,21 +268,21 @@ function EventRow({ event, now }: { event: Event; now: Date }) {
           </span>
           <span
             className="text-xs text-slate-400 dark:text-slate-500 tabular-nums"
-            title={new Date(event.timestamp).toLocaleString('ja-JP')}
+            title={new Date(e.timestamp).toLocaleString('ja-JP')}
           >
-            {relativeTime(event.timestamp, now)}
+            {relativeTime(e.timestamp, now)}
           </span>
-          {event.cost_usd > 0 && (
+          {e.cost_usd > 0 && (
             <span className="text-xs text-slate-400 dark:text-slate-500 tabular-nums ml-auto">
-              ${event.cost_usd.toFixed(4)}
+              ${e.cost_usd.toFixed(4)}
             </span>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400">
-          {event.target_article_id && (
-            <span className="font-mono">記事 …{event.target_article_id.slice(-8)}</span>
+          {e.target_article_id && (
+            <span className="font-mono">記事 …{e.target_article_id.slice(-8)}</span>
           )}
-          <span className="font-mono opacity-60">{event.tool_name}</span>
+          <span className="font-mono opacity-60">{e.tool_name}</span>
         </div>
         {meta && (
           <details className="text-xs mt-1.5">
@@ -189,8 +299,49 @@ function EventRow({ event, now }: { event: Event; now: Date }) {
   )
 }
 
+function ActivityRow({
+  item,
+  now,
+}: {
+  item: Extract<TimelineItem, { kind: 'activity' }>
+  now: Date
+}) {
+  const e = item.data
+  const profile = getAgentProfile(e.actor)
+  return (
+    <li className="flex gap-3 group">
+      <div className="flex flex-col items-center pt-1 flex-shrink-0">
+        <Avatar profile={profile} size="md" />
+        <div className="flex-1 w-px bg-slate-200 dark:bg-slate-800 my-1 group-last:hidden" />
+      </div>
+      <div className="flex-1 min-w-0 pb-4">
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+          <span className="font-medium text-sm">{profile.displayName}</span>
+          <span className="text-xs px-1.5 py-0.5 rounded bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300">
+            💭 {e.phase}
+          </span>
+          <span
+            className="text-xs text-slate-400 dark:text-slate-500 tabular-nums"
+            title={new Date(e.timestamp).toLocaleString('ja-JP')}
+          >
+            {relativeTime(e.timestamp, now)}
+          </span>
+        </div>
+        {e.detail && (
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 truncate">{e.detail}</p>
+        )}
+        {e.target_article_id && (
+          <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500 font-mono">
+            記事 …{e.target_article_id.slice(-8)}
+          </p>
+        )}
+      </div>
+    </li>
+  )
+}
+
 export default function Monitor({ loaderData }: Route.ComponentProps) {
-  const { events, agents, tools, agent, tool, hours } = loaderData
+  const { timeline, agents, tools, agent, tool, hours, latestActivityEntries } = loaderData
   const revalidator = useRevalidator()
   useEffect(() => {
     const id = setInterval(() => {
@@ -199,7 +350,10 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
     return () => clearInterval(id)
   }, [revalidator])
 
-  const stats = useMemo(() => buildAgentStats(events), [events])
+  const stats = useMemo(
+    () => buildAgentStats(timeline, latestActivityEntries),
+    [timeline, latestActivityEntries],
+  )
   const now = useMemo(() => new Date(), [])
   const activeCount = stats.filter(
     (s) => Date.now() - new Date(s.lastAt).getTime() <= ACTIVE_THRESHOLD_MS,
@@ -209,9 +363,11 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
     <div className="max-w-6xl mx-auto px-4 lg:px-8 py-6 lg:py-10 space-y-8">
       <header className="flex flex-wrap items-baseline justify-between gap-3">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">みなさんの様子</h1>
+          <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">
+            エージェントたちの様子
+          </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-            直近 {hours} 時間で {events.length} 件のアクティビティ ·{' '}
+            直近 {hours} 時間で {timeline.length} 件のアクティビティ ·{' '}
             <span className="inline-flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
               {activeCount} 名が稼働中
@@ -298,7 +454,7 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
 
       <section>
         <h2 className="text-base font-semibold mb-4">タイムライン</h2>
-        {events.length === 0 ? (
+        {timeline.length === 0 ? (
           <div className="bg-surface border border-border rounded-xl p-10 text-center">
             <p className="text-4xl mb-3">😴</p>
             <p className="text-sm text-slate-500 dark:text-slate-400">
@@ -307,9 +463,13 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
           </div>
         ) : (
           <ul className="space-y-0">
-            {events.map((e) => (
-              <EventRow key={e.id} event={e} now={now} />
-            ))}
+            {timeline.map((item) =>
+              item.kind === 'audit' ? (
+                <AuditRow key={item.id} event={item} now={now} />
+              ) : (
+                <ActivityRow key={item.id} item={item} now={now} />
+              ),
+            )}
           </ul>
         )}
       </section>

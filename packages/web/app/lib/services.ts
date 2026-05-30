@@ -3,6 +3,7 @@
  * loader / action はここから `getServices()` で取得。
  */
 import {
+  ActivityService,
   ArchiveProposalService,
   ArticleService,
   AuditService,
@@ -29,6 +30,7 @@ export interface Services {
   tasks: TaskService
   auth: AuthService
   audit: AuditService
+  activity: ActivityService
   maintenance: MaintenanceService
   embedding: EmbeddingService
   reviews: ReviewService
@@ -58,6 +60,7 @@ export function getServices(): Services {
     tasks,
     auth: new AuthService(db),
     audit: new AuditService(db),
+    activity: new ActivityService(db),
     maintenance: new MaintenanceService(db),
     embedding,
     reviews: new ReviewService(db, articles, tasks),
