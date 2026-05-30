@@ -28,9 +28,18 @@ metadata:
    - `type="research"` (新規調査): `web_search` → `web_extract` → 統合 → `minakata.create_article`(新規) または `minakata.update_article`(既存に追記)
    - `type="daily_research"` (購読バッチ): 同じ流れだが、既存トピック記事があれば追記モード
    - `type="refresh"` (鮮度更新): 既存記事を `read_article` し、最新情報を `web_search` で確認 → 差分があれば `update_article(body=..., last_researched_at=now)`、無ければ `last_researched_at` のみ更新
+   - `type="research_followup"` (フォローアップ調査): 既存記事に追記する前提のタスク。payload に `article_id`（親記事 ID）・`comment`（調査依頼の内容）・`anchor`（コメントが紐づく記事内の箇所）が含まれる。処理手順: `read_article` で親記事を読む → comment/anchor から必要な追加調査テーマを特定 → `web_search` + `web_extract` で情報収集 → `update_article(body=..., add_sources=...)` で追記。第 3 者が見たときに理解できるよう、追記セクションは見出しで明確に区切り、add_sources の used_in_sections にセクション名を指定する。
 3. **30% 超の本文書き換えは自動的に保留される**: `update_article` に `body` を渡すと内部で `ReviewService.proposeUpdate` が呼ばれ、変更率がしきい値(既定 30%)を超えると `status='pending_approval'` で保留状態になる(US-6.2)。レスポンスの `status` が `'pending_approval'` の場合、editor のレビュー判定を待つことになり、再度同記事を触らない
 4. 処理後 `minakata.complete_task(id, cost_usd)` で完了報告。LLM トークン数 × 単価で cost_usd を算出
 5. 失敗時は `minakata.fail_task(id, reason)` を呼ぶ(指数バックオフで再キュー、3 回超で DLQ)
+
+## 既知の Pitfalls
+
+### `minakata.create_article` の topic_id — 空文字列は FOREIGN KEY エラー
+
+`create_article` の `topic_id` フィールドはオプショナルだが、**空文字列 `""` を渡すと** `FOREIGN KEY constraint failed` エラーが発生する。これは空文字列が DB 的に NULL ではなく「存在しない外部キー値」として扱われるため。
+
+**対処**: トピックが未定または不要な場合は `topic_id` フィールドを**パラメータごと省略する**。空文字列や `null` を明示的に渡さず、JavaScript オブジェクトからキーごと削除する。
 
 ## エラーハンドリング: MCP サーバー不在
 
