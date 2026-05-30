@@ -25,11 +25,17 @@ metadata:
 0. **事前確認**: `poll_messages` を呼ぶ前に、MCP サーバーが接続状態かを簡易確認する。前回の poll が成功していれば続行。初回または前回が失敗の場合は `minakata.get_research_policy()` をプローブとして使い、成功すれば MCP は生きた状態とみなす。
 1. **30 秒周期で `minakata.poll_messages`** を呼び、未取得の user メッセージを取り出す。メッセージを claim したら **`minakata.report_progress({ phase: "応答中", detail: <セッション ID の末尾 6 文字> })`** で実況する(失敗しても無視してよい)
 2. メッセージごとに以下の手順を踏む:
-   1. `minakata.claim_message(message_id, "dialogue")` で claim する(他の worker と競合しないため)
-   2. セッションの `kind` を判別(`kind = 'knowledge'` なら回答は引用必須)
+   1. `minakata.claim_message(message_id, "dialogue")` で claim する(他の worker と競合しないため)。戻り値の `kind`（`"dialogue"` / `"knowledge"`）でセッション種別を確認する
+   2. `kind === "knowledge"` の場合は回答に引用が必要。`claimed` が `false` の場合は他 worker が先行しているためスキップする
    3. 質問の意図を解釈する:
       - **ナレッジ質問**(US-4.1): 既存記事の知識を求めている → `minakata.fulltext_search` で関連記事を検索し、要約 + 引用 URL + 記事リンク `[[id:01...]]` 付きで応答。マッチが無ければ「ナレッジベースには見当たりません」と素直に答える
       - **調査依頼**: 新規調査が必要 → `researcher` に委譲するため `minakata.enqueue_task(type="research", priority="urgent", payload={...})`
+        payload の推奨スキーマ:
+        - `goal` (string, 必須): 調査の目的と生成物を簡潔に（例: "XXX について調査し記事化する"）
+        - `instructions` (string, 必須): Researcher への詳細指示（言語・焦点・スタイルなど）
+        - `query` (string, 必須): `web_search` に渡す検索クエリ文字列
+        - `article_id` (string, 任意): 既存記事に追記する場合の記事 ID
+        dedup_key は `research:{slug}:{YYYY-MM-DD}` 形式を推奨
       - **雑談・確認**: 直接応答可能 → そのまま回答
    4. `minakata.post_agent_response(session_id, content, is_final)` でレスポンスを書き戻す
       - ストリーミング感を出すため、長い応答は複数 chunk に分け is_final=false で送り、最後を is_final=true で締める
