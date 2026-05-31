@@ -96,7 +96,7 @@ function NavLink({ item, currentPath }: { item: NavItem; currentPath: string }) 
       href={item.to}
       className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${
         active
-          ? 'bg-blue-50 dark:bg-blue-500/15 text-blue-700 dark:text-blue-300 font-medium'
+          ? 'bg-primary/10 text-primary font-medium'
           : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
       }`}
     >
@@ -170,7 +170,7 @@ function UserPanel({
     <div className="flex flex-col gap-2 p-3 border-t border-border">
       <ThemeToggle current={theme} />
       <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center text-sm font-medium flex-shrink-0">
+        <div className="w-8 h-8 rounded-full bg-primary text-primary-content flex items-center justify-center text-sm font-medium flex-shrink-0">
           {initial}
         </div>
         <div className="min-w-0 flex-1">
@@ -219,16 +219,13 @@ function NewChatActions({ canEdit }: { canEdit: boolean }) {
   if (!canEdit) return null
   return (
     <div className="flex flex-col gap-1.5">
-      <a
-        href="/chat/new"
-        className="flex items-center gap-2 px-3 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
-      >
+      <a href="/chat/new" className="btn btn-primary btn-sm gap-2 w-full justify-start">
         <PlusIcon size={14} />
         新規対話
       </a>
       <a
         href="/chat/new?kind=knowledge"
-        className="flex items-center gap-2 px-3 py-2 rounded-md border border-border text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-sm transition-colors"
+        className="btn btn-outline btn-sm gap-2 w-full justify-start"
       >
         <SparkleIcon size={14} />
         ナレッジ質問
@@ -250,7 +247,7 @@ function SidebarContent({
   return (
     <div className="flex flex-col h-full">
       <div className="p-4 flex items-center gap-2">
-        <div className="w-7 h-7 rounded-md bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white">
+        <div className="w-7 h-7 rounded-md bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white">
           <SparkleIcon size={14} />
         </div>
         <span className="font-semibold text-base tracking-tight">Minakata</span>
@@ -315,7 +312,7 @@ export function Sidebar({
           <MenuIcon size={18} />
         </button>
         <a href="/" className="flex items-center gap-2 flex-1">
-          <div className="w-6 h-6 rounded-md bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white">
+          <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white">
             <SparkleIcon size={12} />
           </div>
           <span className="font-semibold tracking-tight">Minakata</span>
