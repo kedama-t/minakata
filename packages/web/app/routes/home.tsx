@@ -39,9 +39,7 @@ function StatCard({
 }) {
   const content = (
     <div className="bg-surface border border-border rounded-lg p-4 transition-colors hover:border-border-strong">
-      <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-        {label}
-      </p>
+      <p className="text-xs font-medium text-base-content/60 uppercase tracking-wider">{label}</p>
       <p className="text-2xl font-semibold mt-1.5 tabular-nums">{value}</p>
     </div>
   )
@@ -69,7 +67,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">
           {greeting}、{user.email.split('@')[0]} さん
         </h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+        <p className="text-sm text-base-content/60 mt-1">
           直近 24 時間のナレッジ更新と、エージェントの稼働状況です。
         </p>
       </header>
@@ -92,17 +90,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           <ul className="space-y-1 text-sm">
             {recentActivity.map((e) => (
               <li key={e.id} className="flex items-center gap-2 py-1">
-                <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
+                <span className="text-xs text-base-content/60 tabular-nums">
                   {new Date(e.timestamp).toLocaleTimeString('ja-JP')}
                 </span>
-                <span className="text-xs text-slate-500 dark:text-slate-400">{e.actor}</span>
-                <span className="text-xs bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
-                  {e.tool_name}
-                </span>
+                <span className="text-xs text-base-content/60">{e.actor}</span>
+                <span className="text-xs bg-base-200 px-1.5 py-0.5 rounded">{e.tool_name}</span>
                 {e.agent_name && (
-                  <span className="text-xs text-slate-400 dark:text-slate-500">
-                    via {e.agent_name}
-                  </span>
+                  <span className="text-xs text-base-content/40">via {e.agent_name}</span>
                 )}
               </li>
             ))}
@@ -118,9 +112,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 <a href={`/articles/${c.slug}`} className="text-primary hover:underline">
                   {c.title}
                 </a>
-                <span className="text-slate-500 dark:text-slate-400 ml-2 text-xs">
-                  {c.updated_at}
-                </span>
+                <span className="text-base-content/60 ml-2 text-xs">{c.updated_at}</span>
               </li>
             ))}
           </ul>
@@ -152,8 +144,7 @@ function ArticleList({
   }[]
   emptyMessage: string
 }) {
-  if (items.length === 0)
-    return <p className="text-sm text-slate-500 dark:text-slate-400">{emptyMessage}</p>
+  if (items.length === 0) return <p className="text-sm text-base-content/60">{emptyMessage}</p>
   return (
     <ul className="space-y-2">
       {items.map((a) => (
@@ -166,9 +157,7 @@ function ArticleList({
           </a>
           <FreshnessBadge rank={a.freshness_rank} />
           {a.summary && (
-            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1.5 line-clamp-2">
-              {a.summary}
-            </p>
+            <p className="text-sm text-base-content/60 mt-1.5 line-clamp-2">{a.summary}</p>
           )}
           {a.tags.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-2.5">
@@ -176,7 +165,7 @@ function ArticleList({
                 <a
                   key={t}
                   href={`/articles?tag=${encodeURIComponent(t)}`}
-                  className="text-xs bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 px-2 py-0.5 rounded transition-colors"
+                  className="text-xs bg-base-200 hover:bg-base-300 px-2 py-0.5 rounded transition-colors"
                 >
                   {t}
                 </a>

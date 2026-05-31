@@ -90,7 +90,7 @@ function Avatar({
     size === 'lg' ? 'w-14 h-14 text-2xl' : size === 'sm' ? 'w-7 h-7 text-sm' : 'w-10 h-10 text-lg'
   return (
     <div
-      className={`${dim} rounded-full bg-gradient-to-br ${profile.gradient} flex items-center justify-center shadow-sm flex-shrink-0 ring-2 ring-white dark:ring-slate-900`}
+      className={`${dim} rounded-full bg-gradient-to-br ${profile.gradient} flex items-center justify-center shadow-sm flex-shrink-0 ring-2 ring-base-100`}
       title={profile.displayName}
       aria-label={profile.displayName}
     >
@@ -204,33 +204,27 @@ function AgentCard({ stat }: { stat: AgentStat }) {
                 稼働中
               </span>
             ) : (
-              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-base-200 text-base-content/60">
                 待機中
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
-            {stat.profile.role}
-          </p>
+          <p className="text-xs text-base-content/60 mt-0.5 line-clamp-1">{stat.profile.role}</p>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-border">
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500">
-            最終活動
-          </p>
+          <p className="text-[10px] uppercase tracking-wider text-base-content/40">最終活動</p>
           <p className="text-sm font-medium tabular-nums mt-0.5">{relativeTime(stat.lastAt)}</p>
         </div>
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-slate-400 dark:text-slate-500">
-            活動件数
-          </p>
+          <p className="text-[10px] uppercase tracking-wider text-base-content/40">活動件数</p>
           <p className="text-sm font-medium tabular-nums mt-0.5">{stat.count} 件</p>
         </div>
       </div>
       {/* 最新の実況を優先表示。なければ最頻ツールにフォールバック */}
       {stat.latestPhase ? (
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-1.5 truncate">
+        <p className="text-xs text-base-content/60 mt-2 flex items-center gap-1.5 truncate">
           <span>💭</span>
           <span className="truncate">
             {stat.latestPhase.phase}
@@ -238,7 +232,7 @@ function AgentCard({ stat }: { stat: AgentStat }) {
           </span>
         </p>
       ) : favoriteAction ? (
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 flex items-center gap-1.5">
+        <p className="text-xs text-base-content/60 mt-2 flex items-center gap-1.5">
           <span>{favoriteAction.icon}</span>
           <span className="truncate">{favoriteAction.phrase}</span>
         </p>
@@ -262,7 +256,7 @@ function AuditRow({
     <li className="flex gap-3 group">
       <div className="flex flex-col items-center pt-1 flex-shrink-0">
         <Avatar profile={profile} size="md" />
-        <div className="flex-1 w-px bg-slate-200 dark:bg-slate-800 my-1 group-last:hidden" />
+        <div className="flex-1 w-px bg-base-300 my-1 group-last:hidden" />
       </div>
       <div className="flex-1 min-w-0 pb-4">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
@@ -271,18 +265,18 @@ function AuditRow({
             {action.icon} {action.phrase}
           </span>
           <span
-            className="text-xs text-slate-400 dark:text-slate-500 tabular-nums"
+            className="text-xs text-base-content/40 tabular-nums"
             title={new Date(e.timestamp).toLocaleString('ja-JP')}
           >
             {relativeTime(e.timestamp, now)}
           </span>
           {e.cost_usd > 0 && (
-            <span className="text-xs text-slate-400 dark:text-slate-500 tabular-nums ml-auto">
+            <span className="text-xs text-base-content/40 tabular-nums ml-auto">
               ${e.cost_usd.toFixed(4)}
             </span>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-slate-500 dark:text-slate-400">
+        <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-base-content/60">
           {e.target_article_id && (
             <span className="font-mono">記事 …{e.target_article_id.slice(-8)}</span>
           )}
@@ -290,7 +284,7 @@ function AuditRow({
         </div>
         {meta && (
           <details className="text-xs mt-1.5">
-            <summary className="cursor-pointer text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 select-none">
+            <summary className="cursor-pointer text-base-content/40 hover:text-base-content/80 select-none">
               詳細を見る
             </summary>
             <pre className="mt-1.5 p-2 bg-canvas/50 border border-border rounded text-[11px] overflow-x-auto">
@@ -316,7 +310,7 @@ function ActivityRow({
     <li className="flex gap-3 group">
       <div className="flex flex-col items-center pt-1 flex-shrink-0">
         <Avatar profile={profile} size="md" />
-        <div className="flex-1 w-px bg-slate-200 dark:bg-slate-800 my-1 group-last:hidden" />
+        <div className="flex-1 w-px bg-base-300 my-1 group-last:hidden" />
       </div>
       <div className="flex-1 min-w-0 pb-4">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
@@ -325,17 +319,15 @@ function ActivityRow({
             💭 {e.phase}
           </span>
           <span
-            className="text-xs text-slate-400 dark:text-slate-500 tabular-nums"
+            className="text-xs text-base-content/40 tabular-nums"
             title={new Date(e.timestamp).toLocaleString('ja-JP')}
           >
             {relativeTime(e.timestamp, now)}
           </span>
         </div>
-        {e.detail && (
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 truncate">{e.detail}</p>
-        )}
+        {e.detail && <p className="mt-1 text-xs text-base-content/60 truncate">{e.detail}</p>}
         {e.target_article_id && (
-          <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500 font-mono">
+          <p className="mt-0.5 text-xs text-base-content/40 font-mono">
             記事 …{e.target_article_id.slice(-8)}
           </p>
         )}
@@ -370,10 +362,10 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
           <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">
             エージェントたちの様子
           </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-sm text-base-content/60 mt-1">
             直近 {hours} 時間で {timeline.length} 件のアクティビティ ·{' '}
             <span className="inline-flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
               {activeCount} 名が稼働中
             </span>
             {' · '}
@@ -395,9 +387,7 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
       <section className="bg-surface border border-border rounded-xl p-5">
         <Form method="get" className="flex flex-wrap items-end gap-3">
           <label className="text-sm">
-            <span className="block text-xs text-slate-500 dark:text-slate-400 mb-1">
-              エージェント
-            </span>
+            <span className="block text-xs text-base-content/60 mb-1">エージェント</span>
             <select
               name="agent"
               defaultValue={agent}
@@ -412,7 +402,7 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
             </select>
           </label>
           <label className="text-sm">
-            <span className="block text-xs text-slate-500 dark:text-slate-400 mb-1">ツール</span>
+            <span className="block text-xs text-base-content/60 mb-1">ツール</span>
             <select
               name="tool"
               defaultValue={tool}
@@ -427,9 +417,7 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
             </select>
           </label>
           <label className="text-sm">
-            <span className="block text-xs text-slate-500 dark:text-slate-400 mb-1">
-              期間 (時間)
-            </span>
+            <span className="block text-xs text-base-content/60 mb-1">期間 (時間)</span>
             <input
               type="number"
               name="hours"
@@ -445,7 +433,7 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
           {(agent || tool) && (
             <a
               href="/monitor"
-              className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 py-1.5"
+              className="text-sm text-base-content/60 hover:text-base-content/80 py-1.5"
             >
               絞り込み解除
             </a>
@@ -458,7 +446,7 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
         {timeline.length === 0 ? (
           <div className="bg-surface border border-border rounded-xl p-10 text-center">
             <p className="text-4xl mb-3">😴</p>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-base-content/60">
               この期間にエージェントの活動はありませんでした
             </p>
           </div>

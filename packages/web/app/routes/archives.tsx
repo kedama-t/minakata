@@ -52,7 +52,7 @@ export default function Archives({ loaderData, actionData }: Route.ComponentProp
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-4">
       <h1 className="text-2xl font-bold">アーカイブ承認待ち</h1>
-      <p className="text-sm text-slate-600 dark:text-slate-400 dark:text-slate-500">
+      <p className="text-sm text-base-content/60">
         エージェントが提案したアーカイブはここで admin が承認/却下する(§6
         承認ゲート)。承認するまで記事は `archived` にならない。
       </p>
@@ -63,9 +63,7 @@ export default function Archives({ loaderData, actionData }: Route.ComponentProp
       )}
       {actionData?.error && <p className="text-error text-sm">{actionData.error}</p>}
       {proposals.length === 0 && (
-        <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
-          承認待ちのアーカイブ提案はありません。
-        </p>
+        <p className="text-sm text-base-content/60">承認待ちのアーカイブ提案はありません。</p>
       )}
       <ul className="space-y-3">
         {proposals.map((p) => (
@@ -81,17 +79,11 @@ export default function Archives({ loaderData, actionData }: Route.ComponentProp
               ) : (
                 <span className="font-semibold">{p.article_title}</span>
               )}
-              <span className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
-                {p.created_at}
-              </span>
+              <span className="text-xs text-base-content/60">{p.created_at}</span>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
-              提案者: {p.proposed_by}
-            </p>
+            <p className="text-xs text-base-content/60">提案者: {p.proposed_by}</p>
             {p.reason && (
-              <p className="text-sm text-slate-700 dark:text-slate-300 bg-canvas rounded p-2">
-                {p.reason}
-              </p>
+              <p className="text-sm text-base-content/80 bg-canvas rounded p-2">{p.reason}</p>
             )}
             <div className="flex gap-2 items-start">
               <Form method="post" className="inline">

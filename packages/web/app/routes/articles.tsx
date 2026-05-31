@@ -33,7 +33,7 @@ export default function Articles({ loaderData }: Route.ComponentProps) {
     <div className="max-w-6xl mx-auto px-4 lg:px-8 py-6 lg:py-10 space-y-6">
       <header>
         <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">記事一覧</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+        <p className="text-sm text-base-content/60 mt-1">
           {tag ? (
             <>
               タグ「{tag}」の記事 {articles.length} 件
@@ -51,7 +51,7 @@ export default function Articles({ loaderData }: Route.ComponentProps) {
             className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
               tag === ''
                 ? 'bg-primary text-primary-content'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                : 'bg-base-200 text-base-content/70 hover:bg-base-300'
             }`}
           >
             すべて
@@ -63,7 +63,7 @@ export default function Articles({ loaderData }: Route.ComponentProps) {
               className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
                 tag === t.tag
                   ? 'bg-primary text-primary-content'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  : 'bg-base-200 text-base-content/70 hover:bg-base-300'
               }`}
             >
               {t.tag}
@@ -74,7 +74,7 @@ export default function Articles({ loaderData }: Route.ComponentProps) {
       )}
 
       {articles.length === 0 ? (
-        <p className="text-sm text-slate-500 dark:text-slate-400">
+        <p className="text-sm text-base-content/60">
           {tag ? 'このタグの記事はありません' : 'まだ記事がありません'}
         </p>
       ) : (
@@ -82,7 +82,7 @@ export default function Articles({ loaderData }: Route.ComponentProps) {
           {articles.map((a) => (
             <li
               key={a.id}
-              className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-lg transition-colors hover:border-slate-300 dark:hover:border-slate-700"
+              className="bg-surface border border-border p-4 rounded-lg transition-colors hover:border-border-strong"
             >
               <a
                 href={`/articles/${a.slug}`}
@@ -92,9 +92,7 @@ export default function Articles({ loaderData }: Route.ComponentProps) {
               </a>
               <FreshnessBadge rank={a.freshness_rank} />
               {a.summary && (
-                <p className="text-sm text-slate-600 dark:text-slate-400 mt-1.5 line-clamp-2">
-                  {a.summary}
-                </p>
+                <p className="text-sm text-base-content/60 mt-1.5 line-clamp-2">{a.summary}</p>
               )}
               {a.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1 mt-2.5">
@@ -102,7 +100,7 @@ export default function Articles({ loaderData }: Route.ComponentProps) {
                     <a
                       key={t}
                       href={`/articles?tag=${encodeURIComponent(t)}`}
-                      className="text-xs bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 px-2 py-0.5 rounded transition-colors"
+                      className="text-xs bg-base-200 hover:bg-base-300 px-2 py-0.5 rounded transition-colors text-base-content/70"
                     >
                       {t}
                     </a>

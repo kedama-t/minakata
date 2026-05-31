@@ -20,7 +20,7 @@ export default function Setup({ actionData }: Route.ComponentProps) {
   return (
     <div className="max-w-md mx-auto p-8">
       <h1 className="text-2xl font-bold mb-4">初期セットアップ</h1>
-      <p className="text-sm text-slate-600 dark:text-slate-400 dark:text-slate-500 mb-6">
+      <p className="text-sm text-base-content/60 mb-6">
         最初の管理者アカウントを作成してください。以後の利用者は招待ベースで追加されます。
       </p>
       <Form method="post" className="space-y-3">

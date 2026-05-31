@@ -182,7 +182,7 @@ export default function Chat({ loaderData }: Route.ComponentProps) {
         className="flex-1 overflow-y-auto bg-surface rounded border p-4 space-y-3"
       >
         {merged.length === 0 && (
-          <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
+          <p className="text-sm text-base-content/60">
             メッセージはまだありません。下のフォームから依頼を送信してください。
           </p>
         )}
@@ -190,13 +190,11 @@ export default function Chat({ loaderData }: Route.ComponentProps) {
           <div key={m.id} className={m.role === 'user' ? 'text-right' : ''}>
             <span
               className={`inline-block px-3 py-2 rounded whitespace-pre-wrap ${
-                m.role === 'user' ? 'bg-primary/15' : 'bg-slate-100 dark:bg-slate-700'
+                m.role === 'user' ? 'bg-primary/15' : 'bg-base-300'
               }`}
             >
               {m.content}
-              {m.streaming && (
-                <span className="text-slate-400 dark:text-slate-500 animate-pulse"> ▍</span>
-              )}
+              {m.streaming && <span className="text-base-content/40 animate-pulse"> ▍</span>}
             </span>
           </div>
         ))}

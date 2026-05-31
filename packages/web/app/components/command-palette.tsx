@@ -168,7 +168,7 @@ export function CommandPalette() {
     >
       <dialog
         open
-        className="bg-surface text-slate-900 dark:text-slate-100 border border-border rounded shadow-xl w-full max-w-xl overflow-hidden static relative"
+        className="bg-surface text-base-content border border-border rounded shadow-xl w-full max-w-xl overflow-hidden static relative"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
         aria-label="コマンドパレット"
@@ -186,7 +186,7 @@ export function CommandPalette() {
             <li
               key={`${item.kind}:${item.id}`}
               className={`flex items-center gap-2 px-4 py-2 cursor-pointer ${
-                i === selectedIdx ? 'bg-primary/10' : 'hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                i === selectedIdx ? 'bg-primary/10' : 'hover:bg-base-200/50'
               }`}
               onMouseEnter={() => setSelectedIdx(i)}
               onClick={() => {
@@ -206,26 +206,24 @@ export function CommandPalette() {
                 className={`text-xs px-1.5 py-0.5 rounded ${
                   item.kind === 'article'
                     ? 'bg-accent/15 text-accent'
-                    : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                    : 'bg-base-300 text-base-content/60'
                 }`}
               >
                 {item.kind === 'article' ? '記事' : '操作'}
               </span>
               <span className="flex-1 truncate text-sm">{item.label}</span>
               {item.hint && (
-                <span className="text-xs text-slate-400 dark:text-slate-500 truncate max-w-xs">
-                  {item.hint}
-                </span>
+                <span className="text-xs text-base-content/40 truncate max-w-xs">{item.hint}</span>
               )}
             </li>
           ))}
           {items.length === 0 && (
-            <li className="px-4 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
+            <li className="px-4 py-6 text-center text-sm text-base-content/60">
               該当する候補はありません
             </li>
           )}
         </ul>
-        <div className="px-4 py-2 border-t border-border text-xs text-slate-500 dark:text-slate-400 flex items-center gap-3">
+        <div className="px-4 py-2 border-t border-border text-xs text-base-content/60 flex items-center gap-3">
           <span>↑↓ 選択</span>
           <span>Enter 実行</span>
           <span>Esc 閉じる</span>

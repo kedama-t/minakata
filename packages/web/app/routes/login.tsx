@@ -38,7 +38,7 @@ export default function Login({ actionData }: Route.ComponentProps) {
           ログイン
         </button>
       </Form>
-      <p className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500 mt-4">
+      <p className="text-xs text-base-content/60 mt-4">
         新規ユーザーは管理者の招待リンクから登録できます。
       </p>
     </div>

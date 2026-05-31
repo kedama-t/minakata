@@ -181,7 +181,7 @@ export default function Topics({ loaderData, actionData }: Route.ComponentProps)
           <li key={t.id} className="bg-surface p-3 rounded border space-y-1">
             <div className="flex items-center gap-2">
               <span className="font-semibold">{t.name}</span>
-              <span className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
+              <span className="text-xs text-base-content/60">
                 {t.depth} / {t.active ? '有効' : '停止中'}
               </span>
               <span className="ml-auto">
@@ -194,7 +194,7 @@ export default function Topics({ loaderData, actionData }: Route.ComponentProps)
                     className={`text-xs px-2 py-0.5 rounded ${
                       t.subscribed
                         ? 'bg-primary/15 text-primary'
-                        : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 dark:text-slate-500'
+                        : 'bg-base-300 text-base-content/60'
                     }`}
                   >
                     {t.subscribed ? '購読中(解除)' : '購読する'}
@@ -203,31 +203,31 @@ export default function Topics({ loaderData, actionData }: Route.ComponentProps)
               </span>
             </div>
             {t.keywords.length > 0 && (
-              <div className="text-xs text-slate-600 dark:text-slate-400 dark:text-slate-500">
+              <div className="text-xs text-base-content/60">
                 <span className="font-bold mr-1">キーワード:</span>
                 {t.keywords.join(', ')}
               </div>
             )}
             {t.priority_sources.length > 0 && (
-              <div className="text-xs text-slate-600 dark:text-slate-400 dark:text-slate-500">
+              <div className="text-xs text-base-content/60">
                 <span className="font-bold mr-1">優先ソース:</span>
                 {t.priority_sources.join(', ')}
               </div>
             )}
             {t.exclusion.length > 0 && (
-              <div className="text-xs text-slate-600 dark:text-slate-400 dark:text-slate-500">
+              <div className="text-xs text-base-content/60">
                 <span className="font-bold mr-1">除外:</span>
                 {t.exclusion.join(', ')}
               </div>
             )}
             {t.format && (
-              <div className="text-xs text-slate-600 dark:text-slate-400 dark:text-slate-500">
+              <div className="text-xs text-base-content/60">
                 <span className="font-bold mr-1">フォーマット:</span>
                 {t.format}
               </div>
             )}
             {t.instructions_md && (
-              <details className="text-xs text-slate-600 dark:text-slate-400 dark:text-slate-500">
+              <details className="text-xs text-base-content/60">
                 <summary className="cursor-pointer text-primary">個別指示を表示</summary>
                 <pre className="bg-canvas p-2 mt-1 rounded whitespace-pre-wrap font-mono">
                   {t.instructions_md}
@@ -237,9 +237,7 @@ export default function Topics({ loaderData, actionData }: Route.ComponentProps)
           </li>
         ))}
         {loaderData.topics.length === 0 && (
-          <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
-            まだトピックがありません
-          </p>
+          <p className="text-sm text-base-content/60">まだトピックがありません</p>
         )}
       </ul>
     </div>

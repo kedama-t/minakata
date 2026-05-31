@@ -54,7 +54,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 function statusBadge(status: TaskStatus): string {
   switch (status) {
     case 'queued':
-      return 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200'
+      return 'bg-base-200 text-base-content/80'
     case 'claimed':
       return 'bg-primary/15 text-primary'
     case 'done':
@@ -80,7 +80,7 @@ function statusLabel(status: TaskStatus): string {
 function tabClass(active: boolean): string {
   return active
     ? 'px-3 py-1 rounded-t border-b-2 border-primary text-primary font-medium'
-    : 'px-3 py-1 text-slate-500 dark:text-slate-400 hover:text-primary'
+    : 'px-3 py-1 text-base-content/60 hover:text-primary'
 }
 
 function elapsed(from: string, to: string | null): string {
@@ -145,24 +145,20 @@ export default function Tasks({ loaderData }: Route.ComponentProps) {
                 <span className={`px-2 py-0.5 rounded ${statusBadge(t.status)}`}>
                   {statusLabel(t.status)}
                 </span>
-                <span className="text-slate-500 dark:text-slate-400">{t.type}</span>
-                <span className="text-slate-400 dark:text-slate-500">priority: {t.priority}</span>
-                <span className="ml-auto text-slate-400 dark:text-slate-500">
+                <span className="text-base-content/60">{t.type}</span>
+                <span className="text-base-content/40">priority: {t.priority}</span>
+                <span className="ml-auto text-base-content/40">
                   {new Date(t.created_at).toLocaleString('ja-JP')}
                 </span>
               </div>
-              <div className="text-sm text-slate-700 dark:text-slate-200 mt-1 flex items-center gap-3">
+              <div className="text-sm text-base-content/80 mt-1 flex items-center gap-3">
                 <span>
                   経過: {elapsed(t.created_at, t.completed_at)}
                   {t.cost_usd > 0 && (
-                    <span className="ml-2 text-slate-500 dark:text-slate-400">
-                      ${t.cost_usd.toFixed(4)}
-                    </span>
+                    <span className="ml-2 text-base-content/60">${t.cost_usd.toFixed(4)}</span>
                   )}
                   {t.attempts > 0 && t.status !== 'done' && (
-                    <span className="ml-2 text-orange-600 dark:text-orange-400">
-                      attempts: {t.attempts}
-                    </span>
+                    <span className="ml-2 text-warning">attempts: {t.attempts}</span>
                   )}
                 </span>
                 {slug && (
@@ -178,7 +174,7 @@ export default function Tasks({ loaderData }: Route.ComponentProps) {
           )
         })}
         {tasks.length === 0 && (
-          <p className="text-sm text-slate-500 dark:text-slate-400">
+          <p className="text-sm text-base-content/60">
             該当するタスクはありません
             {!showAll && '（記事ページから追加調査を依頼するとここに表示されます）'}
           </p>
