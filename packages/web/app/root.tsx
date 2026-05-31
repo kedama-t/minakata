@@ -46,7 +46,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Meta />
         <Links />
       </head>
-      <body className="bg-canvas text-slate-900 dark:text-slate-100 min-h-screen antialiased">
+      <body className="bg-canvas text-base-content min-h-screen antialiased">
         {children}
         <ScrollRestoration />
         <Scripts />
