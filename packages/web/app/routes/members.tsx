@@ -105,7 +105,7 @@ export default function Members({ loaderData, actionData }: Route.ComponentProps
         {actionData?.invitation && (
           <p className="text-sm text-success mt-2">
             招待リンク:
-            <code className="ml-1 bg-slate-100 dark:bg-slate-700 px-1">
+            <code className="ml-1 bg-base-300 px-1">
               /invitations/{actionData.invitation.token}
             </code>
           </p>
@@ -120,7 +120,7 @@ export default function Members({ loaderData, actionData }: Route.ComponentProps
           </p>
         )}
         <table className="w-full text-sm">
-          <thead className="text-left text-slate-500 dark:text-slate-400 dark:text-slate-500">
+          <thead className="text-left text-base-content/60">
             <tr>
               <th className="py-1">email</th>
               <th>role</th>
@@ -135,16 +135,10 @@ export default function Members({ loaderData, actionData }: Route.ComponentProps
                 <tr key={m.id} className="border-t">
                   <td className="py-1">
                     {m.email}
-                    {isSelf && (
-                      <span className="text-xs text-slate-400 dark:text-slate-500 ml-1">
-                        (自分)
-                      </span>
-                    )}
+                    {isSelf && <span className="text-xs text-base-content/40 ml-1">(自分)</span>}
                   </td>
                   <td>{m.role}</td>
-                  <td className="text-slate-500 dark:text-slate-400 dark:text-slate-500">
-                    {m.created_at}
-                  </td>
+                  <td className="text-base-content/60">{m.created_at}</td>
                   <td>
                     <Form method="post" className="flex gap-1 items-center">
                       <input type="hidden" name="intent" value="update_role" />
@@ -158,10 +152,7 @@ export default function Members({ loaderData, actionData }: Route.ComponentProps
                         <option value="editor">editor</option>
                         <option value="admin">admin</option>
                       </select>
-                      <button
-                        type="submit"
-                        className="text-xs bg-slate-600 text-white px-2 py-0.5 rounded"
-                      >
+                      <button type="submit" className="btn btn-neutral btn-xs">
                         変更
                       </button>
                     </Form>
@@ -176,23 +167,15 @@ export default function Members({ loaderData, actionData }: Route.ComponentProps
       <section>
         <h2 className="text-lg font-bold mb-2">未受諾の招待</h2>
         {loaderData.invitations.length === 0 && (
-          <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
-            未受諾の招待はありません
-          </p>
+          <p className="text-sm text-base-content/60">未受諾の招待はありません</p>
         )}
         <ul className="space-y-1 text-sm">
           {loaderData.invitations.map((i) => (
             <li key={i.id} className="border-b py-1">
               <span className="font-semibold">{i.email}</span>
-              <span className="ml-2 text-slate-500 dark:text-slate-400 dark:text-slate-500">
-                {i.role}
-              </span>
-              <span className="ml-2 text-xs text-slate-400 dark:text-slate-500">
-                期限: {i.expires_at}
-              </span>
-              <code className="ml-2 bg-slate-100 dark:bg-slate-700 px-1 text-xs">
-                /invitations/{i.token}
-              </code>
+              <span className="ml-2 text-base-content/60">{i.role}</span>
+              <span className="ml-2 text-xs text-base-content/40">期限: {i.expires_at}</span>
+              <code className="ml-2 bg-base-300 px-1 text-xs">/invitations/{i.token}</code>
             </li>
           ))}
         </ul>

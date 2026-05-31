@@ -56,7 +56,7 @@ const components: Components = {
   blockquote: ({ node: _node, children, ...rest }) => (
     <blockquote
       {...rest}
-      className="border-l-4 border-slate-300 pl-3 my-3 text-slate-700 dark:text-slate-300 italic"
+      className="border-l-4 border-border-strong pl-3 my-3 text-base-content/80 italic"
     >
       {children}
     </blockquote>
@@ -72,13 +72,16 @@ const components: Components = {
       )
     }
     return (
-      <code {...rest} className="bg-slate-100 dark:bg-slate-700 px-1 rounded text-sm">
+      <code {...rest} className="bg-base-300 px-1 rounded text-sm">
         {children}
       </code>
     )
   },
   pre: ({ node: _node, children, ...rest }) => (
-    <pre {...rest} className="bg-slate-900 text-slate-100 p-3 rounded my-3 overflow-x-auto text-sm">
+    <pre
+      {...rest}
+      className="bg-neutral text-neutral-content p-3 rounded my-3 overflow-x-auto text-sm"
+    >
       {children}
     </pre>
   ),
@@ -90,7 +93,7 @@ const components: Components = {
     </div>
   ),
   th: ({ node: _node, children, ...rest }) => (
-    <th {...rest} className="border px-2 py-1 bg-slate-100 dark:bg-slate-700 text-left">
+    <th {...rest} className="border px-2 py-1 bg-base-300 text-left">
       {children}
     </th>
   ),
@@ -99,7 +102,7 @@ const components: Components = {
       {children}
     </td>
   ),
-  hr: () => <hr className="my-6 border-slate-200 dark:border-slate-700" />,
+  hr: () => <hr className="my-6 border-border" />,
 }
 
 export function ArticleMarkdown({ source }: { source: string }) {
@@ -107,7 +110,7 @@ export function ArticleMarkdown({ source }: { source: string }) {
   // ため、見出し等の Tailwind ユーティリティクラスは components マップ側で個別に
   // 当てている。ここでは折り返しやリンク色のためのコンテナクラスだけ持たせる。
   return (
-    <div className="text-base text-slate-900 dark:text-slate-100 break-words">
+    <div className="text-base text-base-content break-words">
       <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
         {source}
       </ReactMarkdown>

@@ -74,9 +74,9 @@ const HERMES_PROFILE: AgentProfile = {
   emoji: '🛰️',
   displayName: 'Hermes',
   role: 'エージェントハーネス本体',
-  gradient: 'from-slate-400 to-slate-600',
-  tintBg: 'bg-slate-100 dark:bg-slate-700/40',
-  tintText: 'text-slate-700 dark:text-slate-200',
+  gradient: 'from-neutral/60 to-neutral',
+  tintBg: 'bg-neutral/10',
+  tintText: 'text-neutral-content',
 }
 
 export const SYSTEM_PROFILE: AgentProfile = {
@@ -85,9 +85,9 @@ export const SYSTEM_PROFILE: AgentProfile = {
   displayName: 'システム',
   role: 'システム自動処理',
   avatar: 'agents/system.png',
-  gradient: 'from-slate-400 to-slate-600',
-  tintBg: 'bg-slate-100 dark:bg-slate-700/40',
-  tintText: 'text-slate-600 dark:text-slate-300',
+  gradient: 'from-neutral/60 to-neutral',
+  tintBg: 'bg-neutral/10',
+  tintText: 'text-neutral-content',
 }
 
 const FALLBACK_GRADIENTS = [
@@ -113,15 +113,15 @@ export function getAgentProfile(agentName: string | null | undefined): AgentProf
   if (KNOWN_PROFILES[agentName]) return KNOWN_PROFILES[agentName]
   if (agentName === 'hermes' || agentName.startsWith('hermes')) return HERMES_PROFILE
   const idx = hashStr(agentName) % FALLBACK_GRADIENTS.length
-  const gradient = FALLBACK_GRADIENTS[idx] ?? 'from-slate-400 to-slate-600'
+  const gradient = FALLBACK_GRADIENTS[idx] ?? 'from-neutral/60 to-neutral'
   return {
     key: agentName,
     emoji: '✨',
     displayName: agentName,
     role: '稼働中のエージェント',
     gradient,
-    tintBg: 'bg-slate-100 dark:bg-slate-700/40',
-    tintText: 'text-slate-700 dark:text-slate-200',
+    tintBg: 'bg-neutral/10',
+    tintText: 'text-neutral-content',
   }
 }
 
@@ -137,9 +137,9 @@ export function getActorProfile(actor: string, agentName: string | null | undefi
       emoji: '🙂',
       displayName: actor.slice('user:'.length) || 'ユーザー',
       role: '人間のユーザー',
-      gradient: 'from-slate-300 to-slate-500',
-      tintBg: 'bg-slate-100 dark:bg-slate-700/40',
-      tintText: 'text-slate-700 dark:text-slate-200',
+      gradient: 'from-neutral/40 to-neutral/70',
+      tintBg: 'bg-neutral/10',
+      tintText: 'text-neutral-content',
     }
   }
   if (actor === 'system') {
@@ -148,9 +148,9 @@ export function getActorProfile(actor: string, agentName: string | null | undefi
       emoji: '⚙️',
       displayName: 'system',
       role: 'システム自動処理',
-      gradient: 'from-slate-400 to-slate-600',
-      tintBg: 'bg-slate-100 dark:bg-slate-700/40',
-      tintText: 'text-slate-600 dark:text-slate-300',
+      gradient: 'from-neutral/60 to-neutral',
+      tintBg: 'bg-neutral/10',
+      tintText: 'text-neutral-content',
     }
   }
   return getAgentProfile(actor.replace(/^agent:/, '') || null)
@@ -171,8 +171,8 @@ export type ToolCategory =
 
 const CATEGORY_STYLE: Record<ToolCategory, { bg: string; text: string; icon: string }> = {
   read: {
-    bg: 'bg-slate-100 dark:bg-slate-700/40',
-    text: 'text-slate-700 dark:text-slate-200',
+    bg: 'bg-neutral/10',
+    text: 'text-neutral-content',
     icon: '👀',
   },
   write: {
@@ -211,8 +211,8 @@ const CATEGORY_STYLE: Record<ToolCategory, { bg: string; text: string; icon: str
     icon: '⚙️',
   },
   system: {
-    bg: 'bg-slate-100 dark:bg-slate-700/40',
-    text: 'text-slate-700 dark:text-slate-200',
+    bg: 'bg-neutral/10',
+    text: 'text-neutral-content',
     icon: '🔧',
   },
 }

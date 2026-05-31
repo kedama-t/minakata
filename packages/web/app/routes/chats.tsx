@@ -32,7 +32,7 @@ function previewOf(content: string | null): string {
 function tabClass(active: boolean): string {
   return active
     ? 'px-3 py-1 rounded-t border-b-2 border-primary text-primary font-medium'
-    : 'px-3 py-1 text-slate-500 dark:text-slate-400 hover:text-primary'
+    : 'px-3 py-1 text-base-content/60 hover:text-primary'
 }
 
 export default function Chats({ loaderData }: Route.ComponentProps) {
@@ -76,26 +76,26 @@ export default function Chats({ loaderData }: Route.ComponentProps) {
                 >
                   {s.kind}
                 </span>
-                <span className="text-xs text-slate-500 dark:text-slate-400">
+                <span className="text-xs text-base-content/60">
                   {new Date(s.updated_at).toLocaleString('ja-JP')}
                 </span>
               </div>
-              <p className="text-sm mt-1 text-slate-700 dark:text-slate-200">
+              <p className="text-sm mt-1 text-base-content/80">
                 {s.last_message_role === 'user' && (
-                  <span className="text-slate-400 dark:text-slate-500">あなた: </span>
+                  <span className="text-base-content/40">あなた: </span>
                 )}
                 {s.last_message_role === 'agent' && (
-                  <span className="text-slate-400 dark:text-slate-500">エージェント: </span>
+                  <span className="text-base-content/40">エージェント: </span>
                 )}
                 {previewOf(s.last_message) || (
-                  <span className="text-slate-400 dark:text-slate-500">（メッセージなし）</span>
+                  <span className="text-base-content/40">（メッセージなし）</span>
                 )}
               </p>
             </a>
           </li>
         ))}
         {sessions.length === 0 && (
-          <p className="text-sm text-slate-500 dark:text-slate-400">対話履歴がまだありません。</p>
+          <p className="text-sm text-base-content/60">対話履歴がまだありません。</p>
         )}
       </ul>
       {nextCursor && (

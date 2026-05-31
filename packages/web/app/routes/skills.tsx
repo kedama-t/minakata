@@ -33,9 +33,7 @@ export default function Skills({ loaderData, actionData }: Route.ComponentProps)
       {actionData?.approved && (
         <p className="text-sm text-success">承認しました(書き込み先: {actionData.approved})</p>
       )}
-      {actionData?.rejected && (
-        <p className="text-sm text-amber-700 dark:text-amber-300">却下しました</p>
-      )}
+      {actionData?.rejected && <p className="text-sm text-warning">却下しました</p>}
       <ul className="space-y-3">
         {loaderData.proposals.map((p) => (
           <li key={p.id} className="bg-surface p-4 rounded border">
@@ -48,19 +46,15 @@ export default function Skills({ loaderData, actionData }: Route.ComponentProps)
                       ? 'bg-primary/15 text-primary'
                       : p.status === 'approved'
                         ? 'bg-success/15 text-success'
-                        : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 dark:text-slate-500'
+                        : 'bg-base-300 text-base-content/60'
                   }`}
                 >
                   {p.status}
                 </span>
               </h2>
-              <span className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
-                {p.created_at}
-              </span>
+              <span className="text-xs text-base-content/60">{p.created_at}</span>
             </div>
-            <p className="text-sm text-slate-600 dark:text-slate-400 dark:text-slate-500 mt-1">
-              {p.description}
-            </p>
+            <p className="text-sm text-base-content/60 mt-1">{p.description}</p>
             <details className="mt-2">
               <summary className="text-xs text-primary cursor-pointer">コードを表示</summary>
               <pre className="text-xs bg-canvas p-2 rounded mt-1 whitespace-pre-wrap">{p.code}</pre>
@@ -94,9 +88,7 @@ export default function Skills({ loaderData, actionData }: Route.ComponentProps)
           </li>
         ))}
         {loaderData.proposals.length === 0 && (
-          <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
-            スキル提案はまだありません。
-          </p>
+          <p className="text-sm text-base-content/60">スキル提案はまだありません。</p>
         )}
       </ul>
     </div>

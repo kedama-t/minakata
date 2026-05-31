@@ -46,7 +46,7 @@ export default function ReviewPage({ loaderData, actionData }: Route.ComponentPr
           ← レビュー一覧
         </a>
         <h1 className="text-2xl font-bold mt-1">{article_title}</h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
+        <p className="text-xs text-base-content/60">
           変更率: {(review.change_pct * 100).toFixed(1)}% / 状態: {review.status}
         </p>
       </header>
@@ -63,7 +63,7 @@ export default function ReviewPage({ loaderData, actionData }: Route.ComponentPr
                   ? 'bg-success/15 text-success'
                   : chunk.removed
                     ? 'bg-error/15 text-error line-through'
-                    : 'text-slate-700 dark:text-slate-300'
+                    : 'text-base-content/80'
               }
             >
               {chunk.value}
@@ -101,16 +101,14 @@ export default function ReviewPage({ loaderData, actionData }: Route.ComponentPr
         <ul className="space-y-1 text-sm">
           {comments.map((c) => (
             <li key={c.id} className="border-b pb-1">
-              <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 text-xs">
+              <span className="text-base-content/60 text-xs">
                 {c.author_id} - {c.created_at}
               </span>
               <p>{c.body}</p>
             </li>
           ))}
           {comments.length === 0 && (
-            <p className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
-              まだコメントはありません。
-            </p>
+            <p className="text-xs text-base-content/60">まだコメントはありません。</p>
           )}
         </ul>
         <Form method="post" className="mt-3 flex gap-2">

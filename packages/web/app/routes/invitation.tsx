@@ -21,7 +21,7 @@ export default function Invitation({ actionData, params }: Route.ComponentProps)
   return (
     <div className="max-w-md mx-auto p-8">
       <h1 className="text-2xl font-bold mb-4">招待を受諾</h1>
-      <p className="text-sm text-slate-600 dark:text-slate-400 dark:text-slate-500 mb-4">
+      <p className="text-sm text-base-content/60 mb-4">
         パスワードを設定してアカウントを有効化します。
       </p>
       <Form method="post" className="space-y-3">
@@ -38,9 +38,7 @@ export default function Invitation({ actionData, params }: Route.ComponentProps)
           有効化
         </button>
       </Form>
-      <p className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500 mt-4">
-        招待トークン: {params.token}
-      </p>
+      <p className="text-xs text-base-content/60 mt-4">招待トークン: {params.token}</p>
     </div>
   )
 }

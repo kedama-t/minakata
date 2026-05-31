@@ -80,7 +80,7 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
   return (
     <article className="max-w-3xl mx-auto p-6">
       <h1 className="text-3xl font-bold mb-1">{article.frontmatter.title}</h1>
-      <div className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500 mb-6 flex items-center gap-2">
+      <div className="text-xs text-base-content/60 mb-6 flex items-center gap-2">
         <span>
           最終更新: {article.frontmatter.updated_at} / 鮮度: {article.frontmatter.freshness_rank} /
           状態: {article.frontmatter.status}
@@ -88,16 +88,14 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
         {canEdit && article.frontmatter.status === 'archived' && (
           <Form method="post" className="inline">
             <input type="hidden" name="intent" value="unarchive" />
-            <button type="submit" className="text-xs bg-amber-600 text-white px-2 py-1 rounded">
+            <button type="submit" className="text-xs bg-secondary text-white px-2 py-1 rounded">
               アーカイブ解除
             </button>
           </Form>
         )}
       </div>
       {article.frontmatter.summary && (
-        <div className="bg-slate-100 dark:bg-slate-700 p-3 rounded mb-6 text-sm">
-          {article.frontmatter.summary}
-        </div>
+        <div className="bg-base-300 p-3 rounded mb-6 text-sm">{article.frontmatter.summary}</div>
       )}
       <ArticleMarkdown source={article.body} />
       {article.frontmatter.sources.length > 0 && (
@@ -109,9 +107,7 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
                 <a href={s.url} className="text-primary hover:underline">
                   {s.url}
                 </a>
-                <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 ml-2">
-                  取得: {s.fetched_at}
-                </span>
+                <span className="text-base-content/60 ml-2">取得: {s.fetched_at}</span>
               </li>
             ))}
           </ul>
@@ -128,9 +124,7 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
                   {r.title}
                 </a>
                 {r.status === 'archived' && (
-                  <span className="ml-2 text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
-                    (archived)
-                  </span>
+                  <span className="ml-2 text-xs text-base-content/60">(archived)</span>
                 )}
               </li>
             ))}
@@ -146,7 +140,7 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
               key={c.id}
               className={`bg-canvas p-2 rounded ${c.status === 'resolved' ? 'opacity-50' : ''}`}
             >
-              <div className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
+              <div className="text-xs text-base-content/60">
                 {c.author_id} - {c.created_at}
                 {c.anchor && <> / @{c.anchor}</>}
               </div>
@@ -163,9 +157,7 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
             </li>
           ))}
           {comments.length === 0 && (
-            <p className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">
-              コメントはまだありません。
-            </p>
+            <p className="text-xs text-base-content/60">コメントはまだありません。</p>
           )}
         </ul>
         {canEdit && (
@@ -183,7 +175,7 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
               className="w-full px-3 py-2 border rounded text-sm"
               placeholder="この部分のセキュリティ的な懸念について調べてほしい..."
             />
-            <label className="flex items-center gap-1 text-xs text-slate-600 dark:text-slate-400 dark:text-slate-500">
+            <label className="flex items-center gap-1 text-xs text-base-content/60">
               <input type="checkbox" name="request_research" />
               追加調査タスクとしてキューに投入する
             </label>
