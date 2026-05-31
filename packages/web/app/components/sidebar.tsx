@@ -1,3 +1,4 @@
+import Avatar from 'boring-avatars'
 import { useEffect, useState } from 'react'
 import { Form, useLocation } from 'react-router'
 import type { Theme } from '../lib/theme.ts'
@@ -159,13 +160,12 @@ function UserPanel({
   user: { email: string; role: string }
   theme: Theme
 }) {
-  const initial = user.email.charAt(0).toUpperCase()
   return (
     <div className="flex flex-col gap-2 p-3 border-t border-border">
       <ThemeToggle current={theme} />
       <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-full bg-primary text-primary-content flex items-center justify-center text-sm font-medium flex-shrink-0">
-          {initial}
+        <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
+          <Avatar size={32} name={user.email} variant="beam" />
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-xs font-medium text-base-content/80 truncate">{user.email}</p>

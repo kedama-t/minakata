@@ -19,6 +19,7 @@
     "@oslojs/encoding": "^1.1.0",
     "@oslojs/jwt": "^0.3.0",
     "@react-router/node": "^7.1.0",
+    "boring-avatars": "^2.0.4",
     "diff": "^7.0.0",
     "gray-matter": "^4.0.3",
     "hono": "^4.6.0",
