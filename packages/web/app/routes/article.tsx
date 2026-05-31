@@ -7,8 +7,9 @@ import type { Route } from './+types/article.ts'
 export async function loader({ request, params }: Route.LoaderArgs) {
   const user = requireUser(request)
   const services = getServices()
-  if (!params.slug) throw new Response('Bad Request', { status: 400 })
-  const article = services.articles.read(params.slug)
+  const slug = params['*']
+  if (!slug) throw new Response('Bad Request', { status: 400 })
+  const article = services.articles.read(slug)
   if (!article) throw new Response('Not Found', { status: 404 })
   await services.articles.touchAccessed(article.frontmatter.id)
   services.db
@@ -24,8 +25,9 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 export async function action({ request, params }: Route.ActionArgs) {
   const user = requireEditor(request)
   const services = getServices()
-  if (!params.slug) throw new Response('Bad Request', { status: 400 })
-  const article = services.articles.read(params.slug)
+  const slug = params['*']
+  if (!slug) throw new Response('Bad Request', { status: 400 })
+  const article = services.articles.read(slug)
   if (!article) throw new Response('Not Found', { status: 404 })
   const form = await request.formData()
   const intent = String(form.get('intent') ?? '')
