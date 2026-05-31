@@ -50,7 +50,7 @@ export default function Articles({ loaderData }: Route.ComponentProps) {
             href="/articles"
             className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
               tag === ''
-                ? 'bg-blue-600 text-white'
+                ? 'bg-primary text-primary-content'
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
             }`}
           >
@@ -62,7 +62,7 @@ export default function Articles({ loaderData }: Route.ComponentProps) {
               href={`/articles?tag=${encodeURIComponent(t.tag)}`}
               className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
                 tag === t.tag
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-primary text-primary-content'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
               }`}
             >
@@ -86,7 +86,7 @@ export default function Articles({ loaderData }: Route.ComponentProps) {
             >
               <a
                 href={`/articles/${a.slug}`}
-                className="text-blue-700 dark:text-blue-300 font-semibold hover:underline"
+                className="text-primary font-semibold hover:underline"
               >
                 {a.title}
               </a>

@@ -97,7 +97,7 @@ export default function Members({ loaderData, actionData }: Route.ComponentProps
             <option value="editor">editor</option>
             <option value="admin">admin</option>
           </select>
-          <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded">
+          <button type="submit" className="btn btn-primary btn-sm">
             招待
           </button>
         </Form>

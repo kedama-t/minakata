@@ -36,7 +36,7 @@ export default function Invitation({ actionData, params }: Route.ComponentProps)
         {actionData?.error && (
           <p className="text-red-600 dark:text-red-400 text-sm">{actionData.error}</p>
         )}
-        <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded">
+        <button type="submit" className="btn btn-primary w-full">
           有効化
         </button>
       </Form>

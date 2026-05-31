@@ -18,7 +18,7 @@ const components: Components = {
       // 出典・参照は外部 URL になりがちなので開く先を別タブに
       target="_blank"
       rel="noreferrer noopener"
-      className="text-blue-700 dark:text-blue-300 hover:underline"
+      className="text-primary hover:underline"
     >
       {children}
     </a>

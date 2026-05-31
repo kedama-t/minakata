@@ -171,9 +171,7 @@ export default function Chat({ loaderData }: Route.ComponentProps) {
         {kind === 'knowledge' ? 'ナレッジ質問' : '対話'}: {session ? session.id.slice(-8) : '新規'}
         <span
           className={`ml-2 text-xs px-2 py-0.5 rounded ${
-            kind === 'knowledge'
-              ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
-              : 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
+            kind === 'knowledge' ? 'bg-accent/15 text-accent' : 'bg-primary/15 text-primary'
           }`}
         >
           {kind}
@@ -192,9 +190,7 @@ export default function Chat({ loaderData }: Route.ComponentProps) {
           <div key={m.id} className={m.role === 'user' ? 'text-right' : ''}>
             <span
               className={`inline-block px-3 py-2 rounded whitespace-pre-wrap ${
-                m.role === 'user'
-                  ? 'bg-blue-100 dark:bg-blue-900/40'
-                  : 'bg-slate-100 dark:bg-slate-700'
+                m.role === 'user' ? 'bg-primary/15' : 'bg-slate-100 dark:bg-slate-700'
               }`}
             >
               {m.content}
@@ -216,7 +212,7 @@ export default function Chat({ loaderData }: Route.ComponentProps) {
         />
         <button
           type="submit"
-          className="bg-blue-600 text-white px-4 rounded disabled:opacity-50"
+          className="btn btn-primary btn-sm"
           disabled={fetcher.state !== 'idle'}
         >
           送信

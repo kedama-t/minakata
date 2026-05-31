@@ -31,8 +31,8 @@ function previewOf(content: string | null): string {
 
 function tabClass(active: boolean): string {
   return active
-    ? 'px-3 py-1 rounded-t border-b-2 border-blue-600 text-blue-700 dark:text-blue-300 font-medium'
-    : 'px-3 py-1 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400'
+    ? 'px-3 py-1 rounded-t border-b-2 border-primary text-primary font-medium'
+    : 'px-3 py-1 text-slate-500 dark:text-slate-400 hover:text-primary'
 }
 
 export default function Chats({ loaderData }: Route.ComponentProps) {
@@ -51,13 +51,10 @@ export default function Chats({ loaderData }: Route.ComponentProps) {
           すべて
         </a>
         <div className="ml-auto flex items-center gap-3">
-          <a className="text-sm text-blue-600 dark:text-blue-400 hover:underline" href="/chat/new">
+          <a className="text-sm text-primary hover:underline" href="/chat/new">
             + 新規対話
           </a>
-          <a
-            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-            href="/chat/new?kind=knowledge"
-          >
+          <a className="text-sm text-primary hover:underline" href="/chat/new?kind=knowledge">
             + ナレッジ質問
           </a>
         </div>
@@ -73,8 +70,8 @@ export default function Chats({ loaderData }: Route.ComponentProps) {
                 <span
                   className={`text-xs px-2 py-0.5 rounded ${
                     s.kind === 'knowledge'
-                      ? 'bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300'
-                      : 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
+                      ? 'bg-accent/15 text-accent'
+                      : 'bg-primary/15 text-primary'
                   }`}
                 >
                   {s.kind}
@@ -105,7 +102,7 @@ export default function Chats({ loaderData }: Route.ComponentProps) {
         <div className="mt-4">
           <a
             href={`/chats?kind=${kind}&before=${encodeURIComponent(nextCursor)}`}
-            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            className="text-sm text-primary hover:underline"
           >
             さらに読み込む
           </a>

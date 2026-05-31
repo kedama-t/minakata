@@ -76,7 +76,7 @@ export default function Archives({ loaderData, actionData }: Route.ComponentProp
               {p.article_slug ? (
                 <a
                   href={`/articles/${p.article_slug}`}
-                  className="text-blue-700 dark:text-blue-300 font-semibold hover:underline"
+                  className="text-primary font-semibold hover:underline"
                 >
                   {p.article_title}
                 </a>

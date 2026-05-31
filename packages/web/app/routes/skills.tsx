@@ -47,7 +47,7 @@ export default function Skills({ loaderData, actionData }: Route.ComponentProps)
                 <span
                   className={`ml-2 text-xs px-2 py-0.5 rounded ${
                     p.status === 'proposed'
-                      ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
+                      ? 'bg-primary/15 text-primary'
                       : p.status === 'approved'
                         ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
                         : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 dark:text-slate-500'
@@ -64,9 +64,7 @@ export default function Skills({ loaderData, actionData }: Route.ComponentProps)
               {p.description}
             </p>
             <details className="mt-2">
-              <summary className="text-xs text-blue-700 dark:text-blue-300 cursor-pointer">
-                コードを表示
-              </summary>
+              <summary className="text-xs text-primary cursor-pointer">コードを表示</summary>
               <pre className="text-xs bg-canvas p-2 rounded mt-1 whitespace-pre-wrap">{p.code}</pre>
             </details>
             {p.status === 'proposed' && (

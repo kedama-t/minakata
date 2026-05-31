@@ -439,10 +439,7 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
               className="px-2.5 py-1.5 border rounded-md w-24 bg-surface border-border text-sm"
             />
           </label>
-          <button
-            type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 text-sm rounded-md transition-colors"
-          >
+          <button type="submit" className="btn btn-primary btn-sm">
             適用
           </button>
           {(agent || tool) && (

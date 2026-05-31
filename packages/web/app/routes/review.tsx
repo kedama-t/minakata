@@ -42,7 +42,7 @@ export default function ReviewPage({ loaderData, actionData }: Route.ComponentPr
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <header>
-        <a href="/reviews" className="text-blue-700 dark:text-blue-300 text-sm">
+        <a href="/reviews" className="text-primary text-sm hover:underline">
           ← レビュー一覧
         </a>
         <h1 className="text-2xl font-bold mt-1">{article_title}</h1>

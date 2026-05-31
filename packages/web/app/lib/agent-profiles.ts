@@ -9,7 +9,7 @@ export type AgentProfile = {
   role: string
   /** 任意のアイコンURL。なければ絵文字のみで表現する */
   avatar?: string
-  /** Tailwind の bg-gradient-to-br 用クラス。例: "from-blue-400 to-indigo-500" */
+  /** Tailwind の bg-gradient-to-br 用クラス。例: "from-teal-400 to-teal-600" */
   gradient: string
   /** バッジ等で使う薄色 */
   tintBg: string
@@ -22,10 +22,10 @@ const KNOWN_PROFILES: Record<string, AgentProfile> = {
     emoji: '💬',
     displayName: 'ミミー',
     role: '対話エージェント：ユーザーとのチャットに応えます',
-    gradient: 'from-purple-400 to-pink-500',
+    gradient: 'from-rose-400 to-pink-400',
     avatar: 'agents/mimy.png',
-    tintBg: 'bg-purple-50 dark:bg-purple-500/15',
-    tintText: 'text-purple-700 dark:text-purple-300',
+    tintBg: 'bg-rose-50 dark:bg-rose-500/15',
+    tintText: 'text-rose-700 dark:text-rose-300',
   },
   researcher: {
     key: 'researcher',
@@ -33,9 +33,9 @@ const KNOWN_PROFILES: Record<string, AgentProfile> = {
     displayName: 'リズ',
     role: 'リサーチエージェント：タスクをこなして記事を書き足します',
     avatar: 'agents/lyz.png',
-    gradient: 'from-blue-400 to-indigo-500',
-    tintBg: 'bg-blue-50 dark:bg-blue-500/15',
-    tintText: 'text-blue-700 dark:text-blue-300',
+    gradient: 'from-teal-400 to-teal-600',
+    tintBg: 'bg-teal-50 dark:bg-teal-500/15',
+    tintText: 'text-teal-700 dark:text-teal-300',
   },
   daily_research: {
     key: 'daily_research',
@@ -92,7 +92,7 @@ export const SYSTEM_PROFILE: AgentProfile = {
 
 const FALLBACK_GRADIENTS = [
   'from-rose-400 to-red-500',
-  'from-sky-400 to-cyan-500',
+  'from-teal-300 to-teal-500',
   'from-lime-400 to-green-500',
   'from-violet-400 to-fuchsia-500',
   'from-stone-400 to-stone-600',
@@ -176,8 +176,8 @@ const CATEGORY_STYLE: Record<ToolCategory, { bg: string; text: string; icon: str
     icon: '👀',
   },
   write: {
-    bg: 'bg-blue-50 dark:bg-blue-500/15',
-    text: 'text-blue-700 dark:text-blue-300',
+    bg: 'bg-primary/10',
+    text: 'text-primary',
     icon: '✏️',
   },
   archive: {
@@ -206,8 +206,8 @@ const CATEGORY_STYLE: Record<ToolCategory, { bg: string; text: string; icon: str
     icon: '💌',
   },
   policy: {
-    bg: 'bg-cyan-50 dark:bg-cyan-500/15',
-    text: 'text-cyan-700 dark:text-cyan-300',
+    bg: 'bg-info/10',
+    text: 'text-info',
     icon: '⚙️',
   },
   system: {
