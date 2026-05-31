@@ -87,10 +87,10 @@ function Avatar({
   size?: 'sm' | 'md' | 'lg'
 }) {
   const dim =
-    size === 'lg' ? 'w-14 h-14 text-2xl' : size === 'sm' ? 'w-7 h-7 text-sm' : 'w-10 h-10 text-lg'
+    size === 'lg' ? 'w-24 h-24 text-2xl' : size === 'sm' ? 'w-12 h-12 text-sm' : 'w-18 h-18 text-lg'
   return (
     <div
-      className={`${dim} rounded-full bg-gradient-to-br ${profile.gradient} flex items-center justify-center shadow-sm flex-shrink-0 ring-2 ring-base-100`}
+      className={`${dim} rounded-full ${profile.ring} flex items-center justify-center shadow-sm shrink-0 ring-2`}
       title={profile.displayName}
       aria-label={profile.displayName}
     >
@@ -254,7 +254,7 @@ function AuditRow({
   const meta = e.metadata ? JSON.stringify(e.metadata, null, 2) : ''
   return (
     <li className="flex gap-3 group">
-      <div className="flex flex-col items-center pt-1 flex-shrink-0">
+      <div className="flex flex-col items-center pt-1 shrink-0">
         <Avatar profile={profile} size="md" />
         <div className="flex-1 w-px bg-base-300 my-1 group-last:hidden" />
       </div>
@@ -308,7 +308,7 @@ function ActivityRow({
   const profile = e.agent_name ? getAgentProfile(e.agent_name) : getAgentProfile(e.actor)
   return (
     <li className="flex gap-3 group">
-      <div className="flex flex-col items-center pt-1 flex-shrink-0">
+      <div className="flex flex-col items-center pt-1 shrink-0">
         <Avatar profile={profile} size="md" />
         <div className="flex-1 w-px bg-base-300 my-1 group-last:hidden" />
       </div>

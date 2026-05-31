@@ -9,23 +9,17 @@ export type AgentProfile = {
   role: string
   /** 任意のアイコンURL。なければ絵文字のみで表現する */
   avatar?: string
-  /** Tailwind の bg-gradient-to-br 用クラス。例: "from-teal-400 to-teal-600" */
-  gradient: string
-  /** バッジ等で使う薄色 */
-  tintBg: string
-  tintText: string
+  ring?: string
 }
 
 const KNOWN_PROFILES: Record<string, AgentProfile> = {
   dialogue: {
     key: 'dialogue',
     emoji: '💬',
-    displayName: 'ミミー',
+    displayName: 'ミミ',
     role: '対話エージェント：ユーザーとのチャットに応えます',
-    gradient: 'from-rose-400 to-pink-400',
+    ring: 'ring-fuchsia-400',
     avatar: 'agents/mimy.png',
-    tintBg: 'bg-rose-50 dark:bg-rose-500/15',
-    tintText: 'text-rose-700 dark:text-rose-300',
   },
   researcher: {
     key: 'researcher',
@@ -33,9 +27,7 @@ const KNOWN_PROFILES: Record<string, AgentProfile> = {
     displayName: 'リズ',
     role: 'リサーチエージェント：タスクをこなして記事を書き足します',
     avatar: 'agents/lyz.png',
-    gradient: 'from-teal-400 to-teal-600',
-    tintBg: 'bg-teal-50 dark:bg-teal-500/15',
-    tintText: 'text-teal-700 dark:text-teal-300',
+    ring: 'ring-sky-400',
   },
   daily_research: {
     key: 'daily_research',
@@ -43,9 +35,7 @@ const KNOWN_PROFILES: Record<string, AgentProfile> = {
     displayName: 'ヨナ',
     role: '夜中に飛び回って新しい話題を集めてきます',
     avatar: 'agents/yona.png',
-    gradient: 'from-amber-400 to-orange-500',
-    tintBg: 'bg-amber-50 dark:bg-amber-500/15',
-    tintText: 'text-amber-700 dark:text-amber-300',
+    ring: 'ring-amber-900',
   },
   freshness_checker: {
     key: 'freshness_checker',
@@ -53,9 +43,7 @@ const KNOWN_PROFILES: Record<string, AgentProfile> = {
     displayName: 'セン',
     role: '記事の鮮度管理：記事の鮮度を見守ります',
     avatar: 'agents/sen.png',
-    gradient: 'from-emerald-400 to-teal-500',
-    tintBg: 'bg-emerald-50 dark:bg-emerald-500/15',
-    tintText: 'text-emerald-700 dark:text-emerald-300',
+    ring: 'ring-emerald-400',
   },
   changelog_writer: {
     key: 'changelog_writer',
@@ -63,9 +51,7 @@ const KNOWN_PROFILES: Record<string, AgentProfile> = {
     displayName: 'チロ',
     role: '日々の出来事を ChangeLog にまとめます',
     avatar: 'agents/chiro.png',
-    gradient: 'from-yellow-400 to-amber-500',
-    tintBg: 'bg-yellow-50 dark:bg-yellow-500/15',
-    tintText: 'text-yellow-700 dark:text-yellow-300',
+    ring: 'ring-yellow-400',
   },
 }
 
@@ -74,34 +60,16 @@ const HERMES_PROFILE: AgentProfile = {
   emoji: '🛰️',
   displayName: 'Hermes',
   role: 'エージェントハーネス本体',
-  gradient: 'from-neutral/60 to-neutral',
-  tintBg: 'bg-neutral/10',
-  tintText: 'text-neutral-content',
+  ring: 'ring-blue-400',
 }
 
 export const SYSTEM_PROFILE: AgentProfile = {
   key: 'system',
   emoji: '⚙️',
-  displayName: 'システム',
+  displayName: 'Q',
   role: 'システム自動処理',
-  avatar: 'agents/system.png',
-  gradient: 'from-neutral/60 to-neutral',
-  tintBg: 'bg-neutral/10',
-  tintText: 'text-neutral-content',
-}
-
-const FALLBACK_GRADIENTS = [
-  'from-rose-400 to-red-500',
-  'from-teal-300 to-teal-500',
-  'from-lime-400 to-green-500',
-  'from-violet-400 to-fuchsia-500',
-  'from-stone-400 to-stone-600',
-]
-
-function hashStr(s: string): number {
-  let h = 0
-  for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0
-  return Math.abs(h)
+  avatar: 'agents/q.png',
+  ring: 'ring-slate-400',
 }
 
 /**
@@ -112,48 +80,13 @@ export function getAgentProfile(agentName: string | null | undefined): AgentProf
   if (!agentName) return HERMES_PROFILE
   if (KNOWN_PROFILES[agentName]) return KNOWN_PROFILES[agentName]
   if (agentName === 'hermes' || agentName.startsWith('hermes')) return HERMES_PROFILE
-  const idx = hashStr(agentName) % FALLBACK_GRADIENTS.length
-  const gradient = FALLBACK_GRADIENTS[idx] ?? 'from-neutral/60 to-neutral'
   return {
     key: agentName,
     emoji: '✨',
     displayName: agentName,
     role: '稼働中のエージェント',
-    gradient,
-    tintBg: 'bg-neutral/10',
-    tintText: 'text-neutral-content',
+    ring: 'ring-slate-400',
   }
-}
-
-/**
- * actor 文字列(`user:xxx` / `agent:xxx` / `hermes` / `system` 等)から
- * モニター表示用のプロフィールを返す。actor が agent でない場合(user/system)は専用扱い。
- */
-export function getActorProfile(actor: string, agentName: string | null | undefined): AgentProfile {
-  if (agentName) return getAgentProfile(agentName)
-  if (actor.startsWith('user:')) {
-    return {
-      key: actor,
-      emoji: '🙂',
-      displayName: actor.slice('user:'.length) || 'ユーザー',
-      role: '人間のユーザー',
-      gradient: 'from-neutral/40 to-neutral/70',
-      tintBg: 'bg-neutral/10',
-      tintText: 'text-neutral-content',
-    }
-  }
-  if (actor === 'system') {
-    return {
-      key: 'system',
-      emoji: '⚙️',
-      displayName: 'system',
-      role: 'システム自動処理',
-      gradient: 'from-neutral/60 to-neutral',
-      tintBg: 'bg-neutral/10',
-      tintText: 'text-neutral-content',
-    }
-  }
-  return getAgentProfile(actor.replace(/^agent:/, '') || null)
 }
 
 // ─── ツール名 → 自然文/カテゴリ ──────────────────────────────────────────
