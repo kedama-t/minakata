@@ -18,12 +18,12 @@ export async function loader({ request }: Route.LoaderArgs) {
 function FreshnessBadge({ rank }: { rank: string }) {
   const color =
     rank === 'fresh'
-      ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
+      ? 'bg-success/15 text-success'
       : rank === 'aging'
-        ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300'
+        ? 'bg-warning/15 text-warning'
         : rank === 'stale'
-          ? 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300'
-          : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
+          ? 'bg-warning/20 text-warning'
+          : 'bg-error/15 text-error'
   return <span className={`ml-2 text-xs px-2 py-0.5 rounded ${color}`}>{rank}</span>
 }
 
@@ -50,7 +50,7 @@ export default function Articles({ loaderData }: Route.ComponentProps) {
             href="/articles"
             className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
               tag === ''
-                ? 'bg-blue-600 text-white'
+                ? 'bg-primary text-primary-content'
                 : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
             }`}
           >
@@ -62,7 +62,7 @@ export default function Articles({ loaderData }: Route.ComponentProps) {
               href={`/articles?tag=${encodeURIComponent(t.tag)}`}
               className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
                 tag === t.tag
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-primary text-primary-content'
                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
               }`}
             >
@@ -86,7 +86,7 @@ export default function Articles({ loaderData }: Route.ComponentProps) {
             >
               <a
                 href={`/articles/${a.slug}`}
-                className="text-blue-700 dark:text-blue-300 font-semibold hover:underline"
+                className="text-primary font-semibold hover:underline"
               >
                 {a.title}
               </a>

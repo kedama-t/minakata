@@ -56,11 +56,11 @@ function statusBadge(status: TaskStatus): string {
     case 'queued':
       return 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200'
     case 'claimed':
-      return 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
+      return 'bg-primary/15 text-primary'
     case 'done':
-      return 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
+      return 'bg-success/15 text-success'
     case 'failed':
-      return 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
+      return 'bg-error/15 text-error'
   }
 }
 
@@ -79,8 +79,8 @@ function statusLabel(status: TaskStatus): string {
 
 function tabClass(active: boolean): string {
   return active
-    ? 'px-3 py-1 rounded-t border-b-2 border-blue-600 text-blue-700 dark:text-blue-300 font-medium'
-    : 'px-3 py-1 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400'
+    ? 'px-3 py-1 rounded-t border-b-2 border-primary text-primary font-medium'
+    : 'px-3 py-1 text-slate-500 dark:text-slate-400 hover:text-primary'
 }
 
 function elapsed(from: string, to: string | null): string {
@@ -120,7 +120,7 @@ export default function Tasks({ loaderData }: Route.ComponentProps) {
         <div className="ml-auto flex items-center gap-3">
           {isAdmin && (
             <a
-              className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+              className="text-sm text-primary hover:underline"
               href={
                 showAll
                   ? `/tasks${status !== 'all' ? `?status=${status}` : ''}`
@@ -168,7 +168,7 @@ export default function Tasks({ loaderData }: Route.ComponentProps) {
                 {slug && (
                   <a
                     href={`/articles/${slug}`}
-                    className="ml-auto text-blue-600 dark:text-blue-400 hover:underline text-sm"
+                    className="ml-auto text-primary hover:underline text-sm"
                   >
                     記事を開く →
                   </a>
@@ -195,7 +195,7 @@ export default function Tasks({ loaderData }: Route.ComponentProps) {
               params.set('before', nextCursor)
               return `/tasks?${params.toString()}`
             })()}
-            className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+            className="text-sm text-primary hover:underline"
           >
             さらに読み込む
           </a>

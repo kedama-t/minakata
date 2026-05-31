@@ -106,7 +106,7 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
           <ul className="space-y-1 text-sm">
             {article.frontmatter.sources.map((s) => (
               <li key={s.url}>
-                <a href={s.url} className="text-blue-700 dark:text-blue-300 hover:underline">
+                <a href={s.url} className="text-primary hover:underline">
                   {s.url}
                 </a>
                 <span className="text-slate-500 dark:text-slate-400 dark:text-slate-500 ml-2">
@@ -124,10 +124,7 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
           <ul className="space-y-1 text-sm">
             {related.map((r) => (
               <li key={r.id}>
-                <a
-                  href={`/articles/${r.slug}`}
-                  className="text-blue-700 dark:text-blue-300 hover:underline"
-                >
+                <a href={`/articles/${r.slug}`} className="text-primary hover:underline">
                   {r.title}
                 </a>
                 {r.status === 'archived' && (
@@ -158,10 +155,7 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
                 <Form method="post" className="inline">
                   <input type="hidden" name="intent" value="resolve" />
                   <input type="hidden" name="comment_id" value={c.id} />
-                  <button
-                    type="submit"
-                    className="text-xs text-blue-700 dark:text-blue-300 hover:underline"
-                  >
+                  <button type="submit" className="text-xs text-primary hover:underline">
                     解決済みにする
                   </button>
                 </Form>
@@ -193,13 +187,9 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
               <input type="checkbox" name="request_research" />
               追加調査タスクとしてキューに投入する
             </label>
-            {actionData?.error && (
-              <p className="text-red-600 dark:text-red-400 text-xs">{actionData.error}</p>
-            )}
-            {actionData?.ok && (
-              <p className="text-green-600 dark:text-green-400 text-xs">登録しました</p>
-            )}
-            <button type="submit" className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm">
+            {actionData?.error && <p className="text-error text-xs">{actionData.error}</p>}
+            {actionData?.ok && <p className="text-success text-xs">登録しました</p>}
+            <button type="submit" className="btn btn-primary btn-sm">
               コメントを追加
             </button>
           </Form>

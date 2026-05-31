@@ -159,20 +159,18 @@ export default function Topics({ loaderData, actionData }: Route.ComponentProps)
           className="w-full px-3 py-2 border rounded text-sm font-mono"
           placeholder="トピック個別の指示(Markdown)。リサーチ方針より優先される"
         />
-        {actionData?.error && (
-          <p className="text-red-600 dark:text-red-400 text-sm">{actionData.error}</p>
-        )}
+        {actionData?.error && <p className="text-error text-sm">{actionData.error}</p>}
         {actionData?.ok === 'created' && (
-          <p className="text-green-600 dark:text-green-400 text-sm">
+          <p className="text-success text-sm">
             登録しました(あなたを自動購読登録、次回バッチから有効)
           </p>
         )}
         {(actionData?.ok === 'subscribe' || actionData?.ok === 'unsubscribe') && (
-          <p className="text-green-600 dark:text-green-400 text-sm">
+          <p className="text-success text-sm">
             {actionData.ok === 'subscribe' ? '購読しました' : '購読解除しました'}
           </p>
         )}
-        <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded">
+        <button type="submit" className="btn btn-primary btn-sm">
           追加
         </button>
       </Form>
@@ -195,7 +193,7 @@ export default function Topics({ loaderData, actionData }: Route.ComponentProps)
                     value={t.subscribed ? 'unsubscribe' : 'subscribe'}
                     className={`text-xs px-2 py-0.5 rounded ${
                       t.subscribed
-                        ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300'
+                        ? 'bg-primary/15 text-primary'
                         : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 dark:text-slate-500'
                     }`}
                   >
@@ -230,9 +228,7 @@ export default function Topics({ loaderData, actionData }: Route.ComponentProps)
             )}
             {t.instructions_md && (
               <details className="text-xs text-slate-600 dark:text-slate-400 dark:text-slate-500">
-                <summary className="cursor-pointer text-blue-700 dark:text-blue-300">
-                  個別指示を表示
-                </summary>
+                <summary className="cursor-pointer text-primary">個別指示を表示</summary>
                 <pre className="bg-canvas p-2 mt-1 rounded whitespace-pre-wrap font-mono">
                   {t.instructions_md}
                 </pre>

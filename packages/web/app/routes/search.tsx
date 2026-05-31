@@ -32,7 +32,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
           <input type="checkbox" name="archived" value="true" defaultChecked={!excludeArchived} />
           アーカイブも含める
         </label>
-        <button type="submit" className="bg-blue-600 text-white px-4 rounded">
+        <button type="submit" className="btn btn-primary btn-sm">
           検索
         </button>
       </Form>
@@ -44,10 +44,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
       <ul className="space-y-2">
         {hits.map((h) => (
           <li key={h.id} className="bg-surface p-3 rounded border">
-            <a
-              href={`/articles/${h.slug}`}
-              className="text-blue-700 dark:text-blue-300 font-semibold"
-            >
+            <a href={`/articles/${h.slug}`} className="text-primary font-semibold hover:underline">
               {h.title}
             </a>
             <span className="ml-2 text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">

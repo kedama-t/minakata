@@ -26,7 +26,7 @@ export default function Reviews({ loaderData }: Route.ComponentProps) {
       <ul className="space-y-2">
         {loaderData.reviews.map((r) => (
           <li key={r.id} className="bg-surface p-3 rounded border">
-            <a href={`/reviews/${r.id}`} className="text-blue-700 dark:text-blue-300 font-semibold">
+            <a href={`/reviews/${r.id}`} className="text-primary font-semibold hover:underline">
               {r.article_title}
             </a>
             <div className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500">

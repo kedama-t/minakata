@@ -85,7 +85,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <section className="bg-surface border border-border rounded-lg p-5">
           <div className="flex items-baseline justify-between mb-3">
             <h2 className="text-base font-semibold">エージェント稼働</h2>
-            <a href="/monitor" className="text-xs text-blue-600 dark:text-blue-400 hover:underline">
+            <a href="/monitor" className="text-xs text-primary hover:underline">
               すべて見る →
             </a>
           </div>
@@ -115,10 +115,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           <ul className="space-y-1.5 text-sm">
             {changelogs.map((c) => (
               <li key={c.id}>
-                <a
-                  href={`/articles/${c.slug}`}
-                  className="text-blue-700 dark:text-blue-300 hover:underline"
-                >
+                <a href={`/articles/${c.slug}`} className="text-primary hover:underline">
                   {c.title}
                 </a>
                 <span className="text-slate-500 dark:text-slate-400 ml-2 text-xs">
@@ -164,10 +161,7 @@ function ArticleList({
           key={a.id}
           className="bg-surface border border-border p-4 rounded-lg transition-colors hover:border-border-strong"
         >
-          <a
-            href={`/articles/${a.slug}`}
-            className="text-blue-700 dark:text-blue-300 font-semibold hover:underline"
-          >
+          <a href={`/articles/${a.slug}`} className="text-primary font-semibold hover:underline">
             {a.title}
           </a>
           <FreshnessBadge rank={a.freshness_rank} />
@@ -198,11 +192,11 @@ function ArticleList({
 function FreshnessBadge({ rank }: { rank: string }) {
   const color =
     rank === 'fresh'
-      ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
+      ? 'bg-success/15 text-success'
       : rank === 'aging'
-        ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300'
+        ? 'bg-warning/15 text-warning'
         : rank === 'stale'
-          ? 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300'
-          : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
+          ? 'bg-warning/20 text-warning'
+          : 'bg-error/15 text-error'
   return <span className={`ml-2 text-xs px-2 py-0.5 rounded ${color}`}>{rank}</span>
 }

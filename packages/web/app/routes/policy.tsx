@@ -33,12 +33,10 @@ export default function Policy({ loaderData, actionData }: Route.ComponentProps)
           placeholder="# リサーチ方針&#10;..."
         />
         <div className="flex gap-3 items-center">
-          <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded">
+          <button type="submit" className="btn btn-primary btn-sm">
             保存
           </button>
-          {actionData?.ok && (
-            <span className="text-green-600 dark:text-green-400 text-sm">保存しました</span>
-          )}
+          {actionData?.ok && <span className="text-success text-sm">保存しました</span>}
           <span className="text-xs text-slate-500 dark:text-slate-400 dark:text-slate-500 ml-auto">
             最終更新: {loaderData.policy.updated_at}
           </span>

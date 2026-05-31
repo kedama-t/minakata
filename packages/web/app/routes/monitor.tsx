@@ -199,8 +199,8 @@ function AgentCard({ stat }: { stat: AgentStat }) {
           <div className="flex items-center gap-2">
             <p className="font-semibold truncate">{stat.profile.displayName}</p>
             {active ? (
-              <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-success/15 text-success">
+                <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
                 稼働中
               </span>
             ) : (
@@ -321,7 +321,7 @@ function ActivityRow({
       <div className="flex-1 min-w-0 pb-4">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <span className="font-medium text-sm">{profile.displayName}</span>
-          <span className="text-xs px-1.5 py-0.5 rounded bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-300">
+          <span className="text-xs px-1.5 py-0.5 rounded bg-accent/10 text-accent">
             💭 {e.phase}
           </span>
           <span
@@ -439,10 +439,7 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
               className="px-2.5 py-1.5 border rounded-md w-24 bg-surface border-border text-sm"
             />
           </label>
-          <button
-            type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 text-sm rounded-md transition-colors"
-          >
+          <button type="submit" className="btn btn-primary btn-sm">
             適用
           </button>
           {(agent || tool) && (
