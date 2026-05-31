@@ -187,12 +187,8 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
               <input type="checkbox" name="request_research" />
               追加調査タスクとしてキューに投入する
             </label>
-            {actionData?.error && (
-              <p className="text-red-600 dark:text-red-400 text-xs">{actionData.error}</p>
-            )}
-            {actionData?.ok && (
-              <p className="text-green-600 dark:text-green-400 text-xs">登録しました</p>
-            )}
+            {actionData?.error && <p className="text-error text-xs">{actionData.error}</p>}
+            {actionData?.ok && <p className="text-success text-xs">登録しました</p>}
             <button type="submit" className="btn btn-primary btn-sm">
               コメントを追加
             </button>

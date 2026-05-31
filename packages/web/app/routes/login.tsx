@@ -33,9 +33,7 @@ export default function Login({ actionData }: Route.ComponentProps) {
           className="w-full px-3 py-2 border rounded"
           placeholder="パスワード"
         />
-        {actionData?.error && (
-          <p className="text-red-600 dark:text-red-400 text-sm">{actionData.error}</p>
-        )}
+        {actionData?.error && <p className="text-error text-sm">{actionData.error}</p>}
         <button type="submit" className="btn btn-primary w-full">
           ログイン
         </button>

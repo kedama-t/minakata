@@ -219,7 +219,7 @@ export default function Chat({ loaderData }: Route.ComponentProps) {
         </button>
       </fetcher.Form>
       {fetcher.data && 'error' in fetcher.data && fetcher.data.error && (
-        <p className="text-red-600 dark:text-red-400 text-xs mt-1">{fetcher.data.error}</p>
+        <p className="text-error text-xs mt-1">{fetcher.data.error}</p>
       )}
     </div>
   )

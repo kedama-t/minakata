@@ -57,13 +57,11 @@ export default function Archives({ loaderData, actionData }: Route.ComponentProp
         承認ゲート)。承認するまで記事は `archived` にならない。
       </p>
       {actionData?.ok && (
-        <p className="text-green-700 dark:text-green-300 text-sm">
+        <p className="text-success text-sm">
           {actionData.ok === 'approved' ? '承認しました' : '却下しました'}
         </p>
       )}
-      {actionData?.error && (
-        <p className="text-red-600 dark:text-red-400 text-sm">{actionData.error}</p>
-      )}
+      {actionData?.error && <p className="text-error text-sm">{actionData.error}</p>}
       {proposals.length === 0 && (
         <p className="text-sm text-slate-500 dark:text-slate-400 dark:text-slate-500">
           承認待ちのアーカイブ提案はありません。
@@ -102,7 +100,7 @@ export default function Archives({ loaderData, actionData }: Route.ComponentProp
                   type="submit"
                   name="intent"
                   value="approve"
-                  className="bg-red-600 text-white text-sm px-3 py-1 rounded"
+                  className="btn btn-error btn-sm"
                 >
                   アーカイブを承認
                 </button>
@@ -119,7 +117,7 @@ export default function Archives({ loaderData, actionData }: Route.ComponentProp
                   type="submit"
                   name="intent"
                   value="reject"
-                  className="bg-slate-600 text-white text-sm px-3 py-1 rounded"
+                  className="btn btn-neutral btn-sm"
                 >
                   却下
                 </button>

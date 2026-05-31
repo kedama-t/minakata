@@ -159,16 +159,14 @@ export default function Topics({ loaderData, actionData }: Route.ComponentProps)
           className="w-full px-3 py-2 border rounded text-sm font-mono"
           placeholder="トピック個別の指示(Markdown)。リサーチ方針より優先される"
         />
-        {actionData?.error && (
-          <p className="text-red-600 dark:text-red-400 text-sm">{actionData.error}</p>
-        )}
+        {actionData?.error && <p className="text-error text-sm">{actionData.error}</p>}
         {actionData?.ok === 'created' && (
-          <p className="text-green-600 dark:text-green-400 text-sm">
+          <p className="text-success text-sm">
             登録しました(あなたを自動購読登録、次回バッチから有効)
           </p>
         )}
         {(actionData?.ok === 'subscribe' || actionData?.ok === 'unsubscribe') && (
-          <p className="text-green-600 dark:text-green-400 text-sm">
+          <p className="text-success text-sm">
             {actionData.ok === 'subscribe' ? '購読しました' : '購読解除しました'}
           </p>
         )}

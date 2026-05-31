@@ -31,9 +31,7 @@ export default function Skills({ loaderData, actionData }: Route.ComponentProps)
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <h1 className="text-2xl font-bold">スキル提案レビュー</h1>
       {actionData?.approved && (
-        <p className="text-sm text-green-700 dark:text-green-300">
-          承認しました(書き込み先: {actionData.approved})
-        </p>
+        <p className="text-sm text-success">承認しました(書き込み先: {actionData.approved})</p>
       )}
       {actionData?.rejected && (
         <p className="text-sm text-amber-700 dark:text-amber-300">却下しました</p>
@@ -49,7 +47,7 @@ export default function Skills({ loaderData, actionData }: Route.ComponentProps)
                     p.status === 'proposed'
                       ? 'bg-primary/15 text-primary'
                       : p.status === 'approved'
-                        ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
+                        ? 'bg-success/15 text-success'
                         : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400 dark:text-slate-500'
                   }`}
                 >
@@ -75,7 +73,7 @@ export default function Skills({ loaderData, actionData }: Route.ComponentProps)
                     type="submit"
                     name="intent"
                     value="approve"
-                    className="bg-green-600 text-white text-sm px-3 py-1 rounded"
+                    className="btn btn-success btn-sm"
                   >
                     承認して書き出し
                   </button>
@@ -86,7 +84,7 @@ export default function Skills({ loaderData, actionData }: Route.ComponentProps)
                     type="submit"
                     name="intent"
                     value="reject"
-                    className="bg-slate-600 text-white text-sm px-3 py-1 rounded"
+                    className="btn btn-neutral btn-sm"
                   >
                     却下
                   </button>

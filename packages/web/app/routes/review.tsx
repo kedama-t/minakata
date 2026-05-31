@@ -60,9 +60,9 @@ export default function ReviewPage({ loaderData, actionData }: Route.ComponentPr
               key={i}
               className={
                 chunk.added
-                  ? 'bg-green-100 dark:bg-green-900/40 text-green-900 dark:text-green-200'
+                  ? 'bg-success/15 text-success'
                   : chunk.removed
-                    ? 'bg-red-100 dark:bg-red-900/40 text-red-900 dark:text-red-200 line-through'
+                    ? 'bg-error/15 text-error line-through'
                     : 'text-slate-700 dark:text-slate-300'
               }
             >
@@ -76,12 +76,7 @@ export default function ReviewPage({ loaderData, actionData }: Route.ComponentPr
         <section className="bg-surface border rounded p-4 space-y-3">
           <h2 className="text-lg font-bold">判定</h2>
           <Form method="post" className="flex gap-2">
-            <button
-              type="submit"
-              name="intent"
-              value="approve"
-              className="bg-green-600 text-white px-4 py-2 rounded"
-            >
+            <button type="submit" name="intent" value="approve" className="btn btn-success btn-sm">
               承認
             </button>
           </Form>
@@ -93,17 +88,10 @@ export default function ReviewPage({ loaderData, actionData }: Route.ComponentPr
               className="w-full px-3 py-2 border rounded text-sm"
               placeholder="差し戻し理由(エージェントへのフィードバックになる)"
             />
-            <button
-              type="submit"
-              name="intent"
-              value="reject"
-              className="bg-orange-600 text-white px-4 py-2 rounded"
-            >
+            <button type="submit" name="intent" value="reject" className="btn btn-error btn-sm">
               差し戻し
             </button>
-            {actionData?.error && (
-              <p className="text-red-600 dark:text-red-400 text-sm">{actionData.error}</p>
-            )}
+            {actionData?.error && <p className="text-error text-sm">{actionData.error}</p>}
           </Form>
         </section>
       )}
@@ -131,12 +119,7 @@ export default function ReviewPage({ loaderData, actionData }: Route.ComponentPr
             className="flex-1 px-3 py-2 border rounded"
             placeholder="行コメントの代わりに全体メモを残す"
           />
-          <button
-            type="submit"
-            name="intent"
-            value="comment"
-            className="bg-slate-600 text-white px-3 py-2 rounded"
-          >
+          <button type="submit" name="intent" value="comment" className="btn btn-neutral btn-sm">
             追加
           </button>
         </Form>

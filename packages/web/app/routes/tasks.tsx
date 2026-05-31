@@ -58,9 +58,9 @@ function statusBadge(status: TaskStatus): string {
     case 'claimed':
       return 'bg-primary/15 text-primary'
     case 'done':
-      return 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
+      return 'bg-success/15 text-success'
     case 'failed':
-      return 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
+      return 'bg-error/15 text-error'
   }
 }
 

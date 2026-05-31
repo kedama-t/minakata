@@ -192,11 +192,11 @@ function ArticleList({
 function FreshnessBadge({ rank }: { rank: string }) {
   const color =
     rank === 'fresh'
-      ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
+      ? 'bg-success/15 text-success'
       : rank === 'aging'
-        ? 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300'
+        ? 'bg-warning/15 text-warning'
         : rank === 'stale'
-          ? 'bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300'
-          : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'
+          ? 'bg-warning/20 text-warning'
+          : 'bg-error/15 text-error'
   return <span className={`ml-2 text-xs px-2 py-0.5 rounded ${color}`}>{rank}</span>
 }

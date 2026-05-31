@@ -101,11 +101,9 @@ export default function Members({ loaderData, actionData }: Route.ComponentProps
             招待
           </button>
         </Form>
-        {actionData?.error && (
-          <p className="text-red-600 dark:text-red-400 text-sm mt-2">{actionData.error}</p>
-        )}
+        {actionData?.error && <p className="text-error text-sm mt-2">{actionData.error}</p>}
         {actionData?.invitation && (
-          <p className="text-sm text-green-700 dark:text-green-300 mt-2">
+          <p className="text-sm text-success mt-2">
             招待リンク:
             <code className="ml-1 bg-slate-100 dark:bg-slate-700 px-1">
               /invitations/{actionData.invitation.token}
@@ -117,7 +115,7 @@ export default function Members({ loaderData, actionData }: Route.ComponentProps
       <section>
         <h2 className="text-lg font-bold mb-2">メンバー一覧</h2>
         {actionData?.roleUpdated && (
-          <p className="text-green-700 dark:text-green-300 text-sm mb-2">
+          <p className="text-success text-sm mb-2">
             ロールを {actionData.roleUpdated.role} に変更しました
           </p>
         )}

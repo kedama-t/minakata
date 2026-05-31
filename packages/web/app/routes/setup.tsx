@@ -39,7 +39,7 @@ export default function Setup({ actionData }: Route.ComponentProps) {
           className="w-full px-3 py-2 border rounded"
           placeholder="パスワード(8 文字以上)"
         />
-        {error && <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>}
+        {error && <p className="text-error text-sm">{error}</p>}
         <button type="submit" className="btn btn-primary w-full">
           管理者を作成
         </button>

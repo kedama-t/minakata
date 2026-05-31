@@ -186,23 +186,23 @@ const CATEGORY_STYLE: Record<ToolCategory, { bg: string; text: string; icon: str
     icon: '📦',
   },
   approve: {
-    bg: 'bg-emerald-50 dark:bg-emerald-500/15',
-    text: 'text-emerald-700 dark:text-emerald-300',
+    bg: 'bg-success/10',
+    text: 'text-success',
     icon: '✅',
   },
   reject: {
-    bg: 'bg-rose-50 dark:bg-rose-500/15',
-    text: 'text-rose-700 dark:text-rose-300',
+    bg: 'bg-error/10',
+    text: 'text-error',
     icon: '↩️',
   },
   task: {
-    bg: 'bg-violet-50 dark:bg-violet-500/15',
-    text: 'text-violet-700 dark:text-violet-300',
+    bg: 'bg-secondary/10',
+    text: 'text-secondary',
     icon: '📋',
   },
   message: {
-    bg: 'bg-pink-50 dark:bg-pink-500/15',
-    text: 'text-pink-700 dark:text-pink-300',
+    bg: 'bg-accent/10',
+    text: 'text-accent',
     icon: '💌',
   },
   policy: {
