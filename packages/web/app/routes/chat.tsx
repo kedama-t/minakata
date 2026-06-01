@@ -291,7 +291,9 @@ export default function Chat({ loaderData }: Route.ComponentProps) {
       <div className="flex items-center gap-3 mb-3 pb-3 border-b border-base-300">
         <Avatar profile={mimyProfile} size="sm" />
         <div className="min-w-0 flex-1">
-          <div className="font-semibold text-sm truncate">{session?.title || 'ミミー'}</div>
+          <div className="font-semibold text-sm truncate">
+            {session?.title || 'ミミーが承ります‼️'}
+          </div>
           {session?.title && <div className="text-xs text-base-content/40">ミミーが承ります‼️</div>}
         </div>
         <span className="text-xs text-base-content/40 shrink-0">
