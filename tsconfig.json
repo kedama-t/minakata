@@ -19,7 +19,6 @@
     "allowImportingTsExtensions": true,
     "noEmit": true,
     "types": ["bun"],
-    "baseUrl": ".",
     "paths": {
       "@minakata/core": ["./packages/core/src/index.ts"],
       "@minakata/core/*": ["./packages/core/src/*"],
