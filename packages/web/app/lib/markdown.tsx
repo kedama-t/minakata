@@ -1,5 +1,53 @@
+import { isValidElement, useEffect, useState } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import { highlight } from './highlight.ts'
+
+/**
+ * Shiki でシンタックスハイライトしたコードブロック。
+ * SSR ではプレーンテキストで返し、クライアントマウント後にハイライトを適用する。
+ */
+export function HighlightedCode({
+  code,
+  lang,
+  fallbackClassName,
+  wrapperClassName,
+}: {
+  code: string
+  lang: string
+  fallbackClassName?: string
+  wrapperClassName?: string
+}) {
+  const [html, setHtml] = useState('')
+
+  useEffect(() => {
+    highlight(code, lang).then(setHtml)
+  }, [code, lang])
+
+  if (!html) {
+    return (
+      <pre
+        className={
+          fallbackClassName ??
+          'bg-neutral text-neutral-content p-4 rounded my-3 overflow-x-auto text-sm leading-relaxed'
+        }
+      >
+        <code>{code}</code>
+      </pre>
+    )
+  }
+
+  return (
+    <div
+      className={
+        wrapperClassName ??
+        'my-3 [&>pre]:rounded [&>pre]:p-4 [&>pre]:overflow-x-auto [&>pre]:text-sm [&>pre]:leading-relaxed'
+      }
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: Shiki が生成した信頼できる HTML
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  )
+}
 
 /**
  * 記事本文向け Markdown レンダラ。
@@ -62,11 +110,11 @@ const components: Components = {
     </blockquote>
   ),
   code: ({ node: _node, className, children, ...rest }) => {
-    // フェンス付き(```lang)は className="language-xxx" が付く。それ以外はインライン扱い。
+    // フェンス付き(```lang)は pre コンポーネントで Shiki ハイライトを行うためそのまま返す
     const isBlock = typeof className === 'string' && className.startsWith('language-')
     if (isBlock) {
       return (
-        <code {...rest} className={`${className} block`}>
+        <code {...rest} className={className}>
           {children}
         </code>
       )
@@ -77,14 +125,23 @@ const components: Components = {
       </code>
     )
   },
-  pre: ({ node: _node, children, ...rest }) => (
-    <pre
-      {...rest}
-      className="bg-neutral text-neutral-content p-3 rounded my-3 overflow-x-auto text-sm"
-    >
-      {children}
-    </pre>
-  ),
+  pre: ({ node: _node, children }) => {
+    // フェンス付きコードブロックは children が単一の <code language-xxx> 要素
+    if (isValidElement(children)) {
+      const props = (children as React.ReactElement<{ className?: string; children?: unknown }>)
+        .props
+      if (typeof props.className === 'string' && props.className.includes('language-')) {
+        const lang = props.className.match(/language-(\S+)/)?.[1] ?? 'text'
+        const code = String(props.children ?? '').replace(/\n$/, '')
+        return <HighlightedCode code={code} lang={lang} />
+      }
+    }
+    return (
+      <pre className="bg-neutral text-neutral-content p-4 rounded my-3 overflow-x-auto text-sm leading-relaxed">
+        {children}
+      </pre>
+    )
+  },
   table: ({ node: _node, children, ...rest }) => (
     <div className="overflow-x-auto my-3">
       <table {...rest} className="border-collapse">

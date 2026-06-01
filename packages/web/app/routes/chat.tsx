@@ -1,10 +1,11 @@
-import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { type KeyboardEvent, isValidElement, useEffect, useMemo, useRef, useState } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import { redirect, useFetcher, useRevalidator } from 'react-router'
 import remarkGfm from 'remark-gfm'
 import { Avatar, UserAvatar } from '../components/ui/avatar.tsx'
 import { getAgentProfile } from '../lib/agent-profiles.ts'
 import { requireEditor } from '../lib/auth.ts'
+import { HighlightedCode } from '../lib/markdown.tsx'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/chat.ts'
 
@@ -98,8 +99,9 @@ const chatMdComponents: Components = {
   code: ({ node: _n, className, children, ...p }) => {
     const isBlock = typeof className === 'string' && className.startsWith('language-')
     if (isBlock) {
+      // フェンス付きコードブロックは pre コンポーネントで Shiki ハイライトを行う
       return (
-        <code {...p} className={`${className} block`}>
+        <code {...p} className={className}>
           {children}
         </code>
       )
@@ -110,14 +112,29 @@ const chatMdComponents: Components = {
       </code>
     )
   },
-  pre: ({ node: _n, children, ...p }) => (
-    <pre
-      {...p}
-      className="bg-black/30 rounded p-3 my-2 overflow-x-auto text-xs font-mono leading-relaxed"
-    >
-      {children}
-    </pre>
-  ),
+  pre: ({ node: _n, children }) => {
+    if (isValidElement(children)) {
+      const props = (children as React.ReactElement<{ className?: string; children?: unknown }>)
+        .props
+      if (typeof props.className === 'string' && props.className.includes('language-')) {
+        const lang = props.className.match(/language-(\S+)/)?.[1] ?? 'text'
+        const code = String(props.children ?? '').replace(/\n$/, '')
+        return (
+          <HighlightedCode
+            code={code}
+            lang={lang}
+            fallbackClassName="bg-black/30 rounded p-3 my-2 overflow-x-auto text-xs font-mono leading-relaxed"
+            wrapperClassName="my-2 [&>pre]:rounded [&>pre]:p-3 [&>pre]:overflow-x-auto [&>pre]:text-xs [&>pre]:leading-relaxed"
+          />
+        )
+      }
+    }
+    return (
+      <pre className="bg-black/30 rounded p-3 my-2 overflow-x-auto text-xs font-mono leading-relaxed">
+        {children}
+      </pre>
+    )
+  },
   a: ({ node: _n, href, children, ...p }) => (
     <a
       {...p}
