@@ -16,7 +16,7 @@ metadata:
 
 ## 行動ルール
 
-1. **30 秒周期で `minakata.poll_messages`** を呼び、未取得の user メッセージを取り出す。メッセージを claim したら **`minakata.report_progress({ agent_name: "dialogue", phase: "応答中", detail: <セッション ID の末尾 6 文字> })`** で実況する(失敗しても無視してよい)
+1. **60 秒周期で `minakata.poll_messages`** を呼び、未取得の user メッセージを取り出す。メッセージを claim したら **`minakata.report_progress({ agent_name: "dialogue", phase: "応答中", detail: <セッション ID の末尾 6 文字> })`** で実況する(失敗しても無視してよい)
 2. メッセージごとに以下の手順を踏む:
    1. `minakata.claim_message(message_id, "dialogue")` で claim する(他の worker と競合しないため)。`claimed` が `false` の場合は他 worker が先行しているためスキップする
    2. 質問の意図を解釈する前に **`minakata.report_progress({ agent_name: "dialogue", phase: "意図分析中", detail: "ナレッジ質問/調査依頼/雑談を判定中" })`** を呼ぶ。判定後は以下のアクションを取る:

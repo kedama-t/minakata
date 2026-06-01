@@ -1,7 +1,7 @@
 ---
 name: researcher
 description: 調査タスクキューを消化する。Web 検索 → 抽出 → 記事化を行う。
-version: 0.1.7
+version: 0.1.8
 author: minakata
 license: MIT
 platforms: [linux]
@@ -34,7 +34,8 @@ metadata:
    - 情報統合・記事構成の検討時: `{ agent_name: "researcher", phase: "情報統合中", detail: <新規作成 or 既存追記など方針の概要> }`
    - `minakata.create_article` / `minakata.update_article` 直前: `{ agent_name: "researcher", phase: "記事執筆中", detail: <記事タイトルや更新内容の概要> }`
 3. タスク種別ごとに処理:
-   - `type="research"` (新規調査): `web_search` → `web_extract` → 統合 → `minakata.create_article`(新規) または `minakata.update_article`(既存に追記)
+   - `type="research"` (新規調査): `fulltext_search` / `similar_articles` で主題の重複記事がないか確認 → `web_search` → `web_extract` → 統合 → `minakata.create_article`(新規) または `minakata.update_article`(既存に追記)
+     - **先行記事チェック**: create_article の前に必ず `fulltext_search` または `similar_articles` で同名・同主題の既存記事を検索する。該当記事があれば新規作成ではなく追記モード（update_article）に切り替える。
      - **検索戦略**: `payload.query` を出発点に、複数の角度から並列で `web_search` を実行する。例: 公式ブログ・リリースノートを狙うクエリ、コミュニティ分析記事のクエリ、GitHub Discussions のクエリを同時に投げ、カバレッジを確保する。`web_extract` も並列（1回の呼び出しに最大5URL）で行う。
      - **一次情報優先**: リサーチ方針(P1)に従い、公式サイト・GitHubリポジトリを必ず含める。二次情報（ブログ・分析記事）は補完・検証用として扱う。
    - `type="daily_research"` (購読バッチ): 同じ流れだが、既存トピック記事があれば追記モード
@@ -47,7 +48,9 @@ metadata:
        5. **ポストローンチ分析**: 初期発表後に公開された深掘り技術分析・レビュー記事
      - **作成直後（1週間以内）の記事の注意点**: 元記事作成時に未収録だった同日発表（資金調達・買収・パートナーシップなど）が存在する可能性がある。必ず公式ニュースルームも検索対象に含めること。
      - **body 更新の pending_approval**: 作成直後の記事への body 追記は、たとえ変更量が小さくても予想以上の `change_pct` が検出されることがある。`status: "pending_approval"` は正常なフローであり、`review_id` を確認して通常通り `complete_task` を呼んでタスクを完了してよい。editor がレビュー後に内容を反映するまで、再度同記事を触らない。
-   - `type="research_followup"` (フォローアップ調査): 既存記事に追記する前提のタスク。payload に `article_id`（親記事 ID）・`comment`（調査依頼の内容）・`anchor`（コメントが紐づく記事内の箇所）が含まれる。処理手順: `read_article` で親記事を読む → comment/anchor から必要な追加調査テーマを特定 → `web_search` + `web_extract` で情報収集 → `update_article(body=..., add_sources=...)` で追記。第 3 者が見たときに理解できるよう、追記セクションは見出しで明確に区切り、add_sources の used_in_sections にセクション名を指定する。
+   - `type="research_followup"` (フォローアップ調査): デフォルトでは既存記事に追記する前提のタスク。payload に `article_id`（親記事 ID）・`comment`（調査依頼の内容）・`anchor`（コメントが紐づく記事内の箇所）が含まれる。処理手順: `read_article` で親記事を読む → comment/anchor から必要な追加調査テーマを特定 → `web_search` + `web_extract` で情報収集。
+     - **追記モード（デフォルト）**: `update_article(body=..., add_sources=...)` で追記。第 3 者が見たときに理解できるよう、追記セクションは見出しで明確に区切り、add_sources の used_in_sections にセクション名を指定する。
+     - **別記事モード**: `comment` に「別の記事として」「新規記事として」など新規作成を指示するキーワードが含まれる場合、`fulltext_search` で重複確認後、`create_article` で新規作成する。decision heuristic: comment が「〜についても調べてください」「〜を別記事で」といった表現で、親記事の拡張ではなく独立した主題を求めている場合は別記事モードを選択する。`research_followup` タスクであっても `create_article` は正常動作する。
 3. **30% 超の本文書き換えは自動的に保留される**: `update_article` に `body` を渡すと内部で `ReviewService.proposeUpdate` が呼ばれ、変更率がしきい値(既定 30%)を超えると `status='pending_approval'` で保留状態になる(US-6.2)。レスポンスの `status` が `'pending_approval'` の場合、editor のレビュー判定を待つことになり、再度同記事を触らない
 4. 処理後 **`minakata.report_progress({ agent_name: "researcher", phase: "タスク完了", detail: <タスク種別 + 作成/更新した記事 ID> })`** を呼んでから `minakata.complete_task(id, cost_usd)` で完了報告。LLM トークン数 × 単価で cost_usd を算出
 5. **チャットへの完了通知**: タスクの `payload.session_id` が存在する場合、完了後に以下を呼んで依頼元セッションへ通知する:
@@ -95,6 +98,14 @@ delete params.topic_id
 - **`body` なし（メタデータのみ）**: 直接適用される (`status: "applied"`)。ReviewService を経由しないため、refresh タスクで差分がない場合の `last_researched_at` のみ更新は安全に行える。
 - **`body` あり**: 内部で `ReviewService.proposeUpdate` が呼ばれ、変更率がしきい値（既定 30%）を超えると `status: "pending_approval"` で保留される (US-6.2)。
   - 本文を変更しない更新でも**既存の本文内容を `body` に再送すると**変更率 0% 判定で無駄なレビュー経路が走る。本文変更がない場合は `body` パラメータごと除外すること。
+
+### `web_extract` の内容切り詰め
+
+`web_extract` はページが 5000 文字を超える場合、LLM による要約が適用され、末尾が `[... content truncated for context management ...]` で途切れる。これは正常な動作であり、以下の対応が必要：
+
+- **不完全な切り詰めに気づいたら**: 不足している情報は `web_search` で別角度のクエリを投げて補完するか、別の類似ページから抽出する
+- **落とし穴**: 要約版だけを信じて事実誤認しないよう、数値や日付は複数ソースでクロスチェックする
+- **一次情報は優先的に**: 要約で落ちる可能性のある細かい技術的記述が必要な場合、公式リリースノートを最優先で抽出する（短いページは全文取得される）
 
 ## MCP 接続エラー時
 
