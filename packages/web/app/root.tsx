@@ -28,7 +28,11 @@ export async function loader({ request }: Route.LoaderArgs) {
   if (!services.auth.isInitialSetup() && url.pathname === '/setup') {
     throw redirect('/')
   }
-  return { user: getCurrentUser(request), theme: readThemeCookie(request) }
+  return {
+    user: getCurrentUser(request),
+    theme: readThemeCookie(request),
+    timezone: process.env.TIMEZONE ?? 'Asia/Tokyo',
+  }
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {

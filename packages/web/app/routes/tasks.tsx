@@ -1,6 +1,9 @@
 import type { TaskRow, TaskStatus } from '@minakata/core'
+import { useRouteLoaderData } from 'react-router'
 import { requireEditor } from '../lib/auth.ts'
+import { formatDateTime } from '../lib/date.ts'
 import { getServices } from '../lib/services.ts'
+import type { loader as rootLoader } from '../root.tsx'
 import type { Route } from './+types/tasks.ts'
 
 const PAGE_SIZE = 50
@@ -95,6 +98,8 @@ function elapsed(from: string, to: string | null): string {
 
 export default function Tasks({ loaderData }: Route.ComponentProps) {
   const { tasks, status, type, showAll, isAdmin, articleSlugs, nextCursor } = loaderData
+  const root = useRouteLoaderData<typeof rootLoader>('root')
+  const tz = root?.timezone ?? 'Asia/Tokyo'
   // クライアント側のリンク生成では loaderData の URL は分からないので、表示は簡素化
   return (
     <div className="max-w-5xl mx-auto p-6">
@@ -148,7 +153,7 @@ export default function Tasks({ loaderData }: Route.ComponentProps) {
                 <span className="text-base-content/60">{t.type}</span>
                 <span className="text-base-content/40">priority: {t.priority}</span>
                 <span className="ml-auto text-base-content/40">
-                  {new Date(t.created_at).toLocaleString('ja-JP')}
+                  {formatDateTime(t.created_at, tz)}
                 </span>
               </div>
               <div className="text-sm text-base-content/80 mt-1 flex items-center gap-3">

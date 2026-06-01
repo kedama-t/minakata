@@ -228,7 +228,7 @@ export function describeTool(toolName: string): {
 }
 
 /** ISO 8601 timestamp → "5分前" の相対表現 */
-export function relativeTime(iso: string, now: Date = new Date()): string {
+export function relativeTime(iso: string, now: Date = new Date(), tz = 'Asia/Tokyo'): string {
   const t = new Date(iso).getTime()
   const diff = now.getTime() - t
   if (diff < 0) return '少し未来'
@@ -241,5 +241,5 @@ export function relativeTime(iso: string, now: Date = new Date()): string {
   if (hr < 24) return `${hr} 時間前`
   const day = Math.floor(hr / 24)
   if (day < 30) return `${day} 日前`
-  return new Date(iso).toLocaleDateString('ja-JP')
+  return new Date(iso).toLocaleDateString('ja-JP', { timeZone: tz })
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react'
-import { Form, useRevalidator } from 'react-router'
+import { Form, useRevalidator, useRouteLoaderData } from 'react-router'
 import { Avatar } from '../components/ui/avatar'
 import {
   type AgentProfile,
@@ -9,7 +9,9 @@ import {
   relativeTime,
 } from '../lib/agent-profiles.ts'
 import { requireUser } from '../lib/auth.ts'
+import { formatDateTime } from '../lib/date.ts'
 import { getServices } from '../lib/services.ts'
+import type { loader as rootLoader } from '../root.tsx'
 import type { Route } from './+types/monitor.ts'
 
 const PAGE_SIZE = 100
@@ -154,7 +156,7 @@ function buildAgentStats(
   return [...map.values()].sort((a, b) => (a.lastAt > b.lastAt ? -1 : 1))
 }
 
-function AgentCard({ stat }: { stat: AgentStat }) {
+function AgentCard({ stat, tz }: { stat: AgentStat; tz: string }) {
   const elapsed = Date.now() - new Date(stat.lastAt).getTime()
   const active = elapsed <= ACTIVE_THRESHOLD_MS
   const favoriteTool = [...stat.toolCounts.entries()].sort((a, b) => b[1] - a[1])[0]
@@ -187,7 +189,9 @@ function AgentCard({ stat }: { stat: AgentStat }) {
       <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-border text-xs">
         <div>
           <p className="text-[10px] uppercase tracking-wider text-base-content/40">最終活動</p>
-          <p className="font-medium tabular-nums mt-0.5">{relativeTime(stat.lastAt)}</p>
+          <p className="font-medium tabular-nums mt-0.5">
+            {relativeTime(stat.lastAt, new Date(), tz)}
+          </p>
         </div>
         <div>
           <p className="text-[10px] uppercase tracking-wider text-base-content/40">件数</p>
@@ -216,9 +220,11 @@ function AgentCard({ stat }: { stat: AgentStat }) {
 function AuditRow({
   event,
   now,
+  tz,
 }: {
   event: Extract<TimelineItem, { kind: 'audit' }>
   now: Date
+  tz: string
 }) {
   const e = event.data
   const profile = SYSTEM_PROFILE
@@ -237,9 +243,9 @@ function AuditRow({
           </span>
           <span
             className="text-xs text-base-content/40 tabular-nums ml-auto"
-            title={new Date(e.timestamp).toLocaleString('ja-JP')}
+            title={formatDateTime(e.timestamp, tz)}
           >
-            {relativeTime(e.timestamp, now)}
+            {relativeTime(e.timestamp, now, tz)}
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-base-content/40">
@@ -267,9 +273,11 @@ function AuditRow({
 function ActivityRow({
   item,
   now,
+  tz,
 }: {
   item: Extract<TimelineItem, { kind: 'activity' }>
   now: Date
+  tz: string
 }) {
   const e = item.data
   const profile = e.agent_name ? getAgentProfile(e.agent_name) : getAgentProfile(e.actor)
@@ -284,9 +292,9 @@ function ActivityRow({
           </span>
           <span
             className="text-xs text-base-content/40 tabular-nums ml-auto"
-            title={new Date(e.timestamp).toLocaleString('ja-JP')}
+            title={formatDateTime(e.timestamp, tz)}
           >
-            {relativeTime(e.timestamp, now)}
+            {relativeTime(e.timestamp, now, tz)}
           </span>
         </div>
         {e.detail && <p className="mt-0.5 text-xs text-base-content/50 truncate">{e.detail}</p>}
@@ -302,6 +310,8 @@ function ActivityRow({
 
 export default function Monitor({ loaderData }: Route.ComponentProps) {
   const { timeline, agents, tools, agent, tool, hours, latestActivityEntries } = loaderData
+  const root = useRouteLoaderData<typeof rootLoader>('root')
+  const tz = root?.timezone ?? 'Asia/Tokyo'
   const revalidator = useRevalidator()
   useEffect(() => {
     const id = setInterval(() => {
@@ -344,7 +354,7 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
       {stats.length > 0 && (
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {stats.map((s) => (
-            <AgentCard key={s.profile.key} stat={s} />
+            <AgentCard key={s.profile.key} stat={s} tz={tz} />
           ))}
         </section>
       )}
@@ -422,9 +432,9 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
             <ul>
               {timeline.map((item) =>
                 item.kind === 'audit' ? (
-                  <AuditRow key={item.id} event={item} now={now} />
+                  <AuditRow key={item.id} event={item} now={now} tz={tz} />
                 ) : (
-                  <ActivityRow key={item.id} item={item} now={now} />
+                  <ActivityRow key={item.id} item={item} now={now} tz={tz} />
                 ),
               )}
             </ul>

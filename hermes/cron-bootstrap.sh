@@ -30,6 +30,23 @@ set -eu
 PATH="/opt/hermes/.venv/bin:${PATH}"
 export PATH
 
+# "MIN HOUR rest" 形式の cron 式をローカル TZ から UTC に変換する。
+# TZ 環境変数を python3 の datetime が自動的に参照するため、変換は自動。
+# python3 が使えない場合は元の式をそのまま返す(UTC として扱われる)。
+local_cron_to_utc() {
+    local_expr="$1"
+    python3 - <<PYEOF 2>/dev/null || echo "$local_expr"
+import datetime
+parts = '$local_expr'.split()
+local_m, local_h = int(parts[0]), int(parts[1])
+offset_secs = int(datetime.datetime.now(datetime.timezone.utc).astimezone().utcoffset().total_seconds())
+total_utc_m = (local_h * 60 + local_m - offset_secs // 60) % (24 * 60)
+parts[0] = str(total_utc_m % 60)
+parts[1] = str(total_utc_m // 60)
+print(' '.join(parts))
+PYEOF
+}
+
 echo "[minakata-cron] HERMES_HOME=${HERMES_HOME:-/opt/data}"
 
 # --- (a) API key を .env に persist する -----------------------------------
@@ -126,13 +143,13 @@ ensure_cron "minakata-dialogue" "every 1m" "dialogue" \
 ensure_cron "minakata-researcher" "every 5m" "researcher" \
     "Poll Minakata's research task queue and process one pending task. Follow the researcher skill's rules."
 
-ensure_cron "minakata-daily-research" "0 3 * * *" "daily_research" \
+ensure_cron "minakata-daily-research" "$(local_cron_to_utc '0 3 * * *')" "daily_research" \
     "Enqueue research tasks for all active subscription topics. Follow the daily_research skill's rules."
 
 ensure_cron "minakata-freshness-checker" "every 6h" "freshness_checker" \
     "Recompute article freshness ranks and enqueue refresh / archive proposals as needed. Follow the freshness_checker skill's rules."
 
-ensure_cron "minakata-changelog-writer" "0 7 * * *" "changelog_writer" \
+ensure_cron "minakata-changelog-writer" "$(local_cron_to_utc '0 7 * * *')" "changelog_writer" \
     "Summarize yesterday's research agent activity into a ChangeLog article. Follow the changelog_writer skill's rules."
 
 echo "[minakata-cron] done"
