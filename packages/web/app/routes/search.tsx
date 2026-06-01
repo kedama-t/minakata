@@ -43,7 +43,11 @@ export default function Search({ loaderData }: Route.ComponentProps) {
             <a href={`/articles/${h.slug}`} className="text-primary font-semibold hover:underline">
               {h.title}
             </a>
-            <span className="ml-2 text-xs text-base-content/60">{h.status}</span>
+            {h.status === 'pending_approval' && (
+              <span className="ml-2 text-xs px-2 py-0.5 rounded bg-warning/20 text-warning font-medium">
+                レビュー中
+              </span>
+            )}
             {h.snippet.length > 0 && (
               <p className="text-sm mt-1">
                 {h.snippet.map((seg, i) =>

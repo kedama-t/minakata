@@ -9,9 +9,9 @@ export async function loader({ request }: Route.LoaderArgs) {
   const services = getServices()
   const url = new URL(request.url)
   const tag = url.searchParams.get('tag') || undefined
-  // 公開記事のみを対象に一覧 + タグ絞り込み
-  const articles = services.articles.list({ status: 'published', tag, limit: PAGE_SIZE })
-  const tags = services.articles.listTags({ status: 'published' })
+  // archived 以外を全て表示(pending_approval も含む)
+  const articles = services.articles.list({ excludeArchived: true, tag, limit: PAGE_SIZE })
+  const tags = services.articles.listTags({ excludeArchived: true })
   return { articles, tags, tag: tag ?? '' }
 }
 
@@ -27,6 +27,15 @@ function FreshnessBadge({ rank }: { rank: string }) {
   return <span className={`ml-2 text-xs px-2 py-0.5 rounded ${color}`}>{rank}</span>
 }
 
+function PendingBadge({ status }: { status: string }) {
+  if (status !== 'pending_approval') return null
+  return (
+    <span className="ml-2 text-xs px-2 py-0.5 rounded bg-warning/20 text-warning font-medium">
+      レビュー中
+    </span>
+  )
+}
+
 export default function Articles({ loaderData }: Route.ComponentProps) {
   const { articles, tags, tag } = loaderData
   return (
@@ -39,7 +48,7 @@ export default function Articles({ loaderData }: Route.ComponentProps) {
               タグ「{tag}」の記事 {articles.length} 件
             </>
           ) : (
-            <>公開中の記事 {articles.length} 件</>
+            <>記事 {articles.length} 件（アーカイブを除く）</>
           )}
         </p>
       </header>
@@ -91,6 +100,7 @@ export default function Articles({ loaderData }: Route.ComponentProps) {
                 {a.title}
               </a>
               <FreshnessBadge rank={a.freshness_rank} />
+              <PendingBadge status={a.status} />
               {a.summary && (
                 <p className="text-sm text-base-content/60 mt-1.5 line-clamp-2">{a.summary}</p>
               )}
