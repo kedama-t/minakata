@@ -35,7 +35,9 @@ describe('ArticleMarkdown', () => {
     expect(html).toContain('<ul')
     expect(html).toContain('<li>item one</li>')
     expect(html).toContain('<code')
-    expect(html).toContain('language-ts')
+    // Shiki ハイライトは useEffect で適用されるため SSR では言語クラスなし
+    // コードブロックの内容が保持されていることを確認
+    expect(html).toContain('export const x = 1')
     expect(html).toContain('<table')
     expect(html).toContain('<a')
     expect(html).toContain('href="https://example.com"')
