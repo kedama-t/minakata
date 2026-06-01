@@ -1,5 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
+import ReactMarkdown from 'react-markdown'
 import { redirect, useFetcher, useRevalidator } from 'react-router'
+import remarkGfm from 'remark-gfm'
+import { Avatar, UserAvatar } from '../components/ui/avatar.tsx'
+import { getAgentProfile } from '../lib/agent-profiles.ts'
 import { requireEditor } from '../lib/auth.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/chat.ts'
@@ -14,25 +18,18 @@ interface DisplayMessage {
   streaming?: boolean
 }
 
-function draftKind(request: Request): 'dialogue' | 'knowledge' {
-  const url = new URL(request.url)
-  return url.searchParams.get('kind') === 'knowledge' ? 'knowledge' : 'dialogue'
-}
-
 export async function loader({ request, params }: Route.LoaderArgs) {
   const user = requireEditor(request)
   const services = getServices()
   if (!params.sessionId) throw new Response('Bad Request', { status: 400 })
-  // 空セッションを残さないため /chat/new ではセッションを作らず draft 状態で開く。
-  // 実体は初回メッセージ送信時に action 側で作成する。
   if (params.sessionId === 'new') {
     const messages: ReturnType<typeof services.messages.listBySession> = []
-    return { session: null, messages, kind: draftKind(request) }
+    return { session: null, messages, userEmail: user.email }
   }
   const session = services.messages.getSession(params.sessionId)
   if (!session || session.user_id !== user.id) throw new Response('Not Found', { status: 404 })
   const messages = services.messages.listBySession(session.id)
-  return { session, messages, kind: session.kind }
+  return { session, messages, userEmail: user.email }
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
@@ -41,11 +38,8 @@ export async function action({ request, params }: Route.ActionArgs) {
   const content = String(form.get('content') ?? '').trim()
   if (!content) return { error: '空のメッセージは送信できません' }
   const services = getServices()
-  // draft からの初回送信時にセッションを実体化して即リダイレクト。
-  // kind はフォームの hidden input で受け取る(POST では search params が落ちるため)
   if (params.sessionId === 'new') {
-    const kind = String(form.get('kind') ?? '') === 'knowledge' ? 'knowledge' : 'dialogue'
-    const created = services.messages.createSession({ user_id: user.id, kind })
+    const created = services.messages.createSession({ user_id: user.id })
     services.messages.postUser(created.id, content)
     throw redirect(`/chat/${created.id}`)
   }
@@ -55,12 +49,22 @@ export async function action({ request, params }: Route.ActionArgs) {
   return { ok: true }
 }
 
+/** チャット内 Markdown レンダラ（article より軽量） */
+function ChatMarkdown({ source }: { source: string }) {
+  return (
+    <div className="prose prose-sm max-w-none text-inherit [&_a]:text-primary [&_a]:underline [&_pre]:bg-black/20 [&_pre]:rounded [&_pre]:p-2 [&_code]:bg-black/15 [&_code]:rounded [&_code]:px-1 [&_code]:text-sm">
+      <ReactMarkdown remarkPlugins={[remarkGfm]}>{source}</ReactMarkdown>
+    </div>
+  )
+}
+
 export default function Chat({ loaderData }: Route.ComponentProps) {
-  const { session, messages: initialMessages, kind } = loaderData
+  const { session, messages: initialMessages, userEmail } = loaderData
   const sessionId = session?.id ?? null
   const fetcher = useFetcher<typeof action>()
   const revalidator = useRevalidator()
   const [liveMessages, setLiveMessages] = useState<DisplayMessage[]>([])
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const formRef = useRef<HTMLFormElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -90,13 +94,11 @@ export default function Chat({ loaderData }: Route.ComponentProps) {
       const createdAt = payload.created_at ?? new Date().toISOString()
 
       setLiveMessages((prev) => {
-        // ストリーミング中の同じ論理応答(activeAgentId)に追加チャンクを連結する
         if (!isFinal && activeAgentId) {
           return prev.map((m) =>
             m.id === activeAgentId ? { ...m, content: m.content + content } : m,
           )
         }
-        // 新しい論理応答の最初のチャンク or is_final=true の単発応答
         const existing = prev.find((m) => m.id === id)
         if (existing) {
           return prev.map((m) =>
@@ -119,7 +121,6 @@ export default function Chat({ loaderData }: Route.ComponentProps) {
       })
       if (isFinal) {
         activeAgentId = null
-        // 確定したのを機にサーバ側の messages テーブルからも再取得しておく(整合性のため)
         revalidator.revalidate()
       } else if (!activeAgentId) {
         activeAgentId = id
@@ -127,7 +128,6 @@ export default function Chat({ loaderData }: Route.ComponentProps) {
     }
 
     source.onerror = () => {
-      // ブラウザは EventSource の自動再接続を行う。明示的にログだけ残す
       console.warn('[chat] SSE connection error; browser will retry')
     }
 
@@ -136,7 +136,6 @@ export default function Chat({ loaderData }: Route.ComponentProps) {
     }
   }, [sessionId, revalidator])
 
-  // loader メッセージ + SSE 経由のメッセージをマージ(id 衝突は loader 側を優先)
   const merged = useMemo<DisplayMessage[]>(() => {
     const loaderIds = new Set(initialMessages.map((m) => m.id))
     const fromLoader: DisplayMessage[] = initialMessages.map((m) => ({
@@ -150,70 +149,117 @@ export default function Chat({ loaderData }: Route.ComponentProps) {
     return [...fromLoader, ...fromSse].sort((a, b) => a.created_at.localeCompare(b.created_at))
   }, [initialMessages, liveMessages])
 
-  // 新着メッセージ / ストリーミングチャンク到着で一番下にスクロール
-  // biome-ignore lint/correctness/useExhaustiveDependencies: merged の更新タイミングがそのままスクロール契機
+  // biome-ignore lint/correctness/useExhaustiveDependencies: merged の更新タイミングがスクロール契機
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
     el.scrollTop = el.scrollHeight
   }, [merged])
 
-  // ユーザー送信が完了したらフォームをクリア
   useEffect(() => {
     if (fetcher.state === 'idle' && fetcher.data && 'ok' in fetcher.data && fetcher.data.ok) {
-      formRef.current?.reset()
+      if (textareaRef.current) textareaRef.current.value = ''
     }
   }, [fetcher.state, fetcher.data])
 
+  /** Shift+Enter 送信、Enter 改行 */
+  function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === 'Enter' && e.shiftKey) {
+      e.preventDefault()
+      if (fetcher.state !== 'idle') return
+      formRef.current?.requestSubmit()
+    }
+  }
+
+  const mimyProfile = getAgentProfile('dialogue')
+
   return (
-    <div className="max-w-3xl mx-auto p-6 flex flex-col h-[calc(100vh-80px)]">
-      <h1 className="text-xl font-bold mb-2">
-        {kind === 'knowledge' ? 'ナレッジ質問' : '対話'}: {session ? session.id.slice(-8) : '新規'}
-        <span
-          className={`ml-2 text-xs px-2 py-0.5 rounded ${
-            kind === 'knowledge' ? 'bg-accent/15 text-accent' : 'bg-primary/15 text-primary'
-          }`}
-        >
-          {kind}
+    <div className="max-w-3xl mx-auto p-4 flex flex-col h-[calc(100vh-80px)]">
+      {/* ヘッダー */}
+      <div className="flex items-center gap-3 mb-3 pb-3 border-b border-base-300">
+        <Avatar profile={mimyProfile} size="sm" />
+        <div className="min-w-0 flex-1">
+          <div className="font-semibold text-sm truncate">{session?.title || 'ミミー'}</div>
+          {session?.title && <div className="text-xs text-base-content/40">ミミーが承ります‼️</div>}
+        </div>
+        <span className="text-xs text-base-content/40 shrink-0">
+          {session ? `#${session.id.slice(-8)}` : '新規'}
         </span>
-      </h1>
-      <div
-        ref={containerRef}
-        className="flex-1 overflow-y-auto bg-surface rounded border p-4 space-y-3"
-      >
-        {merged.length === 0 && (
-          <p className="text-sm text-base-content/60">
-            メッセージはまだありません。下のフォームから依頼を送信してください。
-          </p>
-        )}
-        {merged.map((m) => (
-          <div key={m.id} className={m.role === 'user' ? 'text-right' : ''}>
-            <span
-              className={`inline-block px-3 py-2 rounded whitespace-pre-wrap ${
-                m.role === 'user' ? 'bg-primary/15' : 'bg-base-300'
-              }`}
-            >
-              {m.content}
-              {m.streaming && <span className="text-base-content/40 animate-pulse"> ▍</span>}
-            </span>
-          </div>
-        ))}
       </div>
-      <fetcher.Form ref={formRef} method="post" className="mt-3 flex gap-2">
-        {!session && <input type="hidden" name="kind" value={kind} />}
-        <input
+
+      {/* メッセージ一覧 */}
+      <div ref={containerRef} className="flex-1 overflow-y-auto space-y-1 pb-2">
+        {merged.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-full gap-3 text-base-content/50">
+            <Avatar profile={mimyProfile} size="lg" />
+            <p className="text-sm text-center">こんにちは！何でも聞いてください。</p>
+          </div>
+        )}
+        {merged.map((m) =>
+          m.role === 'agent' ? (
+            <div key={m.id} className="chat chat-start">
+              <div className="chat-image">
+                <Avatar profile={mimyProfile} size="sm" />
+              </div>
+              <div className="chat-header text-xs text-base-content/50 mb-0.5">ミミー</div>
+              <div className="chat-bubble chat-bubble-neutral max-w-[85%] text-sm">
+                {m.is_final ? (
+                  <ChatMarkdown source={m.content} />
+                ) : (
+                  <span className="whitespace-pre-wrap">
+                    {m.content}
+                    {m.streaming && <span className="text-base-content/40 animate-pulse"> ▍</span>}
+                  </span>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div key={m.id} className="chat chat-end">
+              <div className="chat-image">
+                <UserAvatar email={userEmail} size="sm" />
+              </div>
+              <div className="chat-bubble chat-bubble-primary max-w-[85%] text-sm whitespace-pre-wrap">
+                {m.content}
+              </div>
+            </div>
+          ),
+        )}
+      </div>
+
+      {/* 入力エリア */}
+      <fetcher.Form
+        ref={formRef}
+        method="post"
+        className="mt-3 flex gap-2 items-end"
+        onSubmit={(e) => {
+          if (!textareaRef.current?.value.trim()) e.preventDefault()
+        }}
+      >
+        <textarea
+          ref={textareaRef}
           name="content"
           required
-          className="flex-1 px-3 py-2 border rounded"
-          placeholder="例: React Router v7 framework mode について調べて"
+          rows={1}
+          className="textarea textarea-bordered flex-1 resize-none text-sm leading-relaxed"
+          placeholder="依頼や質問を入力…（Shift+Enter で送信、Enter で改行）"
           disabled={fetcher.state !== 'idle'}
+          onKeyDown={handleKeyDown}
+          onInput={(e) => {
+            const el = e.currentTarget
+            el.style.height = 'auto'
+            el.style.height = `${Math.min(el.scrollHeight, 160)}px`
+          }}
         />
         <button
           type="submit"
-          className="btn btn-primary btn-sm"
+          className="btn btn-primary btn-sm self-end"
           disabled={fetcher.state !== 'idle'}
         >
-          送信
+          {fetcher.state !== 'idle' ? (
+            <span className="loading loading-spinner loading-xs" />
+          ) : (
+            '送信'
+          )}
         </button>
       </fetcher.Form>
       {fetcher.data && 'error' in fetcher.data && fetcher.data.error && (

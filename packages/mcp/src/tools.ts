@@ -394,6 +394,18 @@ export function registerMessageTools(
   )
 
   server.registerTool(
+    'minakata.update_session_title',
+    {
+      description: 'チャットセッションにタイトルを付ける。dialogue が初回応答後に呼ぶ',
+      inputSchema: { session_id: z.string(), title: z.string().min(1).max(80) },
+    },
+    async ({ session_id, title }) => {
+      s.messages.updateTitle(session_id, title)
+      return ok({ session_id, title })
+    },
+  )
+
+  server.registerTool(
     'minakata.report_progress',
     {
       description:
@@ -707,6 +719,28 @@ export function registerCommentTools(server: McpServer, s: McpServices): void {
     async ({ id }) => {
       s.comments.resolve(id)
       return ok({ id, status: 'resolved' })
+    },
+  )
+
+  server.registerTool(
+    'minakata.poll_article_comments',
+    {
+      description:
+        'エージェント未返信のオープンコメントを取得する。dialogue が定期的に呼んで返信を行う',
+      inputSchema: { limit: z.number().int().positive().max(20).optional() },
+    },
+    async ({ limit }) => ok({ comments: s.comments.pollOpen(limit) }),
+  )
+
+  server.registerTool(
+    'minakata.reply_article_comment',
+    {
+      description: '記事コメントにエージェント返信を記録する',
+      inputSchema: { id: z.string(), body: z.string().min(1) },
+    },
+    async ({ id, body }) => {
+      s.comments.agentReply(id, body)
+      return ok({ id })
     },
   )
 }

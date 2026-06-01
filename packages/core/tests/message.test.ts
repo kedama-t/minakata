@@ -42,14 +42,14 @@ describe('MessageService', () => {
     const user = await auth.createAdminInitial('b@x', 'p')
     const tick = () => new Promise<void>((r) => setTimeout(r, 3))
 
-    const s1 = messages.createSession({ user_id: user.id, kind: 'dialogue', title: 's1' })
+    const s1 = messages.createSession({ user_id: user.id, title: 's1' })
     messages.postUser(s1.id, '最初のメッセージ')
     await tick()
-    const s2 = messages.createSession({ user_id: user.id, kind: 'knowledge', title: 's2' })
-    messages.postUser(s2.id, 'ナレッジ質問です')
-    messages.postAgentResponse({ session_id: s2.id, content: 'ナレッジ回答', is_final: true })
+    const s2 = messages.createSession({ user_id: user.id, title: 's2' })
+    messages.postUser(s2.id, '質問です')
+    messages.postAgentResponse({ session_id: s2.id, content: '回答', is_final: true })
     await tick()
-    const s3 = messages.createSession({ user_id: user.id, kind: 'dialogue', title: 's3' })
+    const s3 = messages.createSession({ user_id: user.id, title: 's3' })
 
     const all = messages.listSessionsByUser({ user_id: user.id, limit: 10 })
     expect(all.length).toBe(3)
@@ -57,14 +57,6 @@ describe('MessageService', () => {
     expect(all[2]?.id).toBe(s1.id)
     expect(all[2]?.last_message).toBe('最初のメッセージ')
     expect(all[2]?.last_message_role).toBe('user')
-
-    const dialogues = messages.listSessionsByUser({ user_id: user.id, kind: 'dialogue' })
-    expect(dialogues.map((s) => s.id)).toEqual([s3.id, s1.id])
-
-    const knowledge = messages.listSessionsByUser({ user_id: user.id, kind: 'knowledge' })
-    expect(knowledge.length).toBe(1)
-    expect(knowledge[0]?.last_message).toBe('ナレッジ回答')
-    expect(knowledge[0]?.last_message_role).toBe('agent')
 
     const firstPage = messages.listSessionsByUser({ user_id: user.id, limit: 1 })
     expect(firstPage.length).toBe(1)

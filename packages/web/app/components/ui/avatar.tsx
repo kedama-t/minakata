@@ -1,5 +1,24 @@
+import BoringAvatar from 'boring-avatars'
 import { useState } from 'react'
 import type { AgentProfile } from '../../lib/agent-profiles.ts'
+
+const SIZE_PX: Record<'sm' | 'md' | 'lg', number> = { sm: 40, md: 72, lg: 96 }
+
+/** ユーザーアバター。boring-avatars の beam を使用 */
+export function UserAvatar({
+  email,
+  size = 'md',
+}: {
+  email: string
+  size?: 'sm' | 'md' | 'lg'
+}) {
+  const px = SIZE_PX[size]
+  return (
+    <div className="rounded-full overflow-hidden shrink-0" style={{ width: px, height: px }}>
+      <BoringAvatar size={px} name={email} variant="beam" />
+    </div>
+  )
+}
 
 /** エージェントアバター。画像読み込み失敗時は絵文字にフォールバック */
 export function Avatar({

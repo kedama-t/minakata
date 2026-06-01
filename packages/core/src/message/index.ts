@@ -19,7 +19,6 @@ export interface ChatSession {
   id: string
   user_id: string
   title: string
-  kind: 'dialogue' | 'knowledge'
   created_at: string
   updated_at: string
 }
@@ -42,27 +41,28 @@ export class MessageService extends EventEmitter {
     this.setMaxListeners(0)
   }
 
-  createSession(input: {
-    user_id: string
-    title?: string
-    kind?: 'dialogue' | 'knowledge'
-  }): ChatSession {
+  createSession(input: { user_id: string; title?: string }): ChatSession {
     const id = newId()
     const ts = now()
-    const kind = input.kind ?? 'dialogue'
     const title = input.title ?? ''
     this.db
       .prepare(
         'INSERT INTO chat_sessions (id, user_id, title, kind, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
       )
-      .run(id, input.user_id, title, kind, ts, ts)
-    return { id, user_id: input.user_id, title, kind, created_at: ts, updated_at: ts }
+      .run(id, input.user_id, title, 'dialogue', ts, ts)
+    return { id, user_id: input.user_id, title, created_at: ts, updated_at: ts }
+  }
+
+  updateTitle(id: string, title: string): void {
+    this.db
+      .prepare('UPDATE chat_sessions SET title = ?, updated_at = ? WHERE id = ?')
+      .run(title, now(), id)
   }
 
   getSession(id: string): ChatSession | null {
     const r = this.db
       .query<ChatSession, [string]>(
-        'SELECT id, user_id, title, kind, created_at, updated_at FROM chat_sessions WHERE id = ?',
+        'SELECT id, user_id, title, created_at, updated_at FROM chat_sessions WHERE id = ?',
       )
       .get(id)
     return r ?? null
@@ -137,11 +137,8 @@ export class MessageService extends EventEmitter {
     return rows.map(hydrate)
   }
 
-  /** メッセージを claim する。成功時はセッションの kind も返す */
-  claim(
-    messageId: string,
-    claimedBy: string,
-  ): { claimed: false } | { claimed: true; kind: 'dialogue' | 'knowledge' | undefined } {
+  /** メッセージを claim する */
+  claim(messageId: string, claimedBy: string): { claimed: boolean } {
     const ts = now()
     const res = this.db
       .prepare(
@@ -149,35 +146,21 @@ export class MessageService extends EventEmitter {
          WHERE id = ? AND claimed_at IS NULL`,
       )
       .run(ts, claimedBy, messageId)
-    if (res.changes === 0) return { claimed: false }
-    const row = this.db
-      .query<{ kind: 'dialogue' | 'knowledge' }, [string]>(
-        `SELECT s.kind FROM chat_sessions s
-         JOIN messages m ON m.session_id = s.id
-         WHERE m.id = ?`,
-      )
-      .get(messageId)
-    return { claimed: true, kind: row?.kind }
+    return { claimed: res.changes > 0 }
   }
 
   /**
    * 指定ユーザーの過去対話セッション一覧を `updated_at` 降順で取得する。
-   * `kind` 指定で dialogue / knowledge にフィルタ、`before` でカーソルページング。
-   * 末尾メッセージ抜粋付き(プレビュー表示用)。
+   * `before` でカーソルページング。末尾メッセージ抜粋付き(プレビュー表示用)。
    */
   listSessionsByUser(opts: {
     user_id: string
-    kind?: 'dialogue' | 'knowledge' | undefined
     limit?: number | undefined
     before?: string | undefined
   }): ChatSessionListItem[] {
     const limit = opts.limit ?? 30
     const conditions: string[] = ['s.user_id = ?']
     const params: Array<string | number> = [opts.user_id]
-    if (opts.kind) {
-      conditions.push('s.kind = ?')
-      params.push(opts.kind)
-    }
     if (opts.before) {
       conditions.push('s.updated_at < ?')
       params.push(opts.before)
@@ -189,7 +172,6 @@ export class MessageService extends EventEmitter {
           id: string
           user_id: string
           title: string
-          kind: 'dialogue' | 'knowledge'
           created_at: string
           updated_at: string
           last_message: string | null
@@ -197,7 +179,7 @@ export class MessageService extends EventEmitter {
         },
         Array<string | number>
       >(
-        `SELECT s.id, s.user_id, s.title, s.kind, s.created_at, s.updated_at,
+        `SELECT s.id, s.user_id, s.title, s.created_at, s.updated_at,
                 (SELECT content FROM messages m WHERE m.session_id = s.id
                   ORDER BY m.created_at DESC LIMIT 1) AS last_message,
                 (SELECT role FROM messages m WHERE m.session_id = s.id
@@ -212,7 +194,6 @@ export class MessageService extends EventEmitter {
       id: r.id,
       user_id: r.user_id,
       title: r.title,
-      kind: r.kind,
       created_at: r.created_at,
       updated_at: r.updated_at,
       last_message: r.last_message,

@@ -1,4 +1,3 @@
-import Avatar from 'boring-avatars'
 import { useEffect, useState } from 'react'
 import { Form, useLocation } from 'react-router'
 import type { Theme } from '../lib/theme.ts'
@@ -24,6 +23,7 @@ import {
   UsersIcon,
   XIcon,
 } from './icons.tsx'
+import { UserAvatar } from './ui/avatar.tsx'
 
 type NavItem = {
   to: string
@@ -164,9 +164,7 @@ function UserPanel({
     <div className="flex flex-col gap-2 p-3 border-t border-border">
       <ThemeToggle current={theme} />
       <div className="flex items-center gap-2.5">
-        <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
-          <Avatar size={32} name={user.email} variant="beam" />
-        </div>
+        <UserAvatar email={user.email} size="sm" />
         <div className="min-w-0 flex-1">
           <p className="text-xs font-medium text-base-content/80 truncate">{user.email}</p>
           <p className="text-[10px] uppercase tracking-wider text-base-content/40">{user.role}</p>
@@ -208,19 +206,10 @@ function SearchTrigger() {
 function NewChatActions({ canEdit }: { canEdit: boolean }) {
   if (!canEdit) return null
   return (
-    <div className="flex flex-col gap-1.5">
-      <a href="/chat/new" className="btn btn-primary btn-sm gap-2 w-full justify-start">
-        <PlusIcon size={14} />
-        新規対話
-      </a>
-      <a
-        href="/chat/new?kind=knowledge"
-        className="btn btn-outline btn-sm gap-2 w-full justify-start"
-      >
-        <SparkleIcon size={14} />
-        ナレッジ質問
-      </a>
-    </div>
+    <a href="/chat/new" className="btn btn-primary btn-sm gap-2 w-full justify-start">
+      <PlusIcon size={14} />
+      新規チャット
+    </a>
   )
 }
 

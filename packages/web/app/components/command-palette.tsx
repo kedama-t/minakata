@@ -18,13 +18,12 @@ type ArticleItem = {
 type Item = ActionItem | ArticleItem
 
 const STATIC_ACTIONS: ActionItem[] = [
-  { kind: 'action', id: 'chat-new', label: '新規対話を開始', hint: '/chat/new', href: '/chat/new' },
   {
     kind: 'action',
-    id: 'knowledge-new',
-    label: 'ナレッジ質問を開始',
-    hint: '/chat/new?kind=knowledge',
-    href: '/chat/new?kind=knowledge',
+    id: 'chat-new',
+    label: '新規チャットを開始',
+    hint: '/chat/new',
+    href: '/chat/new',
   },
   { kind: 'action', id: 'search', label: '検索ページへ', hint: '/search', href: '/search' },
   {
