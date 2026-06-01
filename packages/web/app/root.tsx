@@ -11,6 +11,7 @@ import {
 import type { Route } from './+types/root.ts'
 import { CommandPalette } from './components/command-palette.tsx'
 import { Sidebar } from './components/sidebar.tsx'
+import { Toaster } from './components/toaster.tsx'
 import { getCurrentUser } from './lib/auth.ts'
 import { getServices } from './lib/services.ts'
 import { type Theme, readThemeCookie, resolvedThemeAttr } from './lib/theme.ts'
@@ -97,6 +98,7 @@ export default function App({ loaderData }: Route.ComponentProps) {
         <Outlet />
       </main>
       <CommandPalette />
+      <Toaster />
     </div>
   )
 }
