@@ -1,3 +1,4 @@
+import { getAgentProfile, relativeTime } from '../lib/agent-profiles.ts'
 import { requireUser } from '../lib/auth.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/home.ts'
@@ -5,20 +6,17 @@ import type { Route } from './+types/home.ts'
 export async function loader({ request }: Route.LoaderArgs) {
   const user = requireUser(request)
   const services = getServices()
-  // 直近 24 時間で更新された記事(US-2.3)
   const since = new Date(Date.now() - 24 * 3_600_000).toISOString()
-  const allRecent = services.articles.list({ limit: 100 }).filter((a) => a.updated_at >= since)
-  const recentUpdates = allRecent.filter(
-    (a) => a.status === 'published' && a.source !== 'agent_changelog',
-  )
+  const allRecent = services.articles
+    .list({ excludeArchived: true, limit: 100 })
+    .filter((a) => a.updated_at >= since)
+  const recentUpdates = allRecent.filter((a) => a.source !== 'agent_changelog')
   const newToday = allRecent.filter((a) => a.source === 'agent_research')
-  // ChangeLog 日報(US-2.4):直近 7 日分
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3_600_000).toISOString()
   const changelogs = services.articles
     .list({ limit: 200 })
     .filter((a) => a.source === 'agent_changelog' && a.updated_at >= sevenDaysAgo)
-  // 直近のエージェント活動 (#61)
-  const recentActivity = services.audit.list({ limit: 10 })
+  const recentActivity = services.activity.list({ limit: 8 })
   return {
     recentUpdates,
     newToday,
@@ -32,15 +30,18 @@ function StatCard({
   label,
   value,
   href,
+  sub,
 }: {
   label: string
-  value: number
+  value: number | string
   href?: string
+  sub?: string
 }) {
   const content = (
-    <div className="bg-surface border border-border rounded-lg p-4 transition-colors hover:border-border-strong">
-      <p className="text-xs font-medium text-base-content/60 uppercase tracking-wider">{label}</p>
+    <div className="bg-surface border border-border rounded-xl p-4 transition-colors hover:border-border-strong">
+      <p className="text-xs font-medium text-base-content/50 uppercase tracking-wider">{label}</p>
       <p className="text-2xl font-semibold mt-1.5 tabular-nums">{value}</p>
+      {sub && <p className="text-xs text-base-content/40 mt-0.5">{sub}</p>}
     </div>
   )
   return href ? (
@@ -61,67 +62,91 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     if (h < 18) return 'こんにちは'
     return 'こんばんは'
   })()
+
+  const now = new Date()
+
   return (
-    <div className="max-w-6xl mx-auto px-4 lg:px-8 py-6 lg:py-10 space-y-8">
+    <div className="max-w-5xl mx-auto px-4 lg:px-8 py-6 lg:py-10 space-y-8">
       <header>
         <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">
           {greeting}、{user.email.split('@')[0]} さん
         </h1>
-        <p className="text-sm text-base-content/60 mt-1">
-          直近 24 時間のナレッジ更新と、エージェントの稼働状況です。
-        </p>
+        <p className="text-sm text-base-content/50 mt-1">直近 24 時間のナレッジ更新です</p>
       </header>
 
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard label="昨夜の更新" value={recentUpdates.length} />
-        <StatCard label="新規記事" value={newToday.length} />
-        <StatCard label="ChangeLog" value={changelogs.length} />
-        <StatCard label="モニター" value={recentActivity.length} href="/monitor" />
+        <StatCard label="昨夜の更新" value={recentUpdates.length} sub="件" />
+        <StatCard label="新規記事" value={newToday.length} sub="件" />
+        <StatCard label="ChangeLog" value={changelogs.length} sub="日報" />
+        <StatCard
+          label="エージェント活動"
+          value={recentActivity.length}
+          sub="直近"
+          href="/monitor"
+        />
       </section>
 
       {recentActivity.length > 0 && (
-        <section className="bg-surface border border-border rounded-lg p-5">
+        <section>
           <div className="flex items-baseline justify-between mb-3">
             <h2 className="text-base font-semibold">エージェント稼働</h2>
             <a href="/monitor" className="text-xs text-primary hover:underline">
-              すべて見る →
+              モニターを開く →
             </a>
           </div>
-          <ul className="space-y-1 text-sm">
-            {recentActivity.map((e) => (
-              <li key={e.id} className="flex items-center gap-2 py-1">
-                <span className="text-xs text-base-content/60 tabular-nums">
-                  {new Date(e.timestamp).toLocaleTimeString('ja-JP')}
-                </span>
-                <span className="text-xs text-base-content/60">{e.actor}</span>
-                <span className="text-xs bg-base-200 px-1.5 py-0.5 rounded">{e.tool_name}</span>
-                {e.agent_name && (
-                  <span className="text-xs text-base-content/40">via {e.agent_name}</span>
-                )}
-              </li>
-            ))}
-          </ul>
+          <div className="bg-surface border border-border rounded-xl overflow-hidden">
+            <ul className="divide-y divide-border">
+              {recentActivity.map((e) => {
+                const profile = getAgentProfile(e.agent_name ?? e.actor)
+                return (
+                  <li key={e.id} className="flex items-center gap-3 px-4 py-3">
+                    <span className="text-base shrink-0">{profile.emoji}</span>
+                    <span className="text-xs font-medium text-base-content/70 shrink-0">
+                      {profile.displayName}
+                    </span>
+                    <span className="text-xs text-base-content/50 truncate">
+                      💭 {e.phase}
+                      {e.detail ? ` · ${e.detail}` : ''}
+                    </span>
+                    <span className="text-xs text-base-content/40 ml-auto tabular-nums shrink-0">
+                      {relativeTime(e.timestamp, now)}
+                    </span>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
         </section>
       )}
+
       {changelogs.length > 0 && (
-        <section className="bg-surface border border-border rounded-lg p-5">
+        <section>
           <h2 className="text-base font-semibold mb-3">ChangeLog 日報</h2>
-          <ul className="space-y-1.5 text-sm">
-            {changelogs.map((c) => (
-              <li key={c.id}>
-                <a href={`/articles/${c.slug}`} className="text-primary hover:underline">
-                  {c.title}
-                </a>
-                <span className="text-base-content/60 ml-2 text-xs">{c.updated_at}</span>
-              </li>
-            ))}
-          </ul>
+          <div className="bg-surface border border-border rounded-xl overflow-hidden">
+            <ul className="divide-y divide-border">
+              {changelogs.map((c) => (
+                <li key={c.id} className="px-4 py-3 flex items-center justify-between gap-4">
+                  <a
+                    href={`/articles/${c.slug}`}
+                    className="text-sm text-primary hover:underline truncate"
+                  >
+                    {c.title}
+                  </a>
+                  <span className="text-xs text-base-content/40 shrink-0 tabular-nums">
+                    {relativeTime(c.updated_at, now)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </section>
       )}
+
       <section>
         <h2 className="text-base font-semibold mb-3">昨夜の更新</h2>
         <ArticleList items={recentUpdates} emptyMessage="まだ更新がありません" />
       </section>
+
       <section>
         <h2 className="text-base font-semibold mb-3">新規作成された記事</h2>
         <ArticleList items={newToday} emptyMessage="まだ新規記事がありません" />
@@ -138,24 +163,32 @@ function ArticleList({
     id: string
     slug: string
     title: string
+    status: string
     tags: string[]
     summary: string
     freshness_rank: string
   }[]
   emptyMessage: string
 }) {
-  if (items.length === 0) return <p className="text-sm text-base-content/60">{emptyMessage}</p>
+  if (items.length === 0) return <p className="text-sm text-base-content/50 py-2">{emptyMessage}</p>
   return (
     <ul className="space-y-2">
       {items.map((a) => (
         <li
           key={a.id}
-          className="bg-surface border border-border p-4 rounded-lg transition-colors hover:border-border-strong"
+          className="bg-surface border border-border p-4 rounded-xl transition-colors hover:border-border-strong"
         >
-          <a href={`/articles/${a.slug}`} className="text-primary font-semibold hover:underline">
-            {a.title}
-          </a>
-          <FreshnessBadge rank={a.freshness_rank} />
+          <div className="flex items-start gap-2 flex-wrap">
+            <a href={`/articles/${a.slug}`} className="text-primary font-semibold hover:underline">
+              {a.title}
+            </a>
+            <FreshnessBadge rank={a.freshness_rank} />
+            {a.status === 'pending_approval' && (
+              <span className="text-xs px-2 py-0.5 rounded-full bg-warning/20 text-warning font-medium">
+                レビュー中
+              </span>
+            )}
+          </div>
           {a.summary && (
             <p className="text-sm text-base-content/60 mt-1.5 line-clamp-2">{a.summary}</p>
           )}
@@ -165,7 +198,7 @@ function ArticleList({
                 <a
                   key={t}
                   href={`/articles?tag=${encodeURIComponent(t)}`}
-                  className="text-xs bg-base-200 hover:bg-base-300 px-2 py-0.5 rounded transition-colors"
+                  className="text-xs bg-base-200 hover:bg-base-300 px-2 py-0.5 rounded-full transition-colors"
                 >
                   {t}
                 </a>
@@ -187,5 +220,5 @@ function FreshnessBadge({ rank }: { rank: string }) {
         : rank === 'stale'
           ? 'bg-warning/20 text-warning'
           : 'bg-error/15 text-error'
-  return <span className={`ml-2 text-xs px-2 py-0.5 rounded ${color}`}>{rank}</span>
+  return <span className={`text-xs px-2 py-0.5 rounded-full ${color}`}>{rank}</span>
 }

@@ -97,6 +97,8 @@ export class ArticleService {
   list(
     opts: {
       status?: ArticleStatus | undefined
+      /** archived を除外するか(status 未指定時のみ有効) */
+      excludeArchived?: boolean | undefined
       tag?: string | undefined
       limit?: number | undefined
       offset?: number | undefined
@@ -105,11 +107,14 @@ export class ArticleService {
     const limit = opts.limit ?? 50
     const offset = opts.offset ?? 0
     const status = opts.status
+    const excludeArchived = !status && (opts.excludeArchived ?? false)
     // tag 絞り込みは tags_json(JSON 配列)を JS 側で評価。全件取得後にページング(MVP 規模)
     if (opts.tag) {
       const sql = status
         ? `SELECT ${LIST_COLS} FROM articles WHERE status = ? ORDER BY updated_at DESC`
-        : `SELECT ${LIST_COLS} FROM articles ORDER BY updated_at DESC`
+        : excludeArchived
+          ? `SELECT ${LIST_COLS} FROM articles WHERE status != 'archived' ORDER BY updated_at DESC`
+          : `SELECT ${LIST_COLS} FROM articles ORDER BY updated_at DESC`
       const rows = status
         ? this.db.query<RawListRow, [string]>(sql).all(status)
         : this.db.query<RawListRow, []>(sql).all()
@@ -120,7 +125,9 @@ export class ArticleService {
     }
     const sql = status
       ? `SELECT ${LIST_COLS} FROM articles WHERE status = ? ORDER BY updated_at DESC LIMIT ? OFFSET ?`
-      : `SELECT ${LIST_COLS} FROM articles ORDER BY updated_at DESC LIMIT ? OFFSET ?`
+      : excludeArchived
+        ? `SELECT ${LIST_COLS} FROM articles WHERE status != 'archived' ORDER BY updated_at DESC LIMIT ? OFFSET ?`
+        : `SELECT ${LIST_COLS} FROM articles ORDER BY updated_at DESC LIMIT ? OFFSET ?`
     const rows = status
       ? this.db.query<RawListRow, [string, number, number]>(sql).all(status, limit, offset)
       : this.db.query<RawListRow, [number, number]>(sql).all(limit, offset)
@@ -128,11 +135,16 @@ export class ArticleService {
   }
 
   /** タグごとの記事件数を集計して降順で返す(記事一覧のタグ絞り込み UI 用) */
-  listTags(opts: { status?: ArticleStatus | undefined } = {}): { tag: string; count: number }[] {
+  listTags(
+    opts: { status?: ArticleStatus | undefined; excludeArchived?: boolean | undefined } = {},
+  ): { tag: string; count: number }[] {
     const status = opts.status
+    const excludeArchived = !status && (opts.excludeArchived ?? false)
     const sql = status
       ? 'SELECT tags_json FROM articles WHERE status = ?'
-      : 'SELECT tags_json FROM articles'
+      : excludeArchived
+        ? "SELECT tags_json FROM articles WHERE status != 'archived'"
+        : 'SELECT tags_json FROM articles'
     const rows = status
       ? this.db.query<{ tags_json: string }, [string]>(sql).all(status)
       : this.db.query<{ tags_json: string }, []>(sql).all()
