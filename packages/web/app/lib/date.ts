@@ -10,9 +10,12 @@ export function formatDate(iso: string, tz: string): string {
 
 /** Current hour (0-23) in the given timezone */
 export function localHour(tz: string): number {
-  return Number(
-    new Intl.DateTimeFormat('ja-JP', { timeZone: tz, hour: 'numeric', hour12: false }).format(
-      new Date(),
-    ),
-  )
+  // 'ja-JP' は "11時" のように単位付きで返すため Number() が NaN になる。
+  // 'en' は数字のみを返すので安全。
+  const parts = new Intl.DateTimeFormat('en', {
+    timeZone: tz,
+    hour: 'numeric',
+    hour12: false,
+  }).formatToParts(new Date())
+  return Number(parts.find((p) => p.type === 'hour')?.value ?? '0')
 }
