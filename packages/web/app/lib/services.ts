@@ -19,6 +19,7 @@ import {
   SearchService,
   SkillProposalService,
   TaskService,
+  TopicService,
   openDb,
 } from '@minakata/core'
 
@@ -38,6 +39,7 @@ export interface Services {
   comments: CommentService
   skills: SkillProposalService
   archives: ArchiveProposalService
+  topics: TopicService
 }
 
 let cached: Services | null = null
@@ -68,6 +70,7 @@ export function getServices(): Services {
     comments: new CommentService(db),
     skills: new SkillProposalService(db, skillsDir),
     archives: new ArchiveProposalService(db, articles),
+    topics: new TopicService(db),
   }
   return cached
 }

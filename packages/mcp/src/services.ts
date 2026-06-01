@@ -11,6 +11,7 @@ import type {
   SearchService,
   SkillProposalService,
   TaskService,
+  TopicService,
 } from '@minakata/core'
 
 /**
@@ -30,4 +31,5 @@ export interface McpServices {
   comments: CommentService
   skills: SkillProposalService
   archives: ArchiveProposalService
+  topics: TopicService
 }
