@@ -17,10 +17,8 @@ metadata:
 ## 行動ルール
 
 1. **`minakata.report_progress({ agent_name: "daily_research", phase: "デイリーバッチ開始", detail: "購読トピックをキューに投入中" })`** で実況する(失敗しても無視してよい)
-2. SQL クエリツール経由で `topics` テーブルから `active=1` の購読トピックを取得
-   - (本実装では Minakata MCP に `list_active_topics` ツールを追加するか、エージェントが SQL を打てないため `minakata.list_topics` を別途公開予定。M1.5 では Hermes 内のメモリにキャッシュしたトピック一覧で代替)
-   - **トピック一覧が空（0 件）の場合**: アクティブな購読トピックが存在しないことを報告する。[SILENT] は使わない（「何も新しいことがない」ではなく「トピック未構成で処理不能」のため）。現状（検索した内容、トピック件数 0）を簡潔に報告し、`topics` テーブルへのトピック定義が必要である旨を伝える。
-   - **Hermes メモリが無効の場合**: M1.5 のフォールバック経路（メモリキャッシュ）が機能しない。トピック一覧が取得不能として扱い、上記の空ケースと同じ報告を行う。
+2. **`minakata.list_topics({})`** を呼んで `active=1` の購読トピック一覧を取得する
+   - **トピック一覧が空（0 件）の場合**: アクティブな購読トピックが存在しないことを報告する。[SILENT] は使わない（「何も新しいことがない」ではなく「トピック未構成で処理不能」のため）。現状（トピック件数 0）を簡潔に報告し、`/topics` ページからトピック定義が必要である旨を伝える。
 3. 各トピックに対して **`minakata.report_progress({ agent_name: "daily_research", phase: "トピック投入中", detail: <topic_id または keywords の概要> })`** を呼んでから `minakata.enqueue_task(type="daily_research", priority="scheduled", payload={topic_id, keywords, depth}, dedup_key="daily:{topic_id}:{YYYY-MM-DD}")`
    - dedup_key で同日二重投入を抑止
 4. 全トピック投入後に **`minakata.report_progress({ agent_name: "daily_research", phase: "バッチ完了", detail: "N件のトピックをキューに投入" })`** で締める(N は実際の件数。失敗しても無視してよい)

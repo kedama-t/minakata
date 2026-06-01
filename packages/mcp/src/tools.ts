@@ -814,6 +814,17 @@ export function registerSkillTools(server: McpServer, s: McpServices, ctx: CallC
   )
 }
 
+export function registerTopicTools(server: McpServer, s: McpServices): void {
+  server.registerTool(
+    'minakata.list_topics',
+    {
+      description: 'active=1 の購読トピックを全件返す。daily_research が使用する',
+      inputSchema: {},
+    },
+    async () => ok({ topics: s.topics.listActive() }),
+  )
+}
+
 export function registerAllTools(
   server: McpServer,
   services: McpServices,
@@ -828,4 +839,5 @@ export function registerAllTools(
   registerPolicyTools(server, services, ctx)
   registerCommentTools(server, services)
   registerSkillTools(server, services, ctx)
+  registerTopicTools(server, services)
 }

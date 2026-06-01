@@ -16,6 +16,7 @@ import {
   SearchService,
   SkillProposalService,
   TaskService,
+  TopicService,
   openTestDb,
 } from '@minakata/core'
 import { Hono } from 'hono'
@@ -40,6 +41,7 @@ function buildServices(): { services: McpServices; cleanup: () => void } {
     comments: new CommentService(db),
     skills: new SkillProposalService(db, join(dir, 'skills')),
     archives: new ArchiveProposalService(db, articles),
+    topics: new TopicService(db),
   }
   return { services, cleanup: () => rmSync(dir, { recursive: true, force: true }) }
 }
