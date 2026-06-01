@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import { Form, useRevalidator } from 'react-router'
+import { Avatar } from '../components/ui/avatar'
 import {
   type AgentProfile,
   SYSTEM_PROFILE,
@@ -30,7 +31,6 @@ export async function loader({ request }: Route.LoaderArgs) {
     since,
     tool_name: tool,
   })
-  // ツール絞り込み時は実況を除外(audit ツール検索の邪魔にならないように)
   const activityRows = tool
     ? []
     : services.activity.list({ limit: PAGE_SIZE, since, ...(agent ? { actor: agent } : {}) })
@@ -77,34 +77,6 @@ export async function loader({ request }: Route.LoaderArgs) {
     hours,
     latestActivityEntries,
   }
-}
-
-function Avatar({
-  profile,
-  size = 'md',
-}: {
-  profile: AgentProfile
-  size?: 'sm' | 'md' | 'lg'
-}) {
-  const dim =
-    size === 'lg' ? 'w-24 h-24 text-2xl' : size === 'sm' ? 'w-12 h-12 text-sm' : 'w-18 h-18 text-lg'
-  return (
-    <div
-      className={`${dim} rounded-full ${profile.ring} flex items-center justify-center shadow-sm shrink-0 ring-2`}
-      title={profile.displayName}
-      aria-label={profile.displayName}
-    >
-      <img
-        src={profile.avatar}
-        alt={profile.displayName}
-        className="w-full h-full rounded-full object-cover"
-        onError={(e) => {
-          ;(e.currentTarget as HTMLImageElement).style.display = 'none'
-        }}
-      />
-      {!profile.avatar && <span>{profile.emoji}</span>}
-    </div>
-  )
 }
 
 type LoaderData = Route.ComponentProps['loaderData']
@@ -167,7 +139,6 @@ function buildAgentStats(
     }
   }
 
-  // latestPhase だけあって timeline に出ていない actor も補完
   for (const [actor, phase] of latestPhaseMap) {
     if (!map.has(actor)) {
       map.set(actor, {
@@ -193,46 +164,47 @@ function AgentCard({ stat }: { stat: AgentStat }) {
       href={`/monitor?agent=${encodeURIComponent(stat.profile.key)}`}
       className="block bg-surface border border-border rounded-xl p-4 transition-all hover:border-border-strong hover:shadow-sm"
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-center gap-3">
         <Avatar profile={stat.profile} size="lg" />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="font-semibold truncate">{stat.profile.displayName}</p>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <p className="font-semibold text-sm truncate">{stat.profile.displayName}</p>
             {active ? (
-              <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-success/15 text-success">
+              <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-success/15 text-success shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
                 稼働中
               </span>
             ) : (
-              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-base-200 text-base-content/60">
-                待機中
+              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-base-200 text-base-content/50 shrink-0">
+                待機
               </span>
             )}
           </div>
-          <p className="text-xs text-base-content/60 mt-0.5 line-clamp-1">{stat.profile.role}</p>
+          <p className="text-xs text-base-content/50 mt-0.5">{stat.profile.role}</p>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-border">
+
+      <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-border text-xs">
         <div>
           <p className="text-[10px] uppercase tracking-wider text-base-content/40">最終活動</p>
-          <p className="text-sm font-medium tabular-nums mt-0.5">{relativeTime(stat.lastAt)}</p>
+          <p className="font-medium tabular-nums mt-0.5">{relativeTime(stat.lastAt)}</p>
         </div>
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-base-content/40">活動件数</p>
-          <p className="text-sm font-medium tabular-nums mt-0.5">{stat.count} 件</p>
+          <p className="text-[10px] uppercase tracking-wider text-base-content/40">件数</p>
+          <p className="font-medium tabular-nums mt-0.5">{stat.count} 件</p>
         </div>
       </div>
-      {/* 最新の実況を優先表示。なければ最頻ツールにフォールバック */}
+
       {stat.latestPhase ? (
-        <p className="text-xs text-base-content/60 mt-2 flex items-center gap-1.5 truncate">
-          <span>💭</span>
-          <span className="truncate">
+        <p className="text-xs text-base-content/50 mt-2.5 flex items-start gap-1.5">
+          <span className="shrink-0">💭</span>
+          <span className="line-clamp-2">
             {stat.latestPhase.phase}
             {stat.latestPhase.detail ? ` · ${stat.latestPhase.detail}` : ''}
           </span>
         </p>
       ) : favoriteAction ? (
-        <p className="text-xs text-base-content/60 mt-2 flex items-center gap-1.5">
+        <p className="text-xs text-base-content/50 mt-2.5 flex items-center gap-1.5">
           <span>{favoriteAction.icon}</span>
           <span className="truncate">{favoriteAction.phrase}</span>
         </p>
@@ -253,41 +225,36 @@ function AuditRow({
   const action = describeTool(e.tool_name)
   const meta = e.metadata ? JSON.stringify(e.metadata, null, 2) : ''
   return (
-    <li className="flex gap-3 group">
-      <div className="flex flex-col items-center pt-1 shrink-0">
-        <Avatar profile={profile} size="md" />
-        <div className="flex-1 w-px bg-base-300 my-1 group-last:hidden" />
-      </div>
-      <div className="flex-1 min-w-0 pb-4">
+    <li className="flex gap-3 group py-3 border-b border-border last:border-0">
+      <Avatar profile={profile} size="sm" />
+      <div className="flex-1 min-w-0">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <span className="font-medium text-sm">{profile.displayName}</span>
-          <span className={`text-xs px-1.5 py-0.5 rounded ${action.bgClass} ${action.textClass}`}>
+          <span
+            className={`text-xs px-1.5 py-0.5 rounded-full ${action.bgClass} ${action.textClass}`}
+          >
             {action.icon} {action.phrase}
           </span>
           <span
-            className="text-xs text-base-content/40 tabular-nums"
+            className="text-xs text-base-content/40 tabular-nums ml-auto"
             title={new Date(e.timestamp).toLocaleString('ja-JP')}
           >
             {relativeTime(e.timestamp, now)}
           </span>
-          {e.cost_usd > 0 && (
-            <span className="text-xs text-base-content/40 tabular-nums ml-auto">
-              ${e.cost_usd.toFixed(4)}
-            </span>
-          )}
         </div>
-        <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-base-content/60">
+        <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-base-content/40">
           {e.target_article_id && (
             <span className="font-mono">記事 …{e.target_article_id.slice(-8)}</span>
           )}
-          <span className="font-mono opacity-60">{e.tool_name}</span>
+          <span className="font-mono">{e.tool_name}</span>
+          {e.cost_usd > 0 && <span className="tabular-nums ml-auto">${e.cost_usd.toFixed(4)}</span>}
         </div>
         {meta && (
           <details className="text-xs mt-1.5">
-            <summary className="cursor-pointer text-base-content/40 hover:text-base-content/80 select-none">
-              詳細を見る
+            <summary className="cursor-pointer text-base-content/40 hover:text-base-content/70 select-none">
+              詳細
             </summary>
-            <pre className="mt-1.5 p-2 bg-canvas/50 border border-border rounded text-[11px] overflow-x-auto">
+            <pre className="mt-1.5 p-2 bg-base-200 border border-border rounded text-[11px] overflow-x-auto">
               {meta}
             </pre>
           </details>
@@ -307,25 +274,22 @@ function ActivityRow({
   const e = item.data
   const profile = e.agent_name ? getAgentProfile(e.agent_name) : getAgentProfile(e.actor)
   return (
-    <li className="flex gap-3 group">
-      <div className="flex flex-col items-center pt-1 shrink-0">
-        <Avatar profile={profile} size="md" />
-        <div className="flex-1 w-px bg-base-300 my-1 group-last:hidden" />
-      </div>
-      <div className="flex-1 min-w-0 pb-4">
+    <li className="flex gap-3 group py-3 border-b border-border last:border-0">
+      <Avatar profile={profile} size="sm" />
+      <div className="flex-1 min-w-0">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
           <span className="font-medium text-sm">{profile.displayName}</span>
-          <span className="text-xs px-1.5 py-0.5 rounded bg-accent/10 text-accent">
+          <span className="text-xs px-1.5 py-0.5 rounded-full bg-accent/10 text-accent">
             💭 {e.phase}
           </span>
           <span
-            className="text-xs text-base-content/40 tabular-nums"
+            className="text-xs text-base-content/40 tabular-nums ml-auto"
             title={new Date(e.timestamp).toLocaleString('ja-JP')}
           >
             {relativeTime(e.timestamp, now)}
           </span>
         </div>
-        {e.detail && <p className="mt-1 text-xs text-base-content/60 truncate">{e.detail}</p>}
+        {e.detail && <p className="mt-0.5 text-xs text-base-content/50 truncate">{e.detail}</p>}
         {e.target_article_id && (
           <p className="mt-0.5 text-xs text-base-content/40 font-mono">
             記事 …{e.target_article_id.slice(-8)}
@@ -356,42 +320,44 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
   ).length
 
   return (
-    <div className="max-w-6xl mx-auto px-4 lg:px-8 py-6 lg:py-10 space-y-8">
-      <header className="flex flex-wrap items-baseline justify-between gap-3">
+    <div className="max-w-5xl mx-auto px-4 lg:px-8 py-6 lg:py-10 space-y-8">
+      <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">
-            エージェントたちの様子
-          </h1>
-          <p className="text-sm text-base-content/60 mt-1">
-            直近 {hours} 時間で {timeline.length} 件のアクティビティ ·{' '}
-            <span className="inline-flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-              {activeCount} 名が稼働中
+          <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">エージェント</h1>
+          <p className="text-sm text-base-content/50 mt-1 flex items-center gap-2 flex-wrap">
+            <span>
+              直近 {hours} 時間 · {timeline.length} 件
             </span>
-            {' · '}
-            {revalidator.state === 'idle' ? '⟳ 自動更新' : '更新中…'}
+            {activeCount > 0 && (
+              <span className="inline-flex items-center gap-1 text-success">
+                <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
+                {activeCount} 名稼働中
+              </span>
+            )}
+            <span className="text-base-content/30">
+              {revalidator.state === 'idle' ? '自動更新中' : '更新中…'}
+            </span>
           </p>
         </div>
       </header>
 
       {stats.length > 0 && (
-        <section>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {stats.map((s) => (
-              <AgentCard key={s.profile.key} stat={s} />
-            ))}
-          </div>
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {stats.map((s) => (
+            <AgentCard key={s.profile.key} stat={s} />
+          ))}
         </section>
       )}
 
-      <section className="bg-surface border border-border rounded-xl p-5">
+      {/* フィルタ */}
+      <section className="bg-surface border border-border rounded-xl p-4">
         <Form method="get" className="flex flex-wrap items-end gap-3">
-          <label className="text-sm">
-            <span className="block text-xs text-base-content/60 mb-1">エージェント</span>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-xs text-base-content/50">エージェント</span>
             <select
               name="agent"
               defaultValue={agent}
-              className="px-2.5 py-1.5 border rounded-md bg-surface border-border text-sm"
+              className="px-2.5 py-1.5 border border-border rounded-lg bg-surface text-sm"
             >
               <option value="">すべて</option>
               {agents.map((a) => (
@@ -401,12 +367,12 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
               ))}
             </select>
           </label>
-          <label className="text-sm">
-            <span className="block text-xs text-base-content/60 mb-1">ツール</span>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-xs text-base-content/50">ツール</span>
             <select
               name="tool"
               defaultValue={tool}
-              className="px-2.5 py-1.5 border rounded-md bg-surface border-border text-sm"
+              className="px-2.5 py-1.5 border border-border rounded-lg bg-surface text-sm"
             >
               <option value="">すべて</option>
               {tools.map((t) => (
@@ -416,50 +382,53 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
               ))}
             </select>
           </label>
-          <label className="text-sm">
-            <span className="block text-xs text-base-content/60 mb-1">期間 (時間)</span>
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="text-xs text-base-content/50">期間（時間）</span>
             <input
               type="number"
               name="hours"
               min={1}
               max={720}
               defaultValue={hours}
-              className="px-2.5 py-1.5 border rounded-md w-24 bg-surface border-border text-sm"
+              className="px-2.5 py-1.5 border border-border rounded-lg w-24 bg-surface text-sm"
             />
           </label>
-          <button type="submit" className="btn btn-primary btn-sm">
+          <button type="submit" className="btn btn-primary btn-sm self-end">
             適用
           </button>
           {(agent || tool) && (
             <a
               href="/monitor"
-              className="text-sm text-base-content/60 hover:text-base-content/80 py-1.5"
+              className="text-sm text-base-content/50 hover:text-base-content py-1.5 self-end"
             >
-              絞り込み解除
+              解除
             </a>
           )}
         </Form>
       </section>
 
+      {/* タイムライン */}
       <section>
-        <h2 className="text-base font-semibold mb-4">タイムライン</h2>
+        <h2 className="text-base font-semibold mb-3">タイムライン</h2>
         {timeline.length === 0 ? (
           <div className="bg-surface border border-border rounded-xl p-10 text-center">
-            <p className="text-4xl mb-3">😴</p>
-            <p className="text-sm text-base-content/60">
+            <p className="text-3xl mb-3">😴</p>
+            <p className="text-sm text-base-content/50">
               この期間にエージェントの活動はありませんでした
             </p>
           </div>
         ) : (
-          <ul className="space-y-0">
-            {timeline.map((item) =>
-              item.kind === 'audit' ? (
-                <AuditRow key={item.id} event={item} now={now} />
-              ) : (
-                <ActivityRow key={item.id} item={item} now={now} />
-              ),
-            )}
-          </ul>
+          <div className="bg-surface border border-border rounded-xl px-4">
+            <ul>
+              {timeline.map((item) =>
+                item.kind === 'audit' ? (
+                  <AuditRow key={item.id} event={item} now={now} />
+                ) : (
+                  <ActivityRow key={item.id} item={item} now={now} />
+                ),
+              )}
+            </ul>
+          </div>
         )}
       </section>
     </div>
