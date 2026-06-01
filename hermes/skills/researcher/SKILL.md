@@ -37,6 +37,7 @@ metadata:
    - `type="research"` (新規調査): `fulltext_search` / `similar_articles` で主題の重複記事がないか確認 → `web_search` → `web_extract` → 統合 → `minakata.create_article`(新規) または `minakata.update_article`(既存に追記)
      - **先行記事チェック**: create_article の前に必ず `fulltext_search` または `similar_articles` で同名・同主題の既存記事を検索する。該当記事があれば新規作成ではなく追記モード（update_article）に切り替える。
      - **検索戦略**: `payload.query` を出発点に、複数の角度から並列で `web_search` を実行する。例: 公式ブログ・リリースノートを狙うクエリ、コミュニティ分析記事のクエリ、GitHub Discussions のクエリを同時に投げ、カバレッジを確保する。`web_extract` も並列（1回の呼び出しに最大5URL）で行う。
+       - **複数対象の比較調査**: ペイロードが複数のツール・製品を列挙している場合、各対象の個別検索（公式サイト・リリースノート）と横断比較検索（比較記事・人気度データ）の二段階で並列検索を行う。詳細は `references/comparison-research.md` 参照。
      - **一次情報優先**: リサーチ方針(P1)に従い、公式サイト・GitHubリポジトリを必ず含める。二次情報（ブログ・分析記事）は補完・検証用として扱う。
    - `type="daily_research"` (購読バッチ): 同じ流れだが、既存トピック記事があれば追記モード
    - `type="refresh"` (鮮度更新): 既存記事を `read_article` し、最新情報を `web_search` で確認 → 差分があれば `update_article(body=..., last_researched_at=now)`、無ければ `last_researched_at` のみ更新
