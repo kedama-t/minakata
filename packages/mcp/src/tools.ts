@@ -47,7 +47,7 @@ export function registerArticleTools(
         tags: z.array(z.string()).optional(),
         topic_id: z.string().optional(),
         summary: z.string().optional(),
-        author: z.string().default('agent:researcher'),
+        author: z.string().default('researcher'),
         source: z.enum(['manual', 'agent_research', 'agent_changelog']).optional(),
         /** 出典(US-5.1 横断要件)。{url, fetched_at, archive_url?, used_in_sections?} の配列 */
         sources: z.array(SourceRefSchema).optional(),
@@ -90,7 +90,7 @@ export function registerArticleTools(
         summary: z.string().optional(),
         last_researched_at: z.string().datetime().optional(),
         cost_usd: z.number().nonnegative().optional(),
-        author: z.string().default('agent:researcher'),
+        author: z.string().default('researcher'),
         /** 0..1。デフォルト 0.3。0 にすると常に保留、1 にすると常に直接反映(テスト・移行用) */
         review_threshold: z.number().min(0).max(1).optional(),
         /** 追記する出典。既存 sources の末尾に append される(US-5.1) */
@@ -181,7 +181,7 @@ export function registerArticleTools(
         'アーカイブを「提案」する(§6 承認ゲート)。即時 archive は行わず、admin が approve_archive で承認したときに反映する。同じ記事に既に proposed がある場合は既存提案 ID を返す',
       inputSchema: {
         id: z.string(),
-        author: z.string().default('agent:freshness'),
+        author: z.string().default('freshness_checker'),
         reason: z.string().optional(),
       },
     },
@@ -552,7 +552,7 @@ export function registerReviewTools(
       inputSchema: {
         article_id: z.string(),
         proposed_body: z.string(),
-        author: z.string().default('agent:researcher'),
+        author: z.string().default('researcher'),
         threshold: z.number().min(0).max(1).optional(),
         cost_usd: z.number().nonnegative().optional(),
       },
