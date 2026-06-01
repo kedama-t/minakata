@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react'
-import { Form, useRevalidator, useRouteLoaderData } from 'react-router'
+import { useRevalidator, useRouteLoaderData, useSearchParams } from 'react-router'
 import { Avatar } from '../components/ui/avatar'
 import {
   type AgentProfile,
@@ -22,20 +22,15 @@ export async function loader({ request }: Route.LoaderArgs) {
   requireUser(request)
   const url = new URL(request.url)
   const agent = url.searchParams.get('agent') || undefined
-  const tool = url.searchParams.get('tool') || undefined
-  const hoursParam = url.searchParams.get('hours')
-  const hours = hoursParam ? Math.max(1, Math.min(720, Number(hoursParam) || 24)) : 24
-  const since = new Date(Date.now() - hours * 3_600_000).toISOString()
+  const since = new Date(Date.now() - 24 * 3_600_000).toISOString()
 
   const services = getServices()
-  const auditRows = services.audit.list({
-    limit: PAGE_SIZE,
-    since,
-    tool_name: tool,
-  })
-  const activityRows = tool
-    ? []
-    : services.activity.list({ limit: PAGE_SIZE, since, ...(agent ? { actor: agent } : {}) })
+  const auditRows =
+    !agent || agent === SYSTEM_PROFILE.key ? services.audit.list({ limit: PAGE_SIZE, since }) : []
+  const activityRows =
+    agent === SYSTEM_PROFILE.key
+      ? []
+      : services.activity.list({ limit: PAGE_SIZE, since, ...(agent ? { actor: agent } : {}) })
   const latestActivityEntries = [...services.activity.latestByActor().entries()].map(
     ([actor, row]) =>
       [
@@ -68,17 +63,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   ]
     .sort((a, b) => (a.timestamp > b.timestamp ? -1 : 1))
     .slice(0, PAGE_SIZE)
-  const agents = services.audit.distinctAgents()
-  const tools = services.audit.distinctTools()
-  return {
-    timeline,
-    agents,
-    tools,
-    agent: agent ?? '',
-    tool: tool ?? '',
-    hours,
-    latestActivityEntries,
-  }
+  return { timeline, latestActivityEntries }
 }
 
 type LoaderData = Route.ComponentProps['loaderData']
@@ -129,14 +114,17 @@ function buildAgentStats(
       if (!map.has(key)) {
         map.set(key, {
           profile: e.agent_name ? getAgentProfile(e.agent_name) : getAgentProfile(e.actor),
-          count: 0,
+          count: 1,
           lastAt: item.timestamp,
           toolCounts: new Map(),
           latestPhase: latestPhaseMap.get(key) ?? null,
         })
       } else {
         const existing = map.get(key)
-        if (existing && item.timestamp > existing.lastAt) existing.lastAt = item.timestamp
+        if (existing) {
+          existing.count += 1
+          if (item.timestamp > existing.lastAt) existing.lastAt = item.timestamp
+        }
       }
     }
   }
@@ -170,7 +158,7 @@ function AgentCard({ stat, tz }: { stat: AgentStat; tz: string }) {
         <Avatar profile={stat.profile} size="lg" />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <p className="font-semibold text-sm truncate">{stat.profile.displayName}</p>
+            <p className="font-semibold text-xl truncate">{stat.profile.displayName}</p>
             {active ? (
               <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-success/15 text-success shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
@@ -309,10 +297,12 @@ function ActivityRow({
 }
 
 export default function Monitor({ loaderData }: Route.ComponentProps) {
-  const { timeline, agents, tools, agent, tool, hours, latestActivityEntries } = loaderData
+  const { timeline, latestActivityEntries } = loaderData
   const root = useRouteLoaderData<typeof rootLoader>('root')
   const tz = root?.timezone ?? 'Asia/Tokyo'
   const revalidator = useRevalidator()
+  const [searchParams] = useSearchParams()
+  const activeAgent = searchParams.get('agent')
   useEffect(() => {
     const id = setInterval(() => {
       if (revalidator.state === 'idle') revalidator.revalidate()
@@ -333,11 +323,17 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
     <div className="max-w-5xl mx-auto px-4 lg:px-8 py-6 lg:py-10 space-y-8">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">エージェント</h1>
+          {activeAgent && (
+            <a
+              href="/monitor"
+              className="inline-flex items-center gap-1 text-sm text-base-content/50 hover:text-base-content mb-2"
+            >
+              ← 全エージェント
+            </a>
+          )}
+          <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">エージェントの様子</h1>
           <p className="text-sm text-base-content/50 mt-1 flex items-center gap-2 flex-wrap">
-            <span>
-              直近 {hours} 時間 · {timeline.length} 件
-            </span>
+            <span>直近 24 時間 · {timeline.length} 件</span>
             {activeCount > 0 && (
               <span className="inline-flex items-center gap-1 text-success">
                 <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
@@ -351,71 +347,13 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
         </div>
       </header>
 
-      {stats.length > 0 && (
+      {!activeAgent && stats.length > 0 && (
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {stats.map((s) => (
             <AgentCard key={s.profile.key} stat={s} tz={tz} />
           ))}
         </section>
       )}
-
-      {/* フィルタ */}
-      <section className="bg-surface border border-border rounded-xl p-4">
-        <Form method="get" className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-xs text-base-content/50">エージェント</span>
-            <select
-              name="agent"
-              defaultValue={agent}
-              className="px-2.5 py-1.5 border border-border rounded-lg bg-surface text-sm"
-            >
-              <option value="">すべて</option>
-              {agents.map((a) => (
-                <option key={a} value={a}>
-                  {getAgentProfile(a).displayName}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-xs text-base-content/50">ツール</span>
-            <select
-              name="tool"
-              defaultValue={tool}
-              className="px-2.5 py-1.5 border border-border rounded-lg bg-surface text-sm"
-            >
-              <option value="">すべて</option>
-              {tools.map((t) => (
-                <option key={t} value={t}>
-                  {describeTool(t).phrase}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="text-xs text-base-content/50">期間（時間）</span>
-            <input
-              type="number"
-              name="hours"
-              min={1}
-              max={720}
-              defaultValue={hours}
-              className="px-2.5 py-1.5 border border-border rounded-lg w-24 bg-surface text-sm"
-            />
-          </label>
-          <button type="submit" className="btn btn-primary btn-sm self-end">
-            適用
-          </button>
-          {(agent || tool) && (
-            <a
-              href="/monitor"
-              className="text-sm text-base-content/50 hover:text-base-content py-1.5 self-end"
-            >
-              解除
-            </a>
-          )}
-        </Form>
-      </section>
 
       {/* タイムライン */}
       <section>
