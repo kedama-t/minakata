@@ -4,6 +4,7 @@ import { getAgentProfile } from '../lib/agent-profiles.ts'
 
 type ToastItem = {
   id: string
+  avatar: string
   displayName: string
   phase: string
   detail: string | null
@@ -24,6 +25,7 @@ export function Toaster() {
       const profile = getAgentProfile(row.agent_name ?? row.actor)
       const toast: ToastItem = {
         id: row.id,
+        avatar: profile.avatar ?? '',
         displayName: profile.displayName,
         phase: row.phase,
         detail: row.detail,
@@ -51,7 +53,6 @@ export function Toaster() {
           key={t.id}
           className="animate-toast-in bg-surface border border-border rounded-xl shadow-lg px-4 py-3 flex items-start gap-3 max-w-72"
         >
-          <span className="text-xl mt-0.5 shrink-0">{t.emoji}</span>
           <div className="min-w-0">
             <p className="text-sm font-semibold leading-tight">{t.displayName}</p>
             <p className="text-xs text-base-content/60 mt-0.5 line-clamp-2">
@@ -59,6 +60,7 @@ export function Toaster() {
               {t.detail ? ` · ${t.detail}` : ''}
             </p>
           </div>
+          <img src={t.avatar} alt={t.displayName} className="w-14 h-14 rounded-full" />
         </div>
       ))}
     </div>

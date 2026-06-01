@@ -8,6 +8,8 @@ export interface ArticleComment {
   body: string
   author_id: string
   status: 'open' | 'resolved'
+  agent_reply: string | null
+  agent_replied_at: string | null
   created_at: string
 }
 
@@ -38,10 +40,32 @@ export class CommentService {
     this.db.prepare("UPDATE article_comments SET status = 'resolved' WHERE id = ?").run(id)
   }
 
+  /** エージェントからの返信を記録する */
+  agentReply(id: string, body: string): void {
+    this.db
+      .prepare('UPDATE article_comments SET agent_reply = ?, agent_replied_at = ? WHERE id = ?')
+      .run(body, now(), id)
+  }
+
+  /** エージェント未返信のオープンコメントを返す(dialogue の poll 用) */
+  pollOpen(limit = 20): ArticleComment[] {
+    return this.db
+      .query<ArticleComment, [number]>(
+        `SELECT id, article_id, anchor, body, author_id, status,
+                agent_reply, agent_replied_at, created_at
+         FROM article_comments
+         WHERE status = 'open' AND agent_reply IS NULL
+         ORDER BY created_at
+         LIMIT ?`,
+      )
+      .all(limit)
+  }
+
   listByArticle(article_id: string): ArticleComment[] {
     return this.db
       .query<ArticleComment, [string]>(
-        `SELECT id, article_id, anchor, body, author_id, status, created_at
+        `SELECT id, article_id, anchor, body, author_id, status,
+                agent_reply, agent_replied_at, created_at
          FROM article_comments WHERE article_id = ? ORDER BY created_at`,
       )
       .all(article_id)

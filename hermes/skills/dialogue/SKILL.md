@@ -18,9 +18,8 @@ metadata:
 
 1. **30 秒周期で `minakata.poll_messages`** を呼び、未取得の user メッセージを取り出す。メッセージを claim したら **`minakata.report_progress({ agent_name: "dialogue", phase: "応答中", detail: <セッション ID の末尾 6 文字> })`** で実況する(失敗しても無視してよい)
 2. メッセージごとに以下の手順を踏む:
-   1. `minakata.claim_message(message_id, "dialogue")` で claim する(他の worker と競合しないため)。戻り値の `kind`（`"dialogue"` / `"knowledge"`）でセッション種別を確認する
-   2. `kind === "knowledge"` の場合は回答に引用が必要。`claimed` が `false` の場合は他 worker が先行しているためスキップする
-   3. 質問の意図を解釈する前に **`minakata.report_progress({ agent_name: "dialogue", phase: "意図分析中", detail: "ナレッジ質問/調査依頼/雑談を判定中" })`** を呼ぶ。判定後は以下のアクションを取る:
+   1. `minakata.claim_message(message_id, "dialogue")` で claim する(他の worker と競合しないため)。`claimed` が `false` の場合は他 worker が先行しているためスキップする
+   2. 質問の意図を解釈する前に **`minakata.report_progress({ agent_name: "dialogue", phase: "意図分析中", detail: "ナレッジ質問/調査依頼/雑談を判定中" })`** を呼ぶ。判定後は以下のアクションを取る:
       - **ナレッジ質問**(US-4.1): 既存記事の知識を求めている → **`report_progress({ agent_name: "dialogue", phase: "記事検索中", detail: <検索クエリ> })`** を呼んでから `minakata.fulltext_search` で関連記事を検索し、要約 + 引用 URL + 記事リンク `[[id:01...]]` 付きで応答。マッチが無ければ「ナレッジベースには見当たりません」と素直に答える
       - **調査依頼**: 新規調査が必要 → **`report_progress({ agent_name: "dialogue", phase: "調査依頼受付", detail: <goal 概要> })`** を呼んでから `researcher` に委譲するため `minakata.enqueue_task(type="research", priority="urgent", payload={...})`
         payload の推奨スキーマ:
@@ -28,12 +27,26 @@ metadata:
         - `instructions` (string, 必須): Researcher への詳細指示（言語・焦点・スタイルなど）
         - `query` (string, 必須): `web_search` に渡す検索クエリ文字列
         - `article_id` (string, 任意): 既存記事に追記する場合の記事 ID
+        - **`session_id` (string, 必須)**: 依頼元のチャットセッション ID。Researcher が完了時にこのセッションへ完了通知を返す
           dedup_key は `research:{slug}:{YYYY-MM-DD}` 形式を推奨
       - **雑談・確認**: 直接応答可能 → そのまま回答
-   4. `minakata.post_agent_response(session_id, content, is_final)` でレスポンスを書き戻す
+   3. `minakata.post_agent_response(session_id, content, is_final)` でレスポンスを書き戻す
       - ストリーミング感を出すため、長い応答は複数 chunk に分け is_final=false で送り、最後を is_final=true で締める
-      - 調査依頼の場合は「調査タスクを追加しました(完了見込み: 約 3 分)」のような確認応答を即返す
+      - 調査依頼の場合は「調査タスクを追加しました」のような確認応答を即返す。完了時間の目安は述べない
+   4. **初回応答のみ**: セッションの `title` が空の場合、ユーザーの最初のメッセージ内容を元に 10〜20 文字程度の日本語タイトルを生成し、`minakata.update_session_title(session_id, title)` で保存する。タイトルは体言止めで簡潔に（例: "React Router v7 の SSR 対応"、"競合分析：AI エディタ比較"）。失敗しても無視してよい
    5. 応答送信後に **`minakata.report_progress({ agent_name: "dialogue", phase: "応答完了", detail: <セッション ID の末尾 6 文字> })`** で締める(失敗しても無視してよい)
+
+## 記事コメント応答
+
+チャットメッセージ poll の後、**`minakata.poll_article_comments`** を呼んで未返信のオープンコメントを取得する。1ターンあたり最大 5 件を処理する。
+
+各コメントに対して以下の判断を行う:
+
+- **ナレッジ内から回答可能**: `minakata.fulltext_search` で関連記事を検索し、要約 + 引用元 `[[id:...]]` を含む返信本文を作成 → `minakata.reply_article_comment(id, body)` で記録する
+- **追加調査が必要**: 既存ナレッジで回答できない or 鮮度が問題の場合 → `minakata.enqueue_task(type="research_followup", priority="interactive", payload={article_id, comment: <コメント本文>, anchor: <anchor>})` でタスクを投入し、`minakata.reply_article_comment(id, "調査中です。完了後に追記します。")` で仮返信する
+- **雑談・単純な感謝など**: そのまま返信する
+
+コメント対応完了後に **`report_progress({ agent_name: "dialogue", phase: "コメント応答完了", detail: <処理件数> })`** を呼ぶ(失敗しても無視してよい)。
 
 ## 自動深掘り判断(US-4.2)
 
@@ -42,7 +55,7 @@ metadata:
 1. **`minakata.report_progress({ agent_name: "dialogue", phase: "鮮度再調査投入", detail: "記事 …" + article_id末尾8文字 })`** を呼んでから
 2. ユーザーに「鮮度が落ちているので追加調査します」と明示的に通知してから
 3. `minakata.enqueue_task({type: "refresh", priority: "interactive", payload: {article_id, reason}, dedup_key: "refresh:{article_id}:{YYYY-MM-DD}"})`
-4. 完了通知は別途 researcher が `post_agent_response` 経由で投げる(M3 で対応予定。M2 ではユーザー側が更新を確認)
+4. 完了通知は researcher が `payload.session_id` のセッションへ `post_agent_response` で投げる
 
 ## 制約
 

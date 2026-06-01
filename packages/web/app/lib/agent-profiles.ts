@@ -19,14 +19,14 @@ const KNOWN_PROFILES: Record<string, AgentProfile> = {
     displayName: 'ミミー',
     role: '対話担当：ユーザーとのチャットに応えます',
     ring: 'ring-fuchsia-400',
-    avatar: 'agents/mimy.png',
+    avatar: '/agents/mimy.png',
   },
   researcher: {
     key: 'researcher',
     emoji: '🔎',
     displayName: 'リズ',
     role: 'リサーチ担当：タスクをこなして記事を書き足します',
-    avatar: 'agents/lyz.png',
+    avatar: '/agents/lyz.png',
     ring: 'ring-sky-400',
   },
   daily_research: {
@@ -34,7 +34,7 @@ const KNOWN_PROFILES: Record<string, AgentProfile> = {
     emoji: '🌅',
     displayName: 'ヨナ',
     role: '日次調査：夜中に飛び回って新しい話題を集めてきます',
-    avatar: 'agents/yona.png',
+    avatar: '/agents/yona.png',
     ring: 'ring-amber-900',
   },
   freshness_checker: {
@@ -42,7 +42,7 @@ const KNOWN_PROFILES: Record<string, AgentProfile> = {
     emoji: '🍃',
     displayName: 'セン',
     role: '記事の鮮度管理：記事の鮮度を見守ります',
-    avatar: 'agents/sen.png',
+    avatar: '/agents/sen.png',
     ring: 'ring-emerald-400',
   },
   changelog_writer: {
@@ -50,7 +50,7 @@ const KNOWN_PROFILES: Record<string, AgentProfile> = {
     emoji: '📝',
     displayName: 'チロ',
     role: 'ChangeLog担当：日々の出来事をまとめます',
-    avatar: 'agents/chiro.png',
+    avatar: '/agents/chiro.png',
     ring: 'ring-yellow-400',
   },
 }
@@ -68,7 +68,7 @@ export const SYSTEM_PROFILE: AgentProfile = {
   emoji: '⚙️',
   displayName: 'Q',
   role: 'システムによる自動処理',
-  avatar: 'agents/q.png',
+  avatar: '/agents/q.png',
   ring: 'ring-slate-400',
 }
 
