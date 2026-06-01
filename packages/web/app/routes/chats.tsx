@@ -1,5 +1,8 @@
+import { useRouteLoaderData } from 'react-router'
 import { requireEditor } from '../lib/auth.ts'
+import { formatDateTime } from '../lib/date.ts'
 import { getServices } from '../lib/services.ts'
+import type { loader as rootLoader } from '../root.tsx'
 import type { Route } from './+types/chats.ts'
 
 const PAGE_SIZE = 30
@@ -37,6 +40,8 @@ function tabClass(active: boolean): string {
 
 export default function Chats({ loaderData }: Route.ComponentProps) {
   const { sessions, kind, nextCursor } = loaderData
+  const root = useRouteLoaderData<typeof rootLoader>('root')
+  const tz = root?.timezone ?? 'Asia/Tokyo'
   return (
     <div className="max-w-4xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-4">チャット履歴</h1>
@@ -77,7 +82,7 @@ export default function Chats({ loaderData }: Route.ComponentProps) {
                   {s.kind}
                 </span>
                 <span className="text-xs text-base-content/60">
-                  {new Date(s.updated_at).toLocaleString('ja-JP')}
+                  {formatDateTime(s.updated_at, tz)}
                 </span>
               </div>
               <p className="text-sm mt-1 text-base-content/80">

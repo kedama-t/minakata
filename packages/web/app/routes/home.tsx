@@ -1,6 +1,9 @@
+import { useRouteLoaderData } from 'react-router'
 import { getAgentProfile, relativeTime } from '../lib/agent-profiles.ts'
 import { requireUser } from '../lib/auth.ts'
+import { localHour } from '../lib/date.ts'
 import { getServices } from '../lib/services.ts'
+import type { loader as rootLoader } from '../root.tsx'
 import type { Route } from './+types/home.ts'
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -55,8 +58,11 @@ function StatCard({
 
 export default function Home({ loaderData }: Route.ComponentProps) {
   const { recentUpdates, newToday, changelogs, recentActivity, user } = loaderData
+  const root = useRouteLoaderData<typeof rootLoader>('root')
+  const tz = root?.timezone ?? 'Asia/Tokyo'
+
   const greeting = (() => {
-    const h = new Date().getHours()
+    const h = localHour(tz)
     if (h < 5) return 'こんばんは'
     if (h < 11) return 'おはようございます'
     if (h < 18) return 'こんにちは'
@@ -109,7 +115,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                       {e.detail ? ` · ${e.detail}` : ''}
                     </span>
                     <span className="text-xs text-base-content/40 ml-auto tabular-nums shrink-0">
-                      {relativeTime(e.timestamp, now)}
+                      {relativeTime(e.timestamp, now, tz)}
                     </span>
                   </li>
                 )
@@ -133,7 +139,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     {c.title}
                   </a>
                   <span className="text-xs text-base-content/40 shrink-0 tabular-nums">
-                    {relativeTime(c.updated_at, now)}
+                    {relativeTime(c.updated_at, now, tz)}
                   </span>
                 </li>
               ))}

@@ -18,6 +18,7 @@ services:
       ARTICLES_ROOT: "/app/data/articles"
       HF_HOME: "/app/.cache/huggingface"
       PORT: "3000"
+      TIMEZONE: "${TIMEZONE:-Asia/Tokyo}"
       # MCP の DNS rebinding 対策。本番では Hermes コンテナの hostname と Caddy 経由の公開ホストを指定
       MCP_ALLOWED_HOSTS: "${MCP_ALLOWED_HOSTS:-minakata:3000,localhost,localhost:3000}"
     restart: unless-stopped
@@ -70,6 +71,9 @@ services:
       # config.yaml の mcp_servers.minakata.headers が ${MCP_TOKEN} を展開
       # できるよう env として渡す。
       MCP_TOKEN: "${MCP_TOKEN}"
+      # コンテナの OS タイムゾーンを設定。cron スケジュールや Python の
+      # datetime.now() が正しいローカル時刻を返すようになる。
+      TZ: "${TIMEZONE:-Asia/Tokyo}"
     depends_on:
       minakata:
         condition: service_healthy
