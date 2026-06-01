@@ -1,5 +1,5 @@
 import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
-import ReactMarkdown from 'react-markdown'
+import ReactMarkdown, { type Components } from 'react-markdown'
 import { redirect, useFetcher, useRevalidator } from 'react-router'
 import remarkGfm from 'remark-gfm'
 import { Avatar, UserAvatar } from '../components/ui/avatar.tsx'
@@ -49,11 +49,123 @@ export async function action({ request, params }: Route.ActionArgs) {
   return { ok: true }
 }
 
-/** チャット内 Markdown レンダラ（article より軽量） */
+/**
+ * chat-bubble-neutral（暗背景）内用の Markdown レンダラ。
+ * prose プラグイン非依存で各要素を個別スタイリングする。
+ */
+const chatMdComponents: Components = {
+  // passNode を destructure して DOM に漏れないようにする
+  h1: ({ node: _n, children, ...p }) => (
+    <h1 {...p} className="text-base font-bold mt-3 mb-1 first:mt-0">
+      {children}
+    </h1>
+  ),
+  h2: ({ node: _n, children, ...p }) => (
+    <h2 {...p} className="text-sm font-bold mt-3 mb-1 first:mt-0 border-b border-white/20 pb-0.5">
+      {children}
+    </h2>
+  ),
+  h3: ({ node: _n, children, ...p }) => (
+    <h3 {...p} className="text-sm font-semibold mt-2 mb-1 first:mt-0">
+      {children}
+    </h3>
+  ),
+  p: ({ node: _n, children, ...p }) => (
+    <p {...p} className="my-1.5 leading-relaxed first:mt-0 last:mb-0">
+      {children}
+    </p>
+  ),
+  ul: ({ node: _n, children, ...p }) => (
+    <ul {...p} className="list-disc list-outside pl-4 my-1.5 space-y-0.5">
+      {children}
+    </ul>
+  ),
+  ol: ({ node: _n, children, ...p }) => (
+    <ol {...p} className="list-decimal list-outside pl-4 my-1.5 space-y-0.5">
+      {children}
+    </ol>
+  ),
+  li: ({ node: _n, children, ...p }) => (
+    <li {...p} className="leading-relaxed">
+      {children}
+    </li>
+  ),
+  blockquote: ({ node: _n, children, ...p }) => (
+    <blockquote {...p} className="border-l-2 border-white/30 pl-3 my-1.5 opacity-80 italic">
+      {children}
+    </blockquote>
+  ),
+  code: ({ node: _n, className, children, ...p }) => {
+    const isBlock = typeof className === 'string' && className.startsWith('language-')
+    if (isBlock) {
+      return (
+        <code {...p} className={`${className} block`}>
+          {children}
+        </code>
+      )
+    }
+    return (
+      <code {...p} className="bg-white/15 rounded px-1 py-0.5 text-xs font-mono">
+        {children}
+      </code>
+    )
+  },
+  pre: ({ node: _n, children, ...p }) => (
+    <pre
+      {...p}
+      className="bg-black/30 rounded p-3 my-2 overflow-x-auto text-xs font-mono leading-relaxed"
+    >
+      {children}
+    </pre>
+  ),
+  a: ({ node: _n, href, children, ...p }) => (
+    <a
+      {...p}
+      href={href}
+      target="_blank"
+      rel="noreferrer noopener"
+      className="underline opacity-90 hover:opacity-100"
+    >
+      {children}
+    </a>
+  ),
+  table: ({ node: _n, children, ...p }) => (
+    <div className="overflow-x-auto my-2">
+      <table {...p} className="border-collapse text-xs w-full">
+        {children}
+      </table>
+    </div>
+  ),
+  thead: ({ node: _n, children, ...p }) => (
+    <thead {...p} className="border-b border-white/30">
+      {children}
+    </thead>
+  ),
+  th: ({ node: _n, children, ...p }) => (
+    <th {...p} className="px-2 py-1 text-left font-semibold bg-white/10 border border-white/20">
+      {children}
+    </th>
+  ),
+  td: ({ node: _n, children, ...p }) => (
+    <td {...p} className="px-2 py-1 border border-white/15">
+      {children}
+    </td>
+  ),
+  hr: ({ node: _n, ...p }) => <hr {...p} className="my-3 border-white/20" />,
+  strong: ({ node: _n, children, ...p }) => (
+    <strong {...p} className="font-bold">
+      {children}
+    </strong>
+  ),
+}
+
+/** chat-bubble-neutral（暗背景）内用 Markdown レンダラ */
 function ChatMarkdown({ source }: { source: string }) {
   return (
-    <div className="prose prose-sm max-w-none text-inherit [&_a]:text-primary [&_a]:underline [&_pre]:bg-black/20 [&_pre]:rounded [&_pre]:p-2 [&_code]:bg-black/15 [&_code]:rounded [&_code]:px-1 [&_code]:text-sm">
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>{source}</ReactMarkdown>
+    <div className="text-sm leading-relaxed break-words">
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={chatMdComponents}>
+        {source}
+      </ReactMarkdown>
     </div>
   )
 }
