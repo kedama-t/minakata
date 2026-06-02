@@ -45,26 +45,26 @@ export class ReviewService {
     private readonly tasks: TaskService,
   ) {}
 
-  /** 変更率(0..1)を計算する。文字数 diff の簡易版 */
+  /**
+   * 変更率(0..1)を計算する。
+   * 複数行: 行単位 LCS で未変更行を除外してから比率を算出。
+   * 1行: 文字単位のプレフィックス/サフィックス比較。
+   */
   static computeChangePct(before: string, after: string): number {
-    if (before.length === 0 && after.length === 0) return 0
-    const max = Math.max(before.length, after.length)
-    const min = Math.min(before.length, after.length)
-    // 雑に「長さ差 / 長い方」を起点に、共通部分を引いた割合を出す
-    const lengthDelta = max - min
-    let common = 0
-    const limit = Math.min(before.length, after.length)
-    for (let i = 0; i < limit; i++) {
-      if (before[i] === after[i]) common += 1
-      else break
+    if (before === after) return 0
+    const maxLen = Math.max(before.length, after.length)
+    if (maxLen === 0) return 0
+
+    const bLines = before.trimEnd().split('\n')
+    const aLines = after.trimEnd().split('\n')
+
+    if (bLines.length === 1 && aLines.length === 1) {
+      return charChangePct(before, after)
     }
-    let tail = 0
-    for (let i = 1; i <= limit - common; i++) {
-      if (before[before.length - i] === after[after.length - i]) tail += 1
-      else break
-    }
-    const differing = max - common - tail
-    return Math.max(differing / max, lengthDelta / max)
+
+    const lcs = lineLCSLength(bLines, aLines)
+    const maxLines = Math.max(bLines.length, aLines.length)
+    return (maxLines - lcs) / maxLines
   }
 
   /**
@@ -220,6 +220,39 @@ export class ReviewService {
       .all(review_id)
     return rows.map((r) => ({ ...r, resolved: r.resolved === 1 }))
   }
+}
+
+/** 文字単位のプレフィックス/サフィックス比較による変更率 */
+function charChangePct(before: string, after: string): number {
+  const max = Math.max(before.length, after.length)
+  const min = Math.min(before.length, after.length)
+  let common = 0
+  for (let i = 0; i < min; i++) {
+    if (before[i] !== after[i]) break
+    common++
+  }
+  let tail = 0
+  for (let i = 1; i <= min - common; i++) {
+    if (before[before.length - i] !== after[after.length - i]) break
+    tail++
+  }
+  return Math.max((max - common - tail) / max, (max - min) / max)
+}
+
+/** 行配列の LCS 長を O(m×n) DP・O(n) 空間で計算 */
+function lineLCSLength(a: string[], b: string[]): number {
+  const m = a.length
+  const n = b.length
+  let prev = new Array<number>(n + 1).fill(0)
+  for (let i = 1; i <= m; i++) {
+    const curr = new Array<number>(n + 1).fill(0)
+    for (let j = 1; j <= n; j++) {
+      curr[j] =
+        a[i - 1] === b[j - 1] ? (prev[j - 1] ?? 0) + 1 : Math.max(prev[j] ?? 0, curr[j - 1] ?? 0)
+    }
+    prev = curr
+  }
+  return prev[n] ?? 0
 }
 
 interface RawReview {

@@ -37,6 +37,24 @@ describe('ReviewService.computeChangePct', () => {
   test('一部変更', () => {
     expect(ReviewService.computeChangePct('hello world', 'hello WORLD')).toBeGreaterThan(0)
   })
+  test('複数行: 末尾 1 行変更は低変更率', () => {
+    const lines = Array.from({ length: 100 }, (_, i) => `line ${i}`).join('\n')
+    const changed = lines.replace('line 99', 'line 99 updated')
+    expect(ReviewService.computeChangePct(lines, changed)).toBeLessThan(0.3)
+  })
+  test('複数行: 散在する 5 行変更は低変更率', () => {
+    const lines = Array.from({ length: 100 }, (_, i) => `line ${i}`).join('\n')
+    const changedLines = lines
+      .split('\n')
+      .map((l, i) => ([10, 20, 50, 70, 90].includes(i) ? `${l} updated` : l))
+      .join('\n')
+    expect(ReviewService.computeChangePct(lines, changedLines)).toBeLessThan(0.3)
+  })
+  test('複数行: 過半数変更は高変更率', () => {
+    const before = Array.from({ length: 100 }, (_, i) => `line ${i}`).join('\n')
+    const after = Array.from({ length: 100 }, (_, i) => `different ${i}`).join('\n')
+    expect(ReviewService.computeChangePct(before, after)).toBeGreaterThan(0.3)
+  })
 })
 
 describe('ReviewService.proposeUpdate', () => {
