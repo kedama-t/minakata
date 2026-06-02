@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS articles (
   path TEXT NOT NULL,
   title TEXT NOT NULL,
   status TEXT NOT NULL CHECK (status IN ('draft','published','pending_approval','archived')),
-  source TEXT NOT NULL CHECK (source IN ('manual','agent_research','agent_changelog')),
+  source TEXT NOT NULL,
   tags_json TEXT NOT NULL DEFAULT '[]',
   topic_id TEXT REFERENCES topics(id) ON DELETE SET NULL,
   freshness_rank TEXT NOT NULL DEFAULT 'fresh' CHECK (freshness_rank IN ('fresh','aging','stale','very_stale')),

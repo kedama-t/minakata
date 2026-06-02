@@ -231,4 +231,25 @@ describe('ArticleService', () => {
     db.close()
     cleanup()
   })
+
+  test('source=agent_daily で記事を作成でき、daily/yyyy-mm-dd の slug で read できる', async () => {
+    const { db, articles, cleanup } = setup()
+    const slug = 'daily/2026-06-02'
+    const created = await articles.create({
+      title: 'デイリー調査ログ 2026-06-02',
+      slug,
+      body: '## スキャン結果\n\n特になし',
+      source: 'agent_daily',
+      tags: ['daily-research'],
+      author: 'agent:daily_research',
+    })
+    expect(created.frontmatter.source).toBe('agent_daily')
+    expect(created.frontmatter.slug).toBe(slug)
+
+    const read = articles.read(slug)
+    expect(read?.frontmatter.source).toBe('agent_daily')
+    expect(read?.frontmatter.tags).toContain('daily-research')
+    db.close()
+    cleanup()
+  })
 })

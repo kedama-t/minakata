@@ -6,7 +6,12 @@ export type Role = z.infer<typeof RoleSchema>
 export const ArticleStatusSchema = z.enum(['draft', 'published', 'pending_approval', 'archived'])
 export type ArticleStatus = z.infer<typeof ArticleStatusSchema>
 
-export const ArticleSourceKindSchema = z.enum(['manual', 'agent_research', 'agent_changelog'])
+export const ArticleSourceKindSchema = z.enum([
+  'manual',
+  'agent_research',
+  'agent_changelog',
+  'agent_daily',
+])
 export type ArticleSourceKind = z.infer<typeof ArticleSourceKindSchema>
 
 export const FreshnessRankSchema = z.enum(['fresh', 'aging', 'stale', 'very_stale'])
