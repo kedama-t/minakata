@@ -443,6 +443,8 @@ export function registerTaskTools(server: McpServer, s: McpServices, ctx: CallCo
         parent_task_id: z.string().optional(),
         parent_review_id: z.string().optional(),
         requested_by: z.string().optional(),
+        /** 完了後に post_agent_response で通知するチャットセッション ID */
+        session_id: z.string().optional(),
       },
     },
     async (args) => {
@@ -454,6 +456,7 @@ export function registerTaskTools(server: McpServer, s: McpServices, ctx: CallCo
         parent_task_id: args.parent_task_id ?? null,
         parent_review_id: args.parent_review_id ?? null,
         requested_by: args.requested_by ?? null,
+        session_id: args.session_id ?? null,
       })
       s.audit.log({
         actor: ctx.agent ?? 'unknown',
@@ -467,24 +470,41 @@ export function registerTaskTools(server: McpServer, s: McpServices, ctx: CallCo
   server.registerTool(
     'minakata.poll_tasks',
     {
-      description: '次の処理対象タスクを claim する(priority 順)',
+      description:
+        '次の処理対象タスクを claim する(priority 順)。types で処理する task type を絞ることで複数エージェントの奪い合いを防ぐ',
       inputSchema: {
         claimed_by: z.string(),
         limit: z.number().int().positive().max(10).optional(),
+        /** 処理する task type の許可リスト。未指定なら全 type を対象にする */
+        types: z.array(z.string()).optional(),
       },
     },
-    async ({ claimed_by, limit }) =>
-      ok({ tasks: s.tasks.claim(ctx.agent ?? claimed_by, limit ?? 1) }),
+    async ({ claimed_by, limit, types }) =>
+      ok({
+        tasks: s.tasks.claim(ctx.agent ?? claimed_by, {
+          limit: limit ?? 1,
+          ...(types !== undefined && { types }),
+        }),
+      }),
   )
 
   server.registerTool(
     'minakata.complete_task',
     {
-      description: 'タスクを完了状態にする。LLM コストを cost_usd で渡す',
-      inputSchema: { id: z.string(), cost_usd: z.number().nonnegative().optional() },
+      description:
+        'タスクを完了状態にする。LLM コストを cost_usd で渡す。result に構造化成果物(レビュー判定等)を入れると親タスクが get_task で読める',
+      inputSchema: {
+        id: z.string(),
+        cost_usd: z.number().nonnegative().optional(),
+        /** 記事以外の構造化成果物。payload.followup_type がある場合は親向けフォローアップ task に引き継がれる */
+        result: z.record(z.string(), z.unknown()).optional(),
+      },
     },
     async (args) => {
-      s.tasks.complete(args.id, args.cost_usd !== undefined ? { cost_usd: args.cost_usd } : {})
+      s.tasks.complete(args.id, {
+        ...(args.cost_usd !== undefined && { cost_usd: args.cost_usd }),
+        ...(args.result !== undefined && { result: args.result }),
+      })
       s.audit.log({
         actor: ctx.agent ?? 'agent',
         tool_name: 'minakata.complete_task',
@@ -492,6 +512,23 @@ export function registerTaskTools(server: McpServer, s: McpServices, ctx: CallCo
         metadata: { task_id: args.id },
       })
       return ok({ id: args.id, status: 'done' })
+    },
+  )
+
+  server.registerTool(
+    'minakata.get_task',
+    {
+      description:
+        'タスクを ID で取得する。親エージェントが子タスクの result/status を確認するために使う',
+      inputSchema: { id: z.string() },
+    },
+    async ({ id }) => {
+      const t = s.tasks.get(id)
+      if (!t)
+        return {
+          content: [{ type: 'text' as const, text: JSON.stringify({ error: 'not_found' }) }],
+        }
+      return ok(t)
     },
   )
 

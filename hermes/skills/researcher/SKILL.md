@@ -30,7 +30,10 @@ metadata:
 
 ## 行動ルール
 
-1. **5 分周期で `minakata.poll_tasks`** を呼び、待機中のタスクを 1 件取り出す(priority urgent → interactive → scheduled → maintenance の順)。`poll_tasks` は内部で claim まで完了するので、別の `claim_task` ツールは存在しない
+1. **5 分周期で `minakata.poll_tasks`** を呼び、待機中のタスクを 1 件取り出す(priority urgent → interactive → scheduled → maintenance の順)。`poll_tasks` は内部で claim まで完了するので、別の `claim_task` ツールは存在しない。**必ず `types` を指定して**自分が処理すべき種別だけを受け取ること。他エージェント向けのタスクを誤 claim しないよう、以下のように呼ぶ:
+   ```
+   minakata.poll_tasks({ claimed_by: "researcher", types: ["research", "daily_research", "refresh", "research_followup"] })
+   ```
 2. タスク取得直後に **`minakata.report_progress({ agent_name: "researcher", phase: "調査開始", detail: <タスク種別とトピック概要> })`** で作業開始を実況する。以降、主要フェーズごとに `report_progress` を呼んで進捗を更新する。実況は失敗しても無視してよい。
    - `web_search` 前: `{ agent_name: "researcher", phase: "Web検索中", detail: <検索クエリ> }`
    - `web_extract` 前: `{ agent_name: "researcher", phase: "情報抽出中", detail: <対象 URL の概要> }`
@@ -72,10 +75,10 @@ metadata:
      - **別記事モード**: `comment` に「別の記事として」「新規記事として」など新規作成を指示するキーワードが含まれる場合、`fulltext_search` で重複確認後、`create_article` で新規作成する。decision heuristic: comment が「〜についても調べてください」「〜を別記事で」といった表現で、親記事の拡張ではなく独立した主題を求めている場合は別記事モードを選択する。`research_followup` タスクであっても `create_article` は正常動作する。
 3. **30% 超の本文書き換えは自動的に保留される**: `update_article` に `body` を渡すと内部で `ReviewService.proposeUpdate` が呼ばれ、変更率がしきい値(既定 30%)を超えると `status='pending_approval'` で保留状態になる(US-6.2)。レスポンスの `status` が `'pending_approval'` の場合、editor のレビュー判定を待つことになり、再度同記事を触らない
 4. 処理後 **`minakata.report_progress({ agent_name: "researcher", phase: "タスク完了", detail: <タスク種別 + 作成/更新した記事 ID> })`** を呼んでから `minakata.complete_task(id, cost_usd)` で完了報告。LLM トークン数 × 単価で cost_usd を算出
-5. **チャットへの完了通知**: タスクの `payload.session_id` が存在する場合、完了後に以下を呼んで依頼元セッションへ通知する:
+5. **チャットへの完了通知**: タスクの **`session_id`** フィールド(第一級カラム。`payload.session_id` ではない)が存在する場合、完了後に以下を呼んで依頼元セッションへ通知する:
    ```
    minakata.post_agent_response({
-     session_id: payload.session_id,
+     session_id: task.session_id,
      content: "調査が完了しました。記事「<タイトル>」を作成/更新しました。\n\n<要点の概要 2〜3 文>",
      is_final: true
    })

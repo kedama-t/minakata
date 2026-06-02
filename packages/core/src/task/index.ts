@@ -18,6 +18,10 @@ export interface TaskRow {
   parent_review_id: string | null
   dedup_key: string | null
   requested_by: string | null
+  /** タスクが紐づくチャットセッション。完了エージェントが post_agent_response の宛先に使う */
+  session_id: string | null
+  /** 完了時の構造化結果。記事でない成果物(レビュー判定等)を親タスクが読む */
+  result: Record<string, unknown> | null
   cost_usd: number
   created_at: string
   updated_at: string
@@ -31,6 +35,7 @@ export interface EnqueueInput {
   parent_task_id?: string | null | undefined
   parent_review_id?: string | null | undefined
   requested_by?: string | null | undefined
+  session_id?: string | null | undefined
 }
 
 const MAX_ATTEMPTS = 3
@@ -53,8 +58,8 @@ export class TaskService extends EventEmitter {
       this.db
         .prepare(
           `INSERT INTO tasks (id, type, priority, payload_json, parent_task_id, parent_review_id,
-            dedup_key, requested_by, created_at, updated_at)
-           VALUES ($id, $type, $prio, $payload, $parent, $review, $dedup, $requested, $ts, $ts)`,
+            dedup_key, requested_by, session_id, created_at, updated_at)
+           VALUES ($id, $type, $prio, $payload, $parent, $review, $dedup, $requested, $session, $ts, $ts)`,
         )
         .run({
           id,
@@ -65,6 +70,7 @@ export class TaskService extends EventEmitter {
           review: input.parent_review_id ?? null,
           dedup: input.dedup_key ?? null,
           requested: input.requested_by ?? null,
+          session: input.session_id ?? null,
           ts,
         })
     } catch (err) {
@@ -96,20 +102,28 @@ export class TaskService extends EventEmitter {
   /**
    * 次に処理するタスクを claim する。
    * priority(urgent > interactive > scheduled > maintenance)→ created_at の順で `limit` 件取り出す。
+   * `types` を指定すると対象 type のみ取得(複数消費者の奪い合いを防ぐ pub/sub ルーティング)。
    *
    * SELECT 候補取得 → 個別 UPDATE を 1 つの SQLite トランザクションで囲む
    * ことで、複数ワーカーが同時に呼び出した場合の重複 claim を防ぐ。
    * (SQLite はライタが直列化されるため、トランザクション内の UPDATE は
    *  同時に走らず WHERE status='queued' の競合は確実に弾かれる)
    */
-  claim(claimedBy: string, limit = 1): TaskRow[] {
+  claim(claimedBy: string, opts: { limit?: number; types?: string[] } = {}): TaskRow[] {
+    const limit = opts.limit ?? 1
     const claimAt = now()
     return this.db.transaction((): TaskRow[] => {
+      const typeFilter =
+        opts.types && opts.types.length > 0
+          ? `AND type IN (${opts.types.map(() => '?').join(',')})`
+          : ''
+      const params: Array<string | number> = [claimAt, ...(opts.types ?? []), limit]
       const rows = this.db
-        .query<TaskRowRaw, [string, number]>(
+        .query<TaskRowRaw, Array<string | number>>(
           `SELECT * FROM tasks
            WHERE status = 'queued'
              AND (next_attempt_at IS NULL OR next_attempt_at <= ?)
+             ${typeFilter}
            ORDER BY CASE priority
                 WHEN 'urgent' THEN 0
                 WHEN 'interactive' THEN 1
@@ -118,7 +132,7 @@ export class TaskService extends EventEmitter {
               END, created_at
            LIMIT ?`,
         )
-        .all(claimAt, limit)
+        .all(...params)
       const claimed: TaskRow[] = []
       for (const r of rows) {
         const res = this.db
@@ -142,15 +156,34 @@ export class TaskService extends EventEmitter {
     })()
   }
 
-  complete(id: string, opts: { cost_usd?: number } = {}): void {
+  complete(id: string, opts: { cost_usd?: number; result?: Record<string, unknown> } = {}): void {
     const ts = now()
     this.db
       .prepare(
-        `UPDATE tasks SET status = 'done', completed_at = ?, cost_usd = cost_usd + ?, updated_at = ?
+        `UPDATE tasks SET status = 'done', completed_at = ?, cost_usd = cost_usd + ?,
+            result_json = ?, updated_at = ?
          WHERE id = ?`,
       )
-      .run(ts, opts.cost_usd ?? 0, ts, id)
+      .run(ts, opts.cost_usd ?? 0, opts.result ? JSON.stringify(opts.result) : null, ts, id)
     this.emit('completed', id)
+
+    // フォローアップ結線: payload.followup_type が指定されていれば、
+    // 完了した子タスクの結果を持つフォローアップ task を自動 enqueue する。
+    // 親エージェントは自分の type を poll するだけで子の結果を受け取れる(fan-in)。
+    const row = this.get(id)
+    if (!row || !row.parent_task_id) return
+    const followupType = row.payload.followup_type
+    if (typeof followupType !== 'string') return
+    this.enqueue({
+      type: followupType,
+      priority: row.priority,
+      parent_task_id: row.parent_task_id,
+      session_id: row.session_id,
+      payload: {
+        child_task_id: row.id,
+        child_result: opts.result ?? null,
+      },
+    })
   }
 
   /** 失敗時、attempts < MAX_ATTEMPTS なら指数バックオフで再 queue、超過したら DLQ へ */
@@ -346,6 +379,8 @@ interface TaskRowRaw {
   parent_review_id: string | null
   dedup_key: string | null
   requested_by: string | null
+  session_id: string | null
+  result_json: string | null
   cost_usd: number
   created_at: string
   updated_at: string
@@ -367,6 +402,8 @@ function hydrate(r: TaskRowRaw): TaskRow {
     parent_review_id: r.parent_review_id,
     dedup_key: r.dedup_key,
     requested_by: r.requested_by,
+    session_id: r.session_id,
+    result: r.result_json ? (JSON.parse(r.result_json) as Record<string, unknown>) : null,
     cost_usd: r.cost_usd,
     created_at: r.created_at,
     updated_at: r.updated_at,
