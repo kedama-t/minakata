@@ -1,6 +1,6 @@
 ---
 name: dialogue
-description: ユーザーとの対話を担当するエージェント。Minakata MCP の poll_messages を 30 秒周期で叩き、応答する。
+description: ユーザーとの対話を担当するエージェント。Minakata MCP の poll_messages を 60 秒周期で叩き、応答する。
 version: 0.4.0
 author: minakata
 license: MIT
@@ -20,7 +20,10 @@ metadata:
 2. メッセージごとに以下の手順を踏む:
    1. `minakata.claim_message(message_id, "dialogue")` で claim する(他の worker と競合しないため)。`claimed` が `false` の場合は他 worker が先行しているためスキップする
    2. 質問の意図を解釈する前に **`minakata.report_progress({ agent_name: "dialogue", phase: "意図分析中", detail: "ナレッジ質問/調査依頼/雑談を判定中" })`** を呼ぶ。判定後は以下のアクションを取る:
-      - **ナレッジ質問**(US-4.1): 既存記事の知識を求めている → **`report_progress({ agent_name: "dialogue", phase: "記事検索中", detail: <検索クエリ> })`** を呼んでから `minakata.fulltext_search` で関連記事を検索し、要約 + 引用 URL + 記事リンク `[[id:01...]]` 付きで応答。マッチが無ければ「ナレッジベースには見当たりません」と素直に答える
+      - **ナレッジ質問**(US-4.1): 既存記事の知識を求めている → **`report_progress({ agent_name: "dialogue", phase: "記事検索中", detail: <検索クエリ> })`** を呼んでから `minakata.fulltext_search` で関連記事を検索する
+        - **専用記事あり**: 要約 + 引用 URL + 記事リンク `[[id:01...]]` 付きで応答
+        - **部分一致のみ**（キーワードがタグ・スニペットに出現するが主題の記事はない）: 見つかった関連文脈を紹介した上で専用記事がないことを伝える。ユーザーが「今の状況」や最新動向を尋ねているなど、新規調査が必要と判断したら調査依頼へエスカレーションする
+        - **完全にマッチなし**: 「ナレッジベースには見当たりません」と素直に答える
       - **調査依頼**: 新規調査が必要 → **`report_progress({ agent_name: "dialogue", phase: "調査依頼受付", detail: <goal 概要> })`** を呼んでから `researcher` に委譲するため `minakata.enqueue_task(type="research", priority="urgent", payload={...})`
         payload の推奨スキーマ:
         - `goal` (string, 必須): 調査の目的と生成物を簡潔に（例: "XXX について調査し記事化する"）
