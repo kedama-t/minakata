@@ -1,3 +1,4 @@
+import type { Article } from '@minakata/core'
 import { Form } from 'react-router'
 import { requireEditor, requireUser } from '../lib/auth.ts'
 import { ArticleMarkdown } from '../lib/markdown.tsx'
@@ -19,7 +20,8 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     .run(user.id, article.frontmatter.id, new Date().toISOString())
   const comments = services.comments.listByArticle(article.frontmatter.id)
   const related = services.search.similar(article.frontmatter.id, 5)
-  return { article, comments, related, role: user.role }
+  const body = resolveIdRefs(article.body, (id) => services.articles.read(id))
+  return { article, body, comments, related, role: user.role }
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
@@ -75,7 +77,7 @@ export async function action({ request, params }: Route.ActionArgs) {
 }
 
 export default function ArticlePage({ loaderData, actionData }: Route.ComponentProps) {
-  const { article, comments, related, role } = loaderData
+  const { article, body, comments, related, role } = loaderData
   const canEdit = role !== 'viewer'
   return (
     <article className="max-w-3xl mx-auto p-6">
@@ -97,7 +99,7 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
       {article.frontmatter.summary && (
         <div className="bg-base-300 p-3 rounded mb-6 text-sm">{article.frontmatter.summary}</div>
       )}
-      <ArticleMarkdown source={article.body} />
+      <ArticleMarkdown source={body} />
       {article.frontmatter.sources.length > 0 && (
         <section className="mt-8 border-t pt-4">
           <h2 className="text-lg font-bold mb-2">出典</h2>
@@ -189,4 +191,13 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
       </section>
     </article>
   )
+}
+
+/** `[[id:XXXX]]` を標準 Markdown リンクに変換する */
+function resolveIdRefs(body: string, lookup: (id: string) => Article | null): string {
+  return body.replace(/\[\[id:([^\]]+)\]\]/g, (match, id: string) => {
+    const article = lookup(id.trim())
+    if (!article) return match
+    return `[${article.frontmatter.title}](/articles/${article.frontmatter.slug})`
+  })
 }
