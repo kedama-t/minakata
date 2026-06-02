@@ -71,7 +71,8 @@ services:
       OPENCODE_GO_API_KEY: "${OPENCODE_API_KEY}"
       FIRECRAWL_API_KEY: "${FIRECRAWL_API_KEY}"
       # Firecrawl の scrape/search を Minakata の互換エンドポイントに転送する
-      FIRECRAWL_BASE_URL: "http://minakata:3000"
+      # .env に FIRECRAWL_BASE_URL を書けば上書きできる
+      FIRECRAWL_BASE_URL: "${FIRECRAWL_BASE_URL:-http://minakata:3000}"
       # config.yaml の mcp_servers.minakata.headers が ${MCP_TOKEN} を展開
       # できるよう env として渡す。
       MCP_TOKEN: "${MCP_TOKEN}"
