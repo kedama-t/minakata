@@ -44,6 +44,15 @@ async function validatePublicUrl(urlStr: string): Promise<void> {
   }
 }
 
+/**
+ * 外部取得テキストをフェンスタグで囲み、内部の偽閉じタグをエスケープする。
+ * LLM がフェンス内テキストを信頼された命令として解釈しないよう保護する。
+ */
+function fenceContent(text: string): string {
+  const escaped = text.replaceAll('</untrusted_content>', '<\\/untrusted_content>')
+  return `<untrusted_content>\n${escaped}\n</untrusted_content>`
+}
+
 const td = new TurndownService({
   headingStyle: 'atx',
   hr: '---',
@@ -108,7 +117,7 @@ export async function scrapeUrl(
   }
 
   return {
-    markdown,
+    markdown: fenceContent(markdown),
     metadata: {
       title,
       description: metaDesc,
