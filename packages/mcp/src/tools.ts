@@ -1,4 +1,9 @@
-import { ArticleStatusSchema, SourceRefSchema, TaskPrioritySchema } from '@minakata/core'
+import {
+  ArticleSourceKindSchema,
+  ArticleStatusSchema,
+  SourceRefSchema,
+  TaskPrioritySchema,
+} from '@minakata/core'
 /**
  * Minakata MCP の公開ツール群(Phase 1)。
  * tech-stack.md §5.3, user-stories.md の各 US 受け入れ条件に対応。
@@ -48,7 +53,7 @@ export function registerArticleTools(
         topic_id: z.string().optional(),
         summary: z.string().optional(),
         author: z.string().default('researcher'),
-        source: z.enum(['manual', 'agent_research', 'agent_changelog']).optional(),
+        source: ArticleSourceKindSchema.optional(),
         /** 出典(US-5.1 横断要件)。{url, fetched_at, archive_url?, used_in_sections?} の配列 */
         sources: z.array(SourceRefSchema).optional(),
       },

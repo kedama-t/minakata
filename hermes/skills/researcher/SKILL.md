@@ -24,7 +24,7 @@ metadata:
 | `payload.instructions` | 調査の詳細指示。分析観点・対象読者・出力言語・優先すべき一次情報源など。調査方針と記事構成の決定に使用する | research, research_followup |
 | `payload.query` | 推奨される検索クエリ。`web_search` の第一弾として使用する。不足があれば追加クエリで補完する | research |
 | `payload.article_id` | 既存記事への追記・更新時に指定される（null なら新規作成） | research_followup, refresh |
-| `payload.topic_id` | 購読トピックの ID（DB の topics テーブルの外部キー）。`list_topics` で topic 名を解決してから使う | daily_research |
+| `payload.topic_id` | 購読トピックの ID（DB の topics テーブルの外部キー）。`list_topics` で topic 名を解決してから使う | daily_research, research |
 | `payload.keywords` | トピックに関連するキーワード配列。検索クエリ生成の出発点として使用する | daily_research |
 | `payload.depth` | 調査の深さ（`"shallow"` / `"deep"`）。shallow は 3-5 URL 抽出＋短めの記事、deep は 8+ URL 抽出＋詳細記事 | daily_research |
 
