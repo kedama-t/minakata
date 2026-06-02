@@ -506,6 +506,24 @@ export function registerTaskTools(server: McpServer, s: McpServices, ctx: CallCo
       return ok({ id: args.id, requeued: true })
     },
   )
+
+  server.registerTool(
+    'minakata.list_dlq',
+    {
+      description: 'DLQ（Dead Letter Queue）の失敗タスク一覧を返す。changelog_writer の集計に利用',
+      inputSchema: {
+        limit: z.number().int().positive().max(200).optional(),
+        since: z.string().datetime().optional(),
+      },
+    },
+    async (args) => {
+      const rows = s.tasks.listDlq({
+        ...(args.limit !== undefined && { limit: args.limit }),
+        ...(args.since !== undefined && { since: args.since }),
+      })
+      return ok({ count: rows.length, items: rows })
+    },
+  )
 }
 
 export function registerMaintenanceTools(server: McpServer, s: McpServices): void {

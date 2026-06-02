@@ -275,6 +275,60 @@ export class TaskService extends EventEmitter {
       .prepare(`UPDATE tasks SET status = 'failed', updated_at = ? WHERE id = ?`)
       .run(now(), id)
   }
+
+  /** DLQ エントリを `moved_at` 降順で返す */
+  listDlq(opts: { limit?: number; since?: string } = {}): DlqRow[] {
+    const limit = opts.limit ?? 50
+    const conditions: string[] = []
+    const params: Array<string | number> = []
+    if (opts.since) {
+      conditions.push('moved_at >= ?')
+      params.push(opts.since)
+    }
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+    params.push(limit)
+    return this.db
+      .query<DlqRowRaw, Array<string | number>>(
+        `SELECT * FROM task_dlq ${where} ORDER BY moved_at DESC LIMIT ?`,
+      )
+      .all(...params)
+      .map(hydrateDlq)
+  }
+}
+
+export interface DlqRow {
+  id: string
+  task_id: string
+  type: string
+  priority: TaskPriority
+  payload: Record<string, unknown>
+  attempts: number
+  reason: string
+  moved_at: string
+}
+
+interface DlqRowRaw {
+  id: string
+  task_id: string
+  type: string
+  priority: TaskPriority
+  payload_json: string
+  attempts: number
+  reason: string
+  moved_at: string
+}
+
+function hydrateDlq(r: DlqRowRaw): DlqRow {
+  return {
+    id: r.id,
+    task_id: r.task_id,
+    type: r.type,
+    priority: r.priority,
+    payload: JSON.parse(r.payload_json) as Record<string, unknown>,
+    attempts: r.attempts,
+    reason: r.reason,
+    moved_at: r.moved_at,
+  }
 }
 
 interface TaskRowRaw {
