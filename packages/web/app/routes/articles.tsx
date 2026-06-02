@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { requireUser } from '../lib/auth.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/articles.ts'
@@ -36,6 +37,54 @@ function PendingBadge({ status }: { status: string }) {
   )
 }
 
+const TAG_LIMIT = 20
+
+function TagCloud({
+  tags,
+  currentTag,
+}: { tags: { tag: string; count: number }[]; currentTag: string }) {
+  const [expanded, setExpanded] = useState(false)
+  const hasMore = tags.length > TAG_LIMIT
+  const visibleTags = expanded ? tags : tags.slice(0, TAG_LIMIT)
+  return (
+    <section className="flex flex-wrap gap-1.5">
+      <a
+        href="/articles"
+        className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
+          currentTag === ''
+            ? 'bg-primary text-primary-content'
+            : 'bg-base-200 text-base-content/70 hover:bg-base-300'
+        }`}
+      >
+        すべて
+      </a>
+      {visibleTags.map((t) => (
+        <a
+          key={t.tag}
+          href={`/articles?tag=${encodeURIComponent(t.tag)}`}
+          className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
+            currentTag === t.tag
+              ? 'bg-primary text-primary-content'
+              : 'bg-base-200 text-base-content/70 hover:bg-base-300'
+          }`}
+        >
+          {t.tag}
+          <span className="ml-1 opacity-60 tabular-nums">{t.count}</span>
+        </a>
+      ))}
+      {hasMore && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="text-xs px-2.5 py-1 rounded-full bg-base-200 text-base-content/50 hover:bg-base-300 transition-colors"
+        >
+          {expanded ? '閉じる' : `+${tags.length - TAG_LIMIT}件`}
+        </button>
+      )}
+    </section>
+  )
+}
+
 export default function Articles({ loaderData }: Route.ComponentProps) {
   const { articles, tags, tag } = loaderData
   return (
@@ -53,34 +102,7 @@ export default function Articles({ loaderData }: Route.ComponentProps) {
         </p>
       </header>
 
-      {tags.length > 0 && (
-        <section className="flex flex-wrap gap-1.5">
-          <a
-            href="/articles"
-            className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
-              tag === ''
-                ? 'bg-primary text-primary-content'
-                : 'bg-base-200 text-base-content/70 hover:bg-base-300'
-            }`}
-          >
-            すべて
-          </a>
-          {tags.map((t) => (
-            <a
-              key={t.tag}
-              href={`/articles?tag=${encodeURIComponent(t.tag)}`}
-              className={`text-xs px-2.5 py-1 rounded-full transition-colors ${
-                tag === t.tag
-                  ? 'bg-primary text-primary-content'
-                  : 'bg-base-200 text-base-content/70 hover:bg-base-300'
-              }`}
-            >
-              {t.tag}
-              <span className="ml-1 opacity-60 tabular-nums">{t.count}</span>
-            </a>
-          ))}
-        </section>
-      )}
+      {tags.length > 0 && <TagCloud tags={tags} currentTag={tag} />}
 
       {articles.length === 0 ? (
         <p className="text-sm text-base-content/60">
