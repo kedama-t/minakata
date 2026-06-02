@@ -32,12 +32,42 @@ describe('TaskService', () => {
     db.close()
   })
 
-  test('dedup_key で冪等性が確保される', () => {
+  test('dedup_key で冪等性が確保される(queued/claimed は既存行を返す)', () => {
     const db = openTestDb()
     const tasks = new TaskService(db)
     const a = tasks.enqueue({ type: 't', priority: 'scheduled', dedup_key: 'topic:bun:2026-05-22' })
     const b = tasks.enqueue({ type: 't', priority: 'scheduled', dedup_key: 'topic:bun:2026-05-22' })
     expect(a.id).toBe(b.id)
+    db.close()
+  })
+
+  test('done な dedup_key タスクは再投入できる(古い dedup_key を解放して新規 INSERT)', () => {
+    const db = openTestDb()
+    const tasks = new TaskService(db)
+    const key = 'refresh:article-x:2026-06-02'
+    const first = tasks.enqueue({ type: 'refresh', priority: 'scheduled', dedup_key: key })
+    tasks.complete(first.id)
+    expect(tasks.get(first.id)?.status).toBe('done')
+
+    const second = tasks.enqueue({ type: 'refresh', priority: 'scheduled', dedup_key: key })
+    expect(second.id).not.toBe(first.id)
+    expect(second.status).toBe('queued')
+    expect(tasks.get(first.id)?.dedup_key ?? null).toBeNull()
+    db.close()
+  })
+
+  test('failed な dedup_key タスクも再投入できる', () => {
+    const db = openTestDb()
+    const tasks = new TaskService(db)
+    const key = 'refresh:article-y:2026-06-02'
+    const first = tasks.enqueue({ type: 'refresh', priority: 'scheduled', dedup_key: key })
+    tasks.fail(first.id, 'err1')
+    tasks.fail(first.id, 'err2')
+    tasks.fail(first.id, 'err3') // → DLQ(status=failed)
+
+    const second = tasks.enqueue({ type: 'refresh', priority: 'scheduled', dedup_key: key })
+    expect(second.id).not.toBe(first.id)
+    expect(second.status).toBe('queued')
     db.close()
   })
 

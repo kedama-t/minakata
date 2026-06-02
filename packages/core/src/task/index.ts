@@ -74,10 +74,39 @@ export class TaskService extends EventEmitter {
           ts,
         })
     } catch (err) {
-      // UNIQUE 制約違反 = 既存のタスクが取得できるはず → そちらを返す(冪等)
+      // UNIQUE 制約違反 = dedup_key が衝突している
       if (input.dedup_key) {
         const existing = this.findByDedupKey(input.dedup_key)
-        if (existing) return existing
+        if (existing) {
+          // 既存タスクがアクティブ(queued/claimed)なら重複投入を防ぐため既存行を返す
+          if (existing.status === 'queued' || existing.status === 'claimed') return existing
+          // done/failed なら再実行を許可: 古い dedup_key を解放して新規 INSERT
+          this.db
+            .prepare('UPDATE tasks SET dedup_key = NULL, updated_at = ? WHERE id = ?')
+            .run(now(), existing.id)
+          this.db
+            .prepare(
+              `INSERT INTO tasks (id, type, priority, payload_json, parent_task_id, parent_review_id,
+                dedup_key, requested_by, session_id, created_at, updated_at)
+               VALUES ($id, $type, $prio, $payload, $parent, $review, $dedup, $requested, $session, $ts, $ts)`,
+            )
+            .run({
+              id,
+              type: input.type,
+              prio: input.priority,
+              payload: JSON.stringify(payload),
+              parent: input.parent_task_id ?? null,
+              review: input.parent_review_id ?? null,
+              dedup: input.dedup_key,
+              requested: input.requested_by ?? null,
+              session: input.session_id ?? null,
+              ts,
+            })
+          const row = this.get(id)
+          if (!row) throw new Error('failed to read back re-enqueued task')
+          this.emit('enqueued', row)
+          return row
+        }
       }
       throw err
     }
