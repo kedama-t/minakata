@@ -21,6 +21,8 @@ services:
       TIMEZONE: "${TIMEZONE:-Asia/Tokyo}"
       # MCP の DNS rebinding 対策。本番では Hermes コンテナの hostname と Caddy 経由の公開ホストを指定
       MCP_ALLOWED_HOSTS: "${MCP_ALLOWED_HOSTS:-minakata:3000,localhost,localhost:3000}"
+      # /v1/scrape の Bearer 認証。Hermes が FIRECRAWL_API_KEY を送ってくる値と一致させる
+      FIRECRAWL_API_KEY: "${FIRECRAWL_API_KEY}"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/health"]
@@ -68,6 +70,8 @@ services:
       # 専用の OPENCODE_GO_API_KEY を使う(汎用 OPENAI_API_KEY ではない)。
       OPENCODE_GO_API_KEY: "${OPENCODE_API_KEY}"
       FIRECRAWL_API_KEY: "${FIRECRAWL_API_KEY}"
+      # Firecrawl の scrape/search を Minakata の互換エンドポイントに転送する
+      FIRECRAWL_BASE_URL: "http://minakata:3000"
       # config.yaml の mcp_servers.minakata.headers が ${MCP_TOKEN} を展開
       # できるよう env として渡す。
       MCP_TOKEN: "${MCP_TOKEN}"
