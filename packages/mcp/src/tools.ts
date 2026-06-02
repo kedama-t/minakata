@@ -47,7 +47,12 @@ export function registerArticleTools(
         '新規記事を作成する。Markdown 書き込み + DB インデックス + Git コミット。出典(US-5.1)は sources で渡す',
       inputSchema: {
         title: z.string(),
-        slug: z.string(),
+        slug: z
+          .string()
+          .regex(
+            /^[a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)*$/,
+            'slug は英小文字・数字・ハイフンのみ（スラッシュで階層化可）',
+          ),
         body: z.string(),
         tags: z.array(z.string()).optional(),
         topic_id: z.string().optional(),
