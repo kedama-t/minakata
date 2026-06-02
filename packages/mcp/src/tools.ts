@@ -361,13 +361,27 @@ export function registerMessageTools(
       description: '未取得のユーザー発言を取り出す。Hermes の dialogue subagent が 30 秒周期で呼ぶ',
       inputSchema: { limit: z.number().int().positive().max(100).optional() },
     },
-    async ({ limit }) => ok({ messages: s.messages.pollUserMessages(limit) }),
+    async ({ limit }) => {
+      const sessionMsgs = s.messages.pollUserMessages(limit).map((m) => ({
+        ...m,
+        channel: 'session' as const,
+      }))
+      const globalMsgs = s.globalChat.pollUnclaimed(limit).map((m) => ({
+        ...m,
+        channel: 'global' as const,
+      }))
+      const messages = [...sessionMsgs, ...globalMsgs].sort((a, b) =>
+        a.created_at.localeCompare(b.created_at),
+      )
+      return ok({ messages })
+    },
   )
 
   server.registerTool(
     'minakata.claim_message',
     {
-      description: 'メッセージを claim して処理開始を宣言する',
+      description:
+        'セッションメッセージを claim して処理開始を宣言する。channel="global" の場合は claim_global_message を使う',
       inputSchema: { message_id: z.string(), claimed_by: z.string() },
     },
     async ({ message_id, claimed_by }) => ok(s.messages.claim(message_id, ctx.agent ?? claimed_by)),
@@ -427,6 +441,45 @@ export function registerMessageTools(
       })
       return ok({ id })
     },
+  )
+}
+
+export function registerGlobalChatTools(
+  server: McpServer,
+  s: McpServices,
+  ctx: CallContext = {},
+): void {
+  server.registerTool(
+    'minakata.post_to_global',
+    {
+      description:
+        'グローバルチャットにエージェントとして投稿する。タスク完了報告や進捗通知に使う。is_final=false でストリーミング投稿も可',
+      inputSchema: {
+        content: z.string(),
+        author_name: z.string(),
+        is_final: z.boolean().default(true),
+      },
+    },
+    async (args) => {
+      const m = s.globalChat.post({
+        author_type: 'agent',
+        author_id: null,
+        author_name: ctx.agent ?? args.author_name,
+        content: args.content,
+        is_final: args.is_final,
+      })
+      return ok({ id: m.id })
+    },
+  )
+
+  server.registerTool(
+    'minakata.claim_global_message',
+    {
+      description: 'グローバルチャットのユーザー発言を claim して処理開始を宣言する',
+      inputSchema: { message_id: z.string(), claimed_by: z.string() },
+    },
+    async ({ message_id, claimed_by }) =>
+      ok(s.globalChat.claim(message_id, ctx.agent ?? claimed_by)),
   )
 }
 
@@ -888,6 +941,7 @@ export function registerAllTools(
   registerArticleTools(server, services, ctx)
   registerSearchTools(server, services)
   registerMessageTools(server, services, ctx)
+  registerGlobalChatTools(server, services, ctx)
   registerTaskTools(server, services, ctx)
   registerMaintenanceTools(server, services)
   registerReviewTools(server, services, ctx)

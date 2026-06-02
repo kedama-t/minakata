@@ -1,7 +1,7 @@
 ---
 name: researcher
 description: 調査タスクキューを消化する。Web 検索 → 抽出 → 記事化を行う。
-version: 0.2.0
+version: 0.3.0
 author: minakata
 license: MIT
 platforms: [linux]
@@ -68,6 +68,7 @@ metadata:
           - **ビジネスイベント**: 開発元の経営状況の変化（レイオフ・資金調達・買収・収益悪化・スポンサーシップ）
           - **コミュニティ変動**: フォーク・分裂・メンテナンス終了・ライセンス変更・スター数の急変
           - **市場分析**: 「best <カテゴリ> 2026」「<カテゴリ> comparison」など、新しい比較・評価記事
+       7. **個別ライブラリの Changelog 直接抽出（比較記事向け）**: 複数ライブラリを比較する記事の refresh では、一般ニュース検索に加えて**各ライブラリの公式 Changelog ページを直接 `web_extract` する**。`web_search` が「大きな変化なし」と返しても、Changelog には小規模な新コンポーネント・新バリアント・細かい改善が記載されていることがある（例: daisyUI v5.5.0 の hover-3d, text-rotate, skeleton-text — 一般検索では拾えない粒度）。詳細は `references/changelog-scanning.md` 参照。
      - **作成直後（1週間以内）の記事の注意点**: 元記事作成時に未収録だった同時発表（資金調達・買収・パートナーシップなど）や**それ以前から存在していた主要リリース（バージョン更新・新製品発表など）** を見落としている可能性がある。記事作成日の前後数週間の全リリースノートを時系列で把握し、元記事がカバーすべきだった内容を漏れなく補完する。
      - **body 更新の pending_approval**: 作成直後の記事への body 追記は、たとえ変更量が小さくても予想以上の `change_pct` が検出されることがある。`status: "pending_approval"` は正常なフローであり、`review_id` を確認して通常通り `complete_task` を呼んでタスクを完了してよい。editor がレビュー後に内容を反映するまで、再度同記事を触らない。
    - `type="research_followup"` (フォローアップ調査): デフォルトでは既存記事に追記する前提のタスク。payload に `article_id`（親記事 ID）・`comment`（調査依頼の内容）・`anchor`（コメントが紐づく記事内の箇所）が含まれる。処理手順: `read_article` で親記事を読む → comment/anchor から必要な追加調査テーマを特定 → `web_search` + `web_extract` で情報収集。
@@ -75,19 +76,29 @@ metadata:
      - **別記事モード**: `comment` に「別の記事として」「新規記事として」など新規作成を指示するキーワードが含まれる場合、`fulltext_search` で重複確認後、`create_article` で新規作成する。decision heuristic: comment が「〜についても調べてください」「〜を別記事で」といった表現で、親記事の拡張ではなく独立した主題を求めている場合は別記事モードを選択する。`research_followup` タスクであっても `create_article` は正常動作する。
 3. **30% 超の本文書き換えは自動的に保留される**: `update_article` に `body` を渡すと内部で `ReviewService.proposeUpdate` が呼ばれ、変更率がしきい値(既定 30%)を超えると `status='pending_approval'` で保留状態になる(US-6.2)。レスポンスの `status` が `'pending_approval'` の場合、editor のレビュー判定を待つことになり、再度同記事を触らない
 4. 処理後 **`minakata.report_progress({ agent_name: "researcher", phase: "タスク完了", detail: <タスク種別 + 作成/更新した記事 ID> })`** を呼んでから `minakata.complete_task(id, cost_usd)` で完了報告。LLM トークン数 × 単価で cost_usd を算出
-5. **チャットへの完了通知**: タスクの **`session_id`** フィールドが存在する場合、**`post_agent_response` を直接呼ばず**、`notify_chat` タスクを enqueue して dialogue に委譲する:
-   ```
-   minakata.enqueue_task({
-     type: "notify_chat",
-     priority: "interactive",
-     session_id: task.session_id,
-     payload: {
+5. **完了通知**: タスクの **`session_id`** フィールドの有無で通知先を切り替える:
+   - **`session_id` あり（1対1チャット経由の依頼）**: **`post_agent_response` を直接呼ばず**、`notify_chat` タスクを enqueue して dialogue に委譲する:
+     ```
+     minakata.enqueue_task({
+       type: "notify_chat",
+       priority: "interactive",
+       session_id: task.session_id,
+       payload: {
+         content: "調査が完了しました。記事「<タイトル>」を作成/更新しました。\n\n<要点の概要 2〜3 文>",
+         is_final: true
+       }
+     })
+     ```
+     タスクが `research_followup` の場合は対象コメントの記事 ID を content に含めること。enqueue が失敗しても `complete_task` は呼ぶ。
+   - **`session_id` なし（グローバルチャット経由 or バッチ依頼）**: `minakata.post_to_global` でグローバルチャットに直接完了報告する:
+     ```
+     minakata.post_to_global({
        content: "調査が完了しました。記事「<タイトル>」を作成/更新しました。\n\n<要点の概要 2〜3 文>",
+       author_name: "researcher",
        is_final: true
-     }
-   })
-   ```
-   タスクが `research_followup` の場合は対象コメントの記事 ID を content に含めること。enqueue が失敗しても `complete_task` は呼ぶ。
+     })
+     ```
+     `post_to_global` が失敗しても `complete_task` は呼ぶ。`daily_research` / `refresh` タイプは `session_id` がないため、このパスで通知する。
 5. 失敗時は **`minakata.report_progress({ agent_name: "researcher", phase: "タスク失敗", detail: <失敗理由の概要> })`** を呼んでから `minakata.fail_task(id, reason)` を呼ぶ(指数バックオフで再キュー、3 回超で DLQ)
 
 ## 既知の Pitfalls

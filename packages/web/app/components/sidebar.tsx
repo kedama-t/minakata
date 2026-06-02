@@ -9,6 +9,7 @@ import {
   CheckCircleIcon,
   CommandIcon,
   FileTextIcon,
+  GlobeIcon,
   HomeIcon,
   ListIcon,
   LogOutIcon,
@@ -61,6 +62,7 @@ const MAIN_GROUPS: NavGroup[] = [
   {
     heading: '対話',
     items: [
+      { to: '/global', label: 'グローバル', icon: GlobeIcon, matchPrefixes: ['/global'] },
       { to: '/chats', label: 'チャット履歴', icon: ChatIcon, matchPrefixes: ['/chats', '/chat/'] },
     ],
   },

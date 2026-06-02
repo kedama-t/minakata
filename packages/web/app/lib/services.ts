@@ -12,6 +12,7 @@ import {
   type Db,
   EmbeddingService,
   GitService,
+  GlobalChatService,
   MaintenanceService,
   MessageService,
   PolicyService,
@@ -40,6 +41,7 @@ export interface Services {
   skills: SkillProposalService
   archives: ArchiveProposalService
   topics: TopicService
+  globalChat: GlobalChatService
 }
 
 let cached: Services | null = null
@@ -71,6 +73,7 @@ export function getServices(): Services {
     skills: new SkillProposalService(db, skillsDir),
     archives: new ArchiveProposalService(db, articles),
     topics: new TopicService(db),
+    globalChat: new GlobalChatService(db),
   }
   return cached
 }

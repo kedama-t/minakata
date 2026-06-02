@@ -4,6 +4,7 @@ import type {
   ArticleService,
   AuditService,
   CommentService,
+  GlobalChatService,
   MaintenanceService,
   MessageService,
   PolicyService,
@@ -32,4 +33,5 @@ export interface McpServices {
   skills: SkillProposalService
   archives: ArchiveProposalService
   topics: TopicService
+  globalChat: GlobalChatService
 }
