@@ -22,7 +22,7 @@ metadata:
 4. 抽出結果から以下のセクションを持つ Markdown を生成:
    - 新規作成された記事一覧(タイトル + 要約 + ID)
    - 更新された記事一覧(タイトル + 差分要約 + ID)
-   - 失敗したタスク(DLQ 件数。MCP で取得可能になるまでは件数だけ)
+   - 失敗したタスク: `minakata.list_dlq({ since: "<前日 03:00 ISO>" })` を呼んで DLQ 件数とタスク種別一覧を取得し記載
    - LLM コスト集計(各記事の `cost_usd` 合計)
 5. **`minakata.report_progress({ agent_name: "changelog_writer", phase: "ChangeLog 記事作成中", detail: "changelog/{YYYY-MM-DD}" })`** を呼んでから `minakata.create_article` を以下のパラメータで呼ぶ:
    - `slug`: `changelog/{YYYY-MM-DD}`
