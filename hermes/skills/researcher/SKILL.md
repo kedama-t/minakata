@@ -75,15 +75,19 @@ metadata:
      - **別記事モード**: `comment` に「別の記事として」「新規記事として」など新規作成を指示するキーワードが含まれる場合、`fulltext_search` で重複確認後、`create_article` で新規作成する。decision heuristic: comment が「〜についても調べてください」「〜を別記事で」といった表現で、親記事の拡張ではなく独立した主題を求めている場合は別記事モードを選択する。`research_followup` タスクであっても `create_article` は正常動作する。
 3. **30% 超の本文書き換えは自動的に保留される**: `update_article` に `body` を渡すと内部で `ReviewService.proposeUpdate` が呼ばれ、変更率がしきい値(既定 30%)を超えると `status='pending_approval'` で保留状態になる(US-6.2)。レスポンスの `status` が `'pending_approval'` の場合、editor のレビュー判定を待つことになり、再度同記事を触らない
 4. 処理後 **`minakata.report_progress({ agent_name: "researcher", phase: "タスク完了", detail: <タスク種別 + 作成/更新した記事 ID> })`** を呼んでから `minakata.complete_task(id, cost_usd)` で完了報告。LLM トークン数 × 単価で cost_usd を算出
-5. **チャットへの完了通知**: タスクの **`session_id`** フィールド(第一級カラム。`payload.session_id` ではない)が存在する場合、完了後に以下を呼んで依頼元セッションへ通知する:
+5. **チャットへの完了通知**: タスクの **`session_id`** フィールドが存在する場合、**`post_agent_response` を直接呼ばず**、`notify_chat` タスクを enqueue して dialogue に委譲する:
    ```
-   minakata.post_agent_response({
+   minakata.enqueue_task({
+     type: "notify_chat",
+     priority: "interactive",
      session_id: task.session_id,
-     content: "調査が完了しました。記事「<タイトル>」を作成/更新しました。\n\n<要点の概要 2〜3 文>",
-     is_final: true
+     payload: {
+       content: "調査が完了しました。記事「<タイトル>」を作成/更新しました。\n\n<要点の概要 2〜3 文>",
+       is_final: true
+     }
    })
    ```
-   タスクが `research_followup` の場合は対象コメントの記事 ID を含めて通知すること。`post_agent_response` が失敗しても `complete_task` は呼ぶ。
+   タスクが `research_followup` の場合は対象コメントの記事 ID を content に含めること。enqueue が失敗しても `complete_task` は呼ぶ。
 5. 失敗時は **`minakata.report_progress({ agent_name: "researcher", phase: "タスク失敗", detail: <失敗理由の概要> })`** を呼んでから `minakata.fail_task(id, reason)` を呼ぶ(指数バックオフで再キュー、3 回超で DLQ)
 
 ## 既知の Pitfalls

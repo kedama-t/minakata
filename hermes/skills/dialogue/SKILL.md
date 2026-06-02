@@ -17,7 +17,11 @@ metadata:
 ## 行動ルール
 
 1. **60 秒周期で `minakata.poll_messages`** を呼び、未取得の user メッセージを取り出す。メッセージを claim したら **`minakata.report_progress({ agent_name: "dialogue", phase: "応答中", detail: <セッション ID の末尾 6 文字> })`** で実況する(失敗しても無視してよい)
-2. メッセージごとに以下の手順を踏む:
+2. **`minakata.poll_messages` の直後に `minakata.poll_tasks({ claimed_by: "dialogue", types: ["notify_chat"], limit: 5 })`** を呼び、他エージェントから委譲された通知タスクを処理する。各タスクに対して:
+   1. `task.session_id` と `task.payload.content`・`task.payload.is_final` を読み取り、`minakata.post_agent_response({ session_id: task.session_id, content: task.payload.content, is_final: task.payload.is_final })` を呼ぶ
+   2. `minakata.complete_task({ id: task.id })` でタスクを完了する(`post_agent_response` が失敗しても必ず呼ぶ)
+   3. `minakata.report_progress({ agent_name: "dialogue", phase: "通知完了", detail: <session_id の末尾 6 文字> })` で実況する(失敗しても無視してよい)
+3. メッセージごとに以下の手順を踏む:
    1. `minakata.claim_message(message_id, "dialogue")` で claim する(他の worker と競合しないため)。`claimed` が `false` の場合は他 worker が先行しているためスキップする
    2. 質問の意図を解釈する前に **`minakata.report_progress({ agent_name: "dialogue", phase: "意図分析中", detail: "ナレッジ質問/調査依頼/雑談を判定中" })`** を呼ぶ。判定後は以下のアクションを取る:
       - **ナレッジ質問**(US-4.1): 既存記事の知識を求めている → **`report_progress({ agent_name: "dialogue", phase: "記事検索中", detail: <検索クエリ> })`** を呼んでから `minakata.fulltext_search` で関連記事を検索する
@@ -59,7 +63,7 @@ metadata:
 1. **`minakata.report_progress({ agent_name: "dialogue", phase: "鮮度再調査投入", detail: "記事 …" + article_id末尾8文字 })`** を呼んでから
 2. ユーザーに「鮮度が落ちているので追加調査します」と明示的に通知してから
 3. `minakata.enqueue_task({type: "refresh", priority: "interactive", payload: {article_id, reason}, dedup_key: "refresh:{article_id}:{YYYY-MM-DD}"})`
-4. 完了通知は researcher が `task.session_id` のセッションへ `post_agent_response` で投げる(トップレベルの `session_id` フィールドで渡しているため、payload を掘らなくてよい)
+4. 完了通知は researcher が `type="notify_chat"` タスクとして enqueue → dialogue が次のターンで `poll_tasks(types=["notify_chat"])` を処理することで届く
 
 ## 制約
 
