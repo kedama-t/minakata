@@ -6,8 +6,8 @@ import { getServices } from '../app/lib/services.ts'
 import { scrapeUrl } from './scraper.ts'
 
 const MCP_TOKEN = process.env.MCP_TOKEN ?? ''
-// Hermes は FIRECRAWL_API_KEY を Bearer token として送ってくるため、優先して使用する
-const SCRAPER_TOKEN = process.env.FIRECRAWL_API_KEY ?? process.env.SCRAPER_TOKEN ?? MCP_TOKEN
+// SCRAPER_TOKEN は FIRECRAWL_API_KEY とは独立した専用トークン。未設定時は fail-close(全拒否)
+const SCRAPER_TOKEN = process.env.SCRAPER_TOKEN ?? ''
 
 const scrapeBodySchema = z.object({
   url: z.string().url(),
@@ -19,8 +19,9 @@ const scrapeBodySchema = z.object({
 /** Firecrawl /v1/scrape 互換エンドポイントをマウントする */
 function mountScraper(app: Hono) {
   app.post('/v1/scrape', async (c) => {
+    // SCRAPER_TOKEN 未設定時は fail-close(全拒否)
     if (!SCRAPER_TOKEN) {
-      return c.json({ success: false, error: 'Unauthorized' }, 401)
+      return c.json({ success: false, error: 'Scraper endpoint is disabled' }, 503)
     }
     const auth = c.req.header('Authorization') ?? ''
     const token = auth.startsWith('Bearer ') ? auth.slice(7) : ''
@@ -42,8 +43,12 @@ function mountScraper(app: Hono) {
       })
       return c.json({ success: true, data: result })
     } catch (err) {
-      console.error('[scrape] error', { url }, err)
-      return c.json({ success: false, error: 'Failed to fetch page' }, 500)
+      // エラー詳細を外部に漏洩させない
+      const isBlocked = err instanceof Error && err.message.startsWith('SSRF:')
+      return c.json(
+        { success: false, error: isBlocked ? err.message : 'Failed to scrape URL' },
+        500,
+      )
     }
   })
 }
