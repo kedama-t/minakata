@@ -19,13 +19,13 @@ const scrapeBodySchema = z.object({
 /** Firecrawl /v1/scrape 互換エンドポイントをマウントする */
 function mountScraper(app: Hono) {
   app.post('/v1/scrape', async (c) => {
-    // Bearer トークン認証
-    if (SCRAPER_TOKEN) {
-      const auth = c.req.header('Authorization') ?? ''
-      const token = auth.startsWith('Bearer ') ? auth.slice(7) : ''
-      if (token !== SCRAPER_TOKEN) {
-        return c.json({ success: false, error: 'Unauthorized' }, 401)
-      }
+    if (!SCRAPER_TOKEN) {
+      return c.json({ success: false, error: 'Unauthorized' }, 401)
+    }
+    const auth = c.req.header('Authorization') ?? ''
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : ''
+    if (token !== SCRAPER_TOKEN) {
+      return c.json({ success: false, error: 'Unauthorized' }, 401)
     }
 
     const body = await c.req.json().catch(() => null)
@@ -42,8 +42,8 @@ function mountScraper(app: Hono) {
       })
       return c.json({ success: true, data: result })
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      return c.json({ success: false, error: message }, 500)
+      console.error('[scrape] error', { url }, err)
+      return c.json({ success: false, error: 'Failed to fetch page' }, 500)
     }
   })
 }
