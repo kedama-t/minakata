@@ -10,6 +10,10 @@ model:
   # plugin-registered provider 名(canonical)を直接指定。
   provider: "opencode-go"
 
+web:
+  search_backend: "searxng"
+  extract_backend: "firecrawl"
+
 agent:
   # cron 経由 subagent では危険な toolset を完全に無効化する。
   # `approvals.cron_mode: deny` (Hermes default) で terminal の approval

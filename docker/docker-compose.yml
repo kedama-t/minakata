@@ -77,6 +77,8 @@ services:
       # config.yaml の mcp_servers.minakata.headers が ${MCP_TOKEN} を展開
       # できるよう env として渡す。
       MCP_TOKEN: "${MCP_TOKEN}"
+      # SearXNG エンドポイント。同一 Docker ネットワーク内の固定 URL。
+      SEARXNG_URL: "${SEARXNG_URL:-http://searxng:8080}"
       # コンテナの OS タイムゾーンを設定。cron スケジュールや Python の
       # datetime.now() が正しいローカル時刻を返すようになる。
       TZ: "${TIMEZONE:-Asia/Tokyo}"
