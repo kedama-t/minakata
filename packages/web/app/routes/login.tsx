@@ -1,6 +1,5 @@
 import { Form, redirect } from 'react-router'
 import { assertSameOrigin, serializeSession } from '../lib/auth.ts'
-import { serializeSession } from '../lib/auth.ts'
 import { isRateLimited, resetRateLimit } from '../lib/rateLimit.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/login.ts'
