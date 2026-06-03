@@ -49,6 +49,7 @@ export function getServices(): Services {
   const dbPath = process.env.DATABASE_URL?.replace(/^file:/, '') ?? './data/minakata.db'
   const articlesRoot = process.env.ARTICLES_ROOT ?? './data/articles'
   const skillsDir = process.env.SKILLS_DIR ?? './hermes/skills'
+  const snapshotDir = process.env.SNAPSHOT_DIR ?? './data/snapshots'
   const db = openDb({ path: dbPath })
   const git = new GitService(articlesRoot)
   const embedding = new EmbeddingService()
@@ -63,7 +64,7 @@ export function getServices(): Services {
     auth: new AuthService(db),
     audit: new AuditService(db),
     activity: new ActivityService(db),
-    maintenance: new MaintenanceService(db),
+    maintenance: new MaintenanceService(db, snapshotDir),
     embedding,
     reviews: new ReviewService(db, articles, tasks),
     policy: new PolicyService(db),

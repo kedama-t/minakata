@@ -9,9 +9,16 @@ const COOKIE_MAX_AGE = 30 * 86_400 // 30 days
  * 本番運用は HTTPS 前提(Caddy 等の reverse proxy 経由)なので Cookie に
  * `Secure` を付ける。ローカル開発の HTTP 環境では `COOKIE_SECURE=false` で
  * opt-out できる。値が未指定(undefined)の場合は `Secure` を付ける。
+ * 本番環境で `COOKIE_SECURE=false` を設定した場合は起動時に警告を出す。
  */
 function isSecureCookieEnabled(): boolean {
-  return process.env.COOKIE_SECURE !== 'false'
+  const disabled = process.env.COOKIE_SECURE === 'false'
+  if (disabled && process.env.NODE_ENV === 'production') {
+    console.error(
+      '[minakata] SECURITY WARNING: COOKIE_SECURE=false in production — session cookies will be sent over plain HTTP',
+    )
+  }
+  return !disabled
 }
 
 export function serializeSession(token: string): string {
@@ -57,4 +64,18 @@ export function requireAdmin(req: Request): User {
   const user = requireUser(req)
   if (user.role !== 'admin') throw new Response('Forbidden', { status: 403 })
   return user
+}
+
+/**
+ * POST/PUT/DELETE リクエストの Origin ヘッダを検証して CSRF を防ぐ。
+ * Origin が存在して自サイト origin と一致しない場合は 403 を throw する。
+ * Origin なしリクエスト(同一オリジンの古いブラウザ等)は SameSite=Lax に委ねる。
+ */
+export function assertSameOrigin(req: Request): void {
+  const origin = req.headers.get('origin')
+  if (!origin) return
+  const expected = new URL(req.url).origin
+  if (origin !== expected) {
+    throw new Response('Forbidden', { status: 403 })
+  }
 }

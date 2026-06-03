@@ -59,18 +59,23 @@ export function HighlightedCode({
  *   ミスマッチを誘発し、最悪クライアント側で本文が描画されなくなる(#34)。
  */
 const components: Components = {
-  a: ({ node: _node, href, children, ...rest }) => (
-    <a
-      {...rest}
-      href={href}
-      // 出典・参照は外部 URL になりがちなので開く先を別タブに
-      target="_blank"
-      rel="noreferrer noopener"
-      className="text-primary hover:underline"
-    >
-      {children}
-    </a>
-  ),
+  a: ({ node: _node, href, children, ...rest }) => {
+    // javascript: / data: スキームによるクリック型 XSS を防ぐ
+    const safePrefixes = ['http://', 'https://', 'mailto:', '/']
+    const safeHref = href && safePrefixes.some((p) => href.startsWith(p)) ? href : '#'
+    return (
+      <a
+        {...rest}
+        href={safeHref}
+        // 出典・参照は外部 URL になりがちなので開く先を別タブに
+        target="_blank"
+        rel="noreferrer noopener"
+        className="text-primary hover:underline"
+      >
+        {children}
+      </a>
+    )
+  },
   h1: ({ node: _node, children, ...rest }) => (
     <h1 {...rest} className="text-2xl font-bold mt-6 mb-3">
       {children}

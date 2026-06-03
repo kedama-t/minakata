@@ -3,6 +3,7 @@ import {
   ArticleStatusSchema,
   SourceRefSchema,
   TaskPrioritySchema,
+  TaskTypeSchema,
 } from '@minakata/core'
 /**
  * Minakata MCP の公開ツール群(Phase 1)。
@@ -46,12 +47,17 @@ export function registerArticleTools(
       description:
         '新規記事を作成する。Markdown 書き込み + DB インデックス + Git コミット。出典(US-5.1)は sources で渡す',
       inputSchema: {
-        title: z.string(),
-        slug: z.string(),
-        body: z.string(),
+        title: z.string().min(1).max(500),
+        slug: z
+          .string()
+          .regex(
+            /^[a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)*$/,
+            'slug は英小文字・数字・ハイフンのみ（スラッシュで階層化可）',
+          ),
+        body: z.string().max(500_000),
         tags: z.array(z.string()).optional(),
         topic_id: z.string().optional(),
-        summary: z.string().optional(),
+        summary: z.string().max(2000).optional(),
         author: z.string().default('researcher'),
         source: ArticleSourceKindSchema.optional(),
         /** 出典(US-5.1 横断要件)。{url, fetched_at, archive_url?, used_in_sections?} の配列 */
@@ -88,16 +94,14 @@ export function registerArticleTools(
         '既存記事を更新する。body を渡した場合は ReviewService.proposeUpdate を経由し、変更率がしきい値(既定 30%)を超えると pending_approval で保留される(US-6.2)。body 以外のフィールド(タイトル等メタデータと add_sources)は直接反映する。出典(US-5.1)は add_sources で追記する',
       inputSchema: {
         id: z.string(),
-        body: z.string().optional(),
-        title: z.string().optional(),
+        body: z.string().max(500_000).optional(),
+        title: z.string().min(1).max(500).optional(),
         tags: z.array(z.string()).optional(),
         status: ArticleStatusSchema.optional(),
-        summary: z.string().optional(),
+        summary: z.string().max(2000).optional(),
         last_researched_at: z.string().datetime().optional(),
         cost_usd: z.number().nonnegative().optional(),
         author: z.string().default('researcher'),
-        /** 0..1。デフォルト 0.3。0 にすると常に保留、1 にすると常に直接反映(テスト・移行用) */
-        review_threshold: z.number().min(0).max(1).optional(),
         /** 追記する出典。既存 sources の末尾に append される(US-5.1) */
         add_sources: z.array(SourceRefSchema).optional(),
       },
@@ -110,7 +114,6 @@ export function registerArticleTools(
           article_id: args.id,
           proposed_body: args.body,
           author: args.author,
-          ...(args.review_threshold !== undefined && { threshold: args.review_threshold }),
           ...(args.cost_usd !== undefined && { cost_usd: args.cost_usd }),
         })
         if (proposal.kind === 'pending') {
@@ -399,10 +402,13 @@ export function registerTaskTools(server: McpServer, s: McpServices, ctx: CallCo
     {
       description: '調査・編集タスクをキューに投入する。dedup_key で冪等性確保',
       inputSchema: {
-        type: z.string(),
+        type: TaskTypeSchema,
         priority: TaskPrioritySchema,
-        payload: z.record(z.string(), z.unknown()).optional(),
-        dedup_key: z.string().optional(),
+        payload: z
+          .record(z.string(), z.unknown())
+          .refine((v) => JSON.stringify(v).length <= 10_000, 'payload は 10KB 以内にしてください')
+          .optional(),
+        dedup_key: z.string().max(255).optional(),
         parent_task_id: z.string().optional(),
         parent_review_id: z.string().optional(),
         requested_by: z.string().optional(),
@@ -530,10 +536,11 @@ export function registerMaintenanceTools(server: McpServer, s: McpServices): voi
   server.registerTool(
     'minakata.snapshot_db',
     {
-      description: 'SQLite を VACUUM INTO で別ファイルに退避する',
-      inputSchema: { path: z.string() },
+      description:
+        'SQLite を VACUUM INTO でサーバ固定ディレクトリ配下に退避する。filename は小文字英数字・ハイフン・アンダースコアのみ使用可能で .sqlite 拡張子必須',
+      inputSchema: { filename: z.string().regex(/^[a-z0-9_-]+\.sqlite$/) },
     },
-    async ({ path }) => ok(s.maintenance.snapshot(path)),
+    async ({ filename }) => ok(s.maintenance.snapshot(filename)),
   )
 
   server.registerTool(
@@ -571,7 +578,6 @@ export function registerReviewTools(
         article_id: z.string(),
         proposed_body: z.string(),
         author: z.string().default('researcher'),
-        threshold: z.number().min(0).max(1).optional(),
         cost_usd: z.number().nonnegative().optional(),
       },
     },
@@ -580,7 +586,6 @@ export function registerReviewTools(
         article_id: args.article_id,
         proposed_body: args.proposed_body,
         author: args.author,
-        ...(args.threshold !== undefined && { threshold: args.threshold }),
         ...(args.cost_usd !== undefined && { cost_usd: args.cost_usd }),
       })
       s.audit.log({
@@ -765,7 +770,7 @@ export function registerAllTools(
   registerTaskTools(server, services, ctx)
   registerMaintenanceTools(server, services)
   registerReviewTools(server, services, ctx)
-  registerPolicyTools(server, services, ctx)
+  registerPolicyTools(server, services)
   registerCommentTools(server, services)
   registerSkillTools(server, services, ctx)
   registerTopicTools(server, services)
