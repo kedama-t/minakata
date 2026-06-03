@@ -66,7 +66,8 @@ export default createHonoServer({
     services.maintenance.runMigrations()
 
     if (!MCP_TOKEN) {
-      console.warn('[minakata] MCP_TOKEN is not set — /mcp endpoint will reject all requests')
+      // MCP_TOKEN 未設定でも hono.ts の Bearer 検証で全拒否になるが、明示的に通知する
+      console.error('[minakata] MCP_TOKEN is not set — all /mcp requests will be rejected with 401')
     }
 
     app.get('/health', (c) => c.json({ status: 'ok' }))
