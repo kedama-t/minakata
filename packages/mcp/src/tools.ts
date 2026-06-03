@@ -96,8 +96,6 @@ export function registerArticleTools(
         last_researched_at: z.string().datetime().optional(),
         cost_usd: z.number().nonnegative().optional(),
         author: z.string().default('researcher'),
-        /** 0..1。デフォルト 0.3。0 にすると常に保留、1 にすると常に直接反映(テスト・移行用) */
-        review_threshold: z.number().min(0).max(1).optional(),
         /** 追記する出典。既存 sources の末尾に append される(US-5.1) */
         add_sources: z.array(SourceRefSchema).optional(),
       },
@@ -110,7 +108,6 @@ export function registerArticleTools(
           article_id: args.id,
           proposed_body: args.body,
           author: args.author,
-          ...(args.review_threshold !== undefined && { threshold: args.review_threshold }),
           ...(args.cost_usd !== undefined && { cost_usd: args.cost_usd }),
         })
         if (proposal.kind === 'pending') {
@@ -613,7 +610,6 @@ export function registerReviewTools(
         article_id: z.string(),
         proposed_body: z.string(),
         author: z.string().default('researcher'),
-        threshold: z.number().min(0).max(1).optional(),
         cost_usd: z.number().nonnegative().optional(),
       },
     },
@@ -622,7 +618,6 @@ export function registerReviewTools(
         article_id: args.article_id,
         proposed_body: args.proposed_body,
         author: args.author,
-        ...(args.threshold !== undefined && { threshold: args.threshold }),
         ...(args.cost_usd !== undefined && { cost_usd: args.cost_usd }),
       })
       s.audit.log({

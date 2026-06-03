@@ -79,11 +79,10 @@ report_progress(開始)
       minakata.update_article({
         id: <既存記事 ID>,
         author: "agent:daily_research",
-        body: <既存本文に今回のスキャン結果セクションを append した全文>,
-        review_threshold: 1
+        body: <既存本文に今回のスキャン結果セクションを append した全文>
       })
       ```
-      注: `review_threshold: 1` を指定して ReviewService の保留を迂回する（自分自身のログ記事への追記のため）
+      注: daily ログ記事への追記は変更率が 30% を超える場合は pending_approval になる可能性がある。その場合は admin が承認するまで反映が遅れる。
 6. **`minakata.report_progress({ agent_name: "daily_research", phase: "バッチ完了", detail: "N件のresearchタスクを投入。daily/<YYYY-MM-DD> にログ記録" })`** で締める（N は実数。失敗しても無視してよい）
 
 ## ログ記事の本文フォーマット
