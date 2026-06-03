@@ -212,48 +212,6 @@ export function registerArticleTools(
   )
 
   server.registerTool(
-    'minakata.approve_archive',
-    {
-      description: 'アーカイブ提案を admin が承認し、記事を archived に遷移させる',
-      inputSchema: { proposal_id: z.string(), reviewer_id: z.string() },
-    },
-    async (args) => {
-      const before = s.archives.get(args.proposal_id)
-      await s.archives.approve(args.proposal_id, args.reviewer_id)
-      s.audit.log({
-        actor: `user:${args.reviewer_id}`,
-        tool_name: 'minakata.approve_archive',
-        target_article_id: before?.article_id ?? null,
-        metadata: { proposal_id: args.proposal_id },
-      })
-      return ok({ proposal_id: args.proposal_id, status: 'approved' })
-    },
-  )
-
-  server.registerTool(
-    'minakata.reject_archive',
-    {
-      description: 'アーカイブ提案を却下する(admin)。記事は archived にならず published のまま',
-      inputSchema: {
-        proposal_id: z.string(),
-        reviewer_id: z.string(),
-        reason: z.string().min(1),
-      },
-    },
-    async (args) => {
-      const before = s.archives.get(args.proposal_id)
-      s.archives.reject(args.proposal_id, args.reviewer_id, args.reason)
-      s.audit.log({
-        actor: `user:${args.reviewer_id}`,
-        tool_name: 'minakata.reject_archive',
-        target_article_id: before?.article_id ?? null,
-        metadata: { proposal_id: args.proposal_id, reason: args.reason },
-      })
-      return ok({ proposal_id: args.proposal_id, status: 'rejected' })
-    },
-  )
-
-  server.registerTool(
     'minakata.list_archive_proposals',
     {
       description: 'アーカイブ提案一覧(admin 画面で利用)',
@@ -637,44 +595,6 @@ export function registerReviewTools(
   )
 
   server.registerTool(
-    'minakata.approve_review',
-    {
-      description: 'レビューを承認して proposed_body を実反映する',
-      inputSchema: { review_id: z.string(), reviewer_id: z.string() },
-    },
-    async (args) => {
-      await s.reviews.approve(args.review_id, args.reviewer_id)
-      s.audit.log({
-        actor: `user:${args.reviewer_id}`,
-        tool_name: 'minakata.approve_review',
-        metadata: { review_id: args.review_id },
-      })
-      return ok({ review_id: args.review_id, status: 'approved' })
-    },
-  )
-
-  server.registerTool(
-    'minakata.reject_review',
-    {
-      description: 'レビューを差し戻し、revise タスクをキューに投入する',
-      inputSchema: {
-        review_id: z.string(),
-        reviewer_id: z.string(),
-        comment: z.string().min(1),
-      },
-    },
-    async (args) => {
-      const r = await s.reviews.reject(args.review_id, args.reviewer_id, args.comment)
-      s.audit.log({
-        actor: `user:${args.reviewer_id}`,
-        tool_name: 'minakata.reject_review',
-        metadata: { review_id: args.review_id, comment: args.comment },
-      })
-      return ok({ ...r, status: 'rejected' })
-    },
-  )
-
-  server.registerTool(
     'minakata.add_review_comment',
     {
       description: 'レビューに行コメントを追加する',
@@ -718,23 +638,6 @@ export function registerPolicyTools(
       inputSchema: {},
     },
     async () => ok(s.policy.get()),
-  )
-
-  server.registerTool(
-    'minakata.update_research_policy',
-    {
-      description: 'リサーチ方針を更新する(admin 専用想定)',
-      inputSchema: { body_md: z.string(), updated_by: z.string() },
-    },
-    async (args) => {
-      s.policy.update(args.body_md, args.updated_by)
-      s.audit.log({
-        actor: ctx.agent ?? `user:${args.updated_by}`,
-        tool_name: 'minakata.update_research_policy',
-        metadata: { length: args.body_md.length },
-      })
-      return ok({ ok: true })
-    },
   )
 }
 
@@ -827,40 +730,6 @@ export function registerSkillTools(server: McpServer, s: McpServices, ctx: CallC
         metadata: { name: args.name },
       })
       return ok({ id, status: 'proposed' })
-    },
-  )
-
-  server.registerTool(
-    'minakata.approve_skill',
-    {
-      description: 'スキル提案を承認し、SKILL.md を書き出す',
-      inputSchema: { id: z.string(), reviewer_id: z.string() },
-    },
-    async (args) => {
-      const r = s.skills.approve(args.id, args.reviewer_id)
-      s.audit.log({
-        actor: `user:${args.reviewer_id}`,
-        tool_name: 'minakata.approve_skill',
-        metadata: { id: args.id, ...r },
-      })
-      return ok({ id: args.id, ...r })
-    },
-  )
-
-  server.registerTool(
-    'minakata.reject_skill',
-    {
-      description: 'スキル提案を却下',
-      inputSchema: { id: z.string(), reviewer_id: z.string() },
-    },
-    async (args) => {
-      s.skills.reject(args.id, args.reviewer_id)
-      s.audit.log({
-        actor: `user:${args.reviewer_id}`,
-        tool_name: 'minakata.reject_skill',
-        metadata: { id: args.id },
-      })
-      return ok({ id: args.id, status: 'rejected' })
     },
   )
 
