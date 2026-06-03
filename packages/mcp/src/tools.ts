@@ -631,7 +631,11 @@ export function registerReviewTools(
   )
 }
 
-export function registerPolicyTools(server: McpServer, s: McpServices): void {
+export function registerPolicyTools(
+  server: McpServer,
+  s: McpServices,
+  _ctx: CallContext = {},
+): void {
   server.registerTool(
     'minakata.get_research_policy',
     {
