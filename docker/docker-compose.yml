@@ -8,7 +8,7 @@ services:
       dockerfile: docker/Dockerfile.minakata
     image: minakata:dev
     ports:
-      - "3000:3000"
+      - "${MINAKATA_BIND:-127.0.0.1}:3000:3000"
     volumes:
       - ../data:/app/data
       - ../models:/app/.cache/huggingface

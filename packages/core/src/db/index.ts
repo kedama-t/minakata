@@ -14,6 +14,7 @@ import init0007 from './migrations/0007_agent_activity_agent_name.sql?raw'
 import init0008 from './migrations/0008_comment_agent_reply.sql?raw'
 import init0009 from './migrations/0009_tasks_collab.sql?raw'
 import init0010 from './migrations/0010_articles_source_check.sql?raw'
+import init0011 from './migrations/0011_sessions_token_hash.sql?raw'
 
 export type Db = Database
 
@@ -36,6 +37,7 @@ const MIGRATIONS: { name: string; sql: string }[] = [
   { name: '0008_comment_agent_reply.sql', sql: init0008 },
   { name: '0009_tasks_collab.sql', sql: init0009 },
   { name: '0010_articles_source_check.sql', sql: init0010 },
+  { name: '0011_sessions_token_hash.sql', sql: init0011 },
 ]
 
 /**

@@ -3,6 +3,7 @@ import {
   ArticleStatusSchema,
   SourceRefSchema,
   TaskPrioritySchema,
+  TaskTypeSchema,
 } from '@minakata/core'
 /**
  * Minakata MCP の公開ツール群(Phase 1)。
@@ -46,12 +47,17 @@ export function registerArticleTools(
       description:
         '新規記事を作成する。Markdown 書き込み + DB インデックス + Git コミット。出典(US-5.1)は sources で渡す',
       inputSchema: {
-        title: z.string(),
-        slug: z.string(),
-        body: z.string(),
+        title: z.string().min(1).max(500),
+        slug: z
+          .string()
+          .regex(
+            /^[a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)*$/,
+            'slug は英小文字・数字・ハイフンのみ（スラッシュで階層化可）',
+          ),
+        body: z.string().max(500_000),
         tags: z.array(z.string()).optional(),
         topic_id: z.string().optional(),
-        summary: z.string().optional(),
+        summary: z.string().max(2000).optional(),
         author: z.string().default('researcher'),
         source: ArticleSourceKindSchema.optional(),
         /** 出典(US-5.1 横断要件)。{url, fetched_at, archive_url?, used_in_sections?} の配列 */
@@ -88,16 +94,14 @@ export function registerArticleTools(
         '既存記事を更新する。body を渡した場合は ReviewService.proposeUpdate を経由し、変更率がしきい値(既定 30%)を超えると pending_approval で保留される(US-6.2)。body 以外のフィールド(タイトル等メタデータと add_sources)は直接反映する。出典(US-5.1)は add_sources で追記する',
       inputSchema: {
         id: z.string(),
-        body: z.string().optional(),
-        title: z.string().optional(),
+        body: z.string().max(500_000).optional(),
+        title: z.string().min(1).max(500).optional(),
         tags: z.array(z.string()).optional(),
         status: ArticleStatusSchema.optional(),
-        summary: z.string().optional(),
+        summary: z.string().max(2000).optional(),
         last_researched_at: z.string().datetime().optional(),
         cost_usd: z.number().nonnegative().optional(),
         author: z.string().default('researcher'),
-        /** 0..1。デフォルト 0.3。0 にすると常に保留、1 にすると常に直接反映(テスト・移行用) */
-        review_threshold: z.number().min(0).max(1).optional(),
         /** 追記する出典。既存 sources の末尾に append される(US-5.1) */
         add_sources: z.array(SourceRefSchema).optional(),
       },
@@ -110,7 +114,6 @@ export function registerArticleTools(
           article_id: args.id,
           proposed_body: args.body,
           author: args.author,
-          ...(args.review_threshold !== undefined && { threshold: args.review_threshold }),
           ...(args.cost_usd !== undefined && { cost_usd: args.cost_usd }),
         })
         if (proposal.kind === 'pending') {
@@ -208,48 +211,6 @@ export function registerArticleTools(
         status: 'pending_approval',
         proposed_at: proposal.created_at,
       })
-    },
-  )
-
-  server.registerTool(
-    'minakata.approve_archive',
-    {
-      description: 'アーカイブ提案を admin が承認し、記事を archived に遷移させる',
-      inputSchema: { proposal_id: z.string(), reviewer_id: z.string() },
-    },
-    async (args) => {
-      const before = s.archives.get(args.proposal_id)
-      await s.archives.approve(args.proposal_id, args.reviewer_id)
-      s.audit.log({
-        actor: `user:${args.reviewer_id}`,
-        tool_name: 'minakata.approve_archive',
-        target_article_id: before?.article_id ?? null,
-        metadata: { proposal_id: args.proposal_id },
-      })
-      return ok({ proposal_id: args.proposal_id, status: 'approved' })
-    },
-  )
-
-  server.registerTool(
-    'minakata.reject_archive',
-    {
-      description: 'アーカイブ提案を却下する(admin)。記事は archived にならず published のまま',
-      inputSchema: {
-        proposal_id: z.string(),
-        reviewer_id: z.string(),
-        reason: z.string().min(1),
-      },
-    },
-    async (args) => {
-      const before = s.archives.get(args.proposal_id)
-      s.archives.reject(args.proposal_id, args.reviewer_id, args.reason)
-      s.audit.log({
-        actor: `user:${args.reviewer_id}`,
-        tool_name: 'minakata.reject_archive',
-        target_article_id: before?.article_id ?? null,
-        metadata: { proposal_id: args.proposal_id, reason: args.reason },
-      })
-      return ok({ proposal_id: args.proposal_id, status: 'rejected' })
     },
   )
 
@@ -441,10 +402,13 @@ export function registerTaskTools(server: McpServer, s: McpServices, ctx: CallCo
     {
       description: '調査・編集タスクをキューに投入する。dedup_key で冪等性確保',
       inputSchema: {
-        type: z.string(),
+        type: TaskTypeSchema,
         priority: TaskPrioritySchema,
-        payload: z.record(z.string(), z.unknown()).optional(),
-        dedup_key: z.string().optional(),
+        payload: z
+          .record(z.string(), z.unknown())
+          .refine((v) => JSON.stringify(v).length <= 10_000, 'payload は 10KB 以内にしてください')
+          .optional(),
+        dedup_key: z.string().max(255).optional(),
         parent_task_id: z.string().optional(),
         parent_review_id: z.string().optional(),
         requested_by: z.string().optional(),
@@ -572,10 +536,11 @@ export function registerMaintenanceTools(server: McpServer, s: McpServices): voi
   server.registerTool(
     'minakata.snapshot_db',
     {
-      description: 'SQLite を VACUUM INTO で別ファイルに退避する',
-      inputSchema: { path: z.string() },
+      description:
+        'SQLite を VACUUM INTO でサーバ固定ディレクトリ配下に退避する。filename は小文字英数字・ハイフン・アンダースコアのみ使用可能で .sqlite 拡張子必須',
+      inputSchema: { filename: z.string().regex(/^[a-z0-9_-]+\.sqlite$/) },
     },
-    async ({ path }) => ok(s.maintenance.snapshot(path)),
+    async ({ filename }) => ok(s.maintenance.snapshot(filename)),
   )
 
   server.registerTool(
@@ -613,7 +578,6 @@ export function registerReviewTools(
         article_id: z.string(),
         proposed_body: z.string(),
         author: z.string().default('researcher'),
-        threshold: z.number().min(0).max(1).optional(),
         cost_usd: z.number().nonnegative().optional(),
       },
     },
@@ -622,7 +586,6 @@ export function registerReviewTools(
         article_id: args.article_id,
         proposed_body: args.proposed_body,
         author: args.author,
-        ...(args.threshold !== undefined && { threshold: args.threshold }),
         ...(args.cost_usd !== undefined && { cost_usd: args.cost_usd }),
       })
       s.audit.log({
@@ -633,44 +596,6 @@ export function registerReviewTools(
         metadata: { result: r.kind },
       })
       return ok(r)
-    },
-  )
-
-  server.registerTool(
-    'minakata.approve_review',
-    {
-      description: 'レビューを承認して proposed_body を実反映する',
-      inputSchema: { review_id: z.string(), reviewer_id: z.string() },
-    },
-    async (args) => {
-      await s.reviews.approve(args.review_id, args.reviewer_id)
-      s.audit.log({
-        actor: `user:${args.reviewer_id}`,
-        tool_name: 'minakata.approve_review',
-        metadata: { review_id: args.review_id },
-      })
-      return ok({ review_id: args.review_id, status: 'approved' })
-    },
-  )
-
-  server.registerTool(
-    'minakata.reject_review',
-    {
-      description: 'レビューを差し戻し、revise タスクをキューに投入する',
-      inputSchema: {
-        review_id: z.string(),
-        reviewer_id: z.string(),
-        comment: z.string().min(1),
-      },
-    },
-    async (args) => {
-      const r = await s.reviews.reject(args.review_id, args.reviewer_id, args.comment)
-      s.audit.log({
-        actor: `user:${args.reviewer_id}`,
-        tool_name: 'minakata.reject_review',
-        metadata: { review_id: args.review_id, comment: args.comment },
-      })
-      return ok({ ...r, status: 'rejected' })
     },
   )
 
@@ -706,11 +631,7 @@ export function registerReviewTools(
   )
 }
 
-export function registerPolicyTools(
-  server: McpServer,
-  s: McpServices,
-  ctx: CallContext = {},
-): void {
+export function registerPolicyTools(server: McpServer, s: McpServices): void {
   server.registerTool(
     'minakata.get_research_policy',
     {
@@ -718,23 +639,6 @@ export function registerPolicyTools(
       inputSchema: {},
     },
     async () => ok(s.policy.get()),
-  )
-
-  server.registerTool(
-    'minakata.update_research_policy',
-    {
-      description: 'リサーチ方針を更新する(admin 専用想定)',
-      inputSchema: { body_md: z.string(), updated_by: z.string() },
-    },
-    async (args) => {
-      s.policy.update(args.body_md, args.updated_by)
-      s.audit.log({
-        actor: ctx.agent ?? `user:${args.updated_by}`,
-        tool_name: 'minakata.update_research_policy',
-        metadata: { length: args.body_md.length },
-      })
-      return ok({ ok: true })
-    },
   )
 }
 
@@ -831,40 +735,6 @@ export function registerSkillTools(server: McpServer, s: McpServices, ctx: CallC
   )
 
   server.registerTool(
-    'minakata.approve_skill',
-    {
-      description: 'スキル提案を承認し、SKILL.md を書き出す',
-      inputSchema: { id: z.string(), reviewer_id: z.string() },
-    },
-    async (args) => {
-      const r = s.skills.approve(args.id, args.reviewer_id)
-      s.audit.log({
-        actor: `user:${args.reviewer_id}`,
-        tool_name: 'minakata.approve_skill',
-        metadata: { id: args.id, ...r },
-      })
-      return ok({ id: args.id, ...r })
-    },
-  )
-
-  server.registerTool(
-    'minakata.reject_skill',
-    {
-      description: 'スキル提案を却下',
-      inputSchema: { id: z.string(), reviewer_id: z.string() },
-    },
-    async (args) => {
-      s.skills.reject(args.id, args.reviewer_id)
-      s.audit.log({
-        actor: `user:${args.reviewer_id}`,
-        tool_name: 'minakata.reject_skill',
-        metadata: { id: args.id },
-      })
-      return ok({ id: args.id, status: 'rejected' })
-    },
-  )
-
-  server.registerTool(
     'minakata.list_skill_proposals',
     {
       description: 'スキル提案一覧',
@@ -896,7 +766,7 @@ export function registerAllTools(
   registerTaskTools(server, services, ctx)
   registerMaintenanceTools(server, services)
   registerReviewTools(server, services, ctx)
-  registerPolicyTools(server, services, ctx)
+  registerPolicyTools(server, services)
   registerCommentTools(server, services)
   registerSkillTools(server, services, ctx)
   registerTopicTools(server, services)

@@ -1,14 +1,26 @@
+import { timingSafeEqual } from 'node:crypto'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
 import type { Hono } from 'hono'
 import { createMinakataMcpServer } from './server.ts'
 import type { McpServices } from './services.ts'
+
+/** タイミング攻撃を防ぐ定数時間 Bearer トークン比較 */
+function safeCompareBearer(auth: string, token: string): boolean {
+  const expected = `Bearer ${token}`
+  if (auth.length !== expected.length) return false
+  return timingSafeEqual(Buffer.from(auth), Buffer.from(expected))
+}
 
 export interface McpMountOptions {
   /** Bearer Token。Hermes 側にも同じ値を共有する */
   token: string
   /** マウントパス。デフォルトは /mcp */
   path?: string
-  /** 許可する Host ヘッダ。空配列なら検証スキップ(本番では必ず指定) */
+  /**
+   * 許可する Host ヘッダ(DNS rebinding 対策)。
+   * 未設定または空配列の場合は localhost / 127.0.0.1 のみ許可(fail-close)。
+   * 本番では MCP_ALLOWED_HOSTS に実ホスト名を必ず設定すること。
+   */
   allowedHosts?: string[]
   services: McpServices
 }
@@ -24,24 +36,25 @@ export function mountMcp(app: Hono, options: McpMountOptions): void {
   const path = options.path ?? '/mcp'
 
   const handle = async (req: Request): Promise<Response> => {
-    // 認証
+    // 認証(定数時間比較でタイミング攻撃を防ぐ)
     const auth = req.headers.get('authorization') ?? ''
-    if (auth !== `Bearer ${options.token}`) {
+    if (!safeCompareBearer(auth, options.token)) {
       return new Response(JSON.stringify({ error: 'unauthorized' }), {
         status: 401,
         headers: { 'content-type': 'application/json' },
       })
     }
-    // Host 検証(DNS rebinding 対策)
-    const allowed = options.allowedHosts ?? []
-    if (allowed.length > 0) {
-      const host = req.headers.get('host') ?? ''
-      if (!allowed.includes(host)) {
-        return new Response(JSON.stringify({ error: 'forbidden_host' }), {
-          status: 403,
-          headers: { 'content-type': 'application/json' },
-        })
-      }
+    // Host 検証(DNS rebinding 対策): 未設定時は localhost のみ許可(fail-close)
+    const allowed =
+      options.allowedHosts && options.allowedHosts.length > 0
+        ? options.allowedHosts
+        : ['localhost', '127.0.0.1']
+    const host = req.headers.get('host') ?? ''
+    if (!allowed.includes(host)) {
+      return new Response(JSON.stringify({ error: 'forbidden_host' }), {
+        status: 403,
+        headers: { 'content-type': 'application/json' },
+      })
     }
 
     // stateless 構造:リクエストごとに transport を作って即破棄
