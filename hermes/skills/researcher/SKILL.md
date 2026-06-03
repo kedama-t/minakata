@@ -18,15 +18,15 @@ metadata:
 
 タスクの `payload` には以下のフィールドが含まれる場合がある。調査開始前に必ず確認すること：
 
-| フィールド | 用途 | 主なタスク種別 |
-|---|---|---|
-| `payload.goal` | 調査の大目標（記事タイトルの候補になる） | research, research_followup |
+| フィールド             | 用途                                                                                                       | 主なタスク種別              |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------- | --------------------------- |
+| `payload.goal`         | 調査の大目標（記事タイトルの候補になる）                                                                   | research, research_followup |
 | `payload.instructions` | 調査の詳細指示。分析観点・対象読者・出力言語・優先すべき一次情報源など。調査方針と記事構成の決定に使用する | research, research_followup |
-| `payload.query` | 推奨される検索クエリ。`web_search` の第一弾として使用する。不足があれば追加クエリで補完する | research |
-| `payload.article_id` | 既存記事への追記・更新時に指定される（null なら新規作成） | research_followup, refresh |
-| `payload.topic_id` | 購読トピックの ID（DB の topics テーブルの外部キー）。`list_topics` で topic 名を解決してから使う | daily_research, research |
-| `payload.keywords` | トピックに関連するキーワード配列。検索クエリ生成の出発点として使用する | daily_research |
-| `payload.depth` | 調査の深さ（`"shallow"` / `"deep"`）。shallow は 3-5 URL 抽出＋短めの記事、deep は 8+ URL 抽出＋詳細記事 | daily_research |
+| `payload.query`        | 推奨される検索クエリ。`web_search` の第一弾として使用する。不足があれば追加クエリで補完する                | research                    |
+| `payload.article_id`   | 既存記事への追記・更新時に指定される（null なら新規作成）                                                  | research_followup, refresh  |
+| `payload.topic_id`     | 購読トピックの ID（DB の topics テーブルの外部キー）。`list_topics` で topic 名を解決してから使う          | daily_research, research    |
+| `payload.keywords`     | トピックに関連するキーワード配列。検索クエリ生成の出発点として使用する                                     | daily_research              |
+| `payload.depth`        | 調査の深さ（`"shallow"` / `"deep"`）。shallow は 3-5 URL 抽出＋短めの記事、deep は 8+ URL 抽出＋詳細記事   | daily_research              |
 
 ## 行動ルール
 
@@ -48,7 +48,7 @@ metadata:
        - **複数対象の比較調査**: ペイロードが複数のツール・製品を列挙している場合、各対象の個別検索（公式サイト・リリースノート）と横断比較検索（比較記事・人気度データ）の二段階で並列検索を行う。詳細は `references/comparison-research.md` 参照。
        - **セキュリティ/脆弱性ニュース調査**: ゼロデイ攻撃・CVE・脆弱性インシデントが主題の場合、バイリンガル検索（日本語＋英語）と一次情報の信頼性階層（CISA KEV > ベンダーアドバイザリ > NVD > 検証済みメディア）を意識したクエリ設計が必要。`payload.keywords` がブロードな場合、時間スコープ（年月）を明示して直近の情報に絞る。詳細は `references/security-research.md` 参照。
      - **一次情報優先**: リサーチ方針(P1)に従い、公式サイト・GitHubリポジトリを必ず含める。二次情報（ブログ・分析記事）は補完・検証用として扱う。
-   - `type="daily_research"` (購読バッチ): 
+   - `type="daily_research"` (購読バッチ):
      1. `payload.topic_id` がある場合、`list_topics` で該当トピックの `name` と `keywords` を解決し、記事タイトルや `detail` に反映する
      2. **先行記事チェック**: `fulltext_search`（topic の keywords で検索）と `by_tag`（関連タグで検索）の両方で既存記事を確認する。該当記事があれば追記モード（`update_article`）に切り替える。なければ新規作成
      3. `payload.depth` に応じて調査規模を調整: `"shallow"` は各キーワード 1-2 クエリ＋3-5 URL 抽出、`"deep"` は多角的な並列検索＋8+ URL 抽出
@@ -73,9 +73,9 @@ metadata:
    - `type="research_followup"` (フォローアップ調査): デフォルトでは既存記事に追記する前提のタスク。payload に `article_id`（親記事 ID）・`comment`（調査依頼の内容）・`anchor`（コメントが紐づく記事内の箇所）が含まれる。処理手順: `read_article` で親記事を読む → comment/anchor から必要な追加調査テーマを特定 → `web_search` + `web_extract` で情報収集。
      - **追記モード（デフォルト）**: `update_article(body=..., add_sources=...)` で追記。第 3 者が見たときに理解できるよう、追記セクションは見出しで明確に区切り、add_sources の used_in_sections にセクション名を指定する。
      - **別記事モード**: `comment` に「別の記事として」「新規記事として」など新規作成を指示するキーワードが含まれる場合、`fulltext_search` で重複確認後、`create_article` で新規作成する。decision heuristic: comment が「〜についても調べてください」「〜を別記事で」といった表現で、親記事の拡張ではなく独立した主題を求めている場合は別記事モードを選択する。`research_followup` タスクであっても `create_article` は正常動作する。
-3. **30% 超の本文書き換えは自動的に保留される**: `update_article` に `body` を渡すと内部で `ReviewService.proposeUpdate` が呼ばれ、変更率がしきい値(既定 30%)を超えると `status='pending_approval'` で保留状態になる(US-6.2)。レスポンスの `status` が `'pending_approval'` の場合、editor のレビュー判定を待つことになり、再度同記事を触らない
-4. 処理後 **`minakata.report_progress({ agent_name: "researcher", phase: "タスク完了", detail: <タスク種別 + 作成/更新した記事 ID> })`** を呼んでから `minakata.complete_task(id, cost_usd)` で完了報告。LLM トークン数 × 単価で cost_usd を算出
-5. **チャットへの完了通知**: タスクの **`session_id`** フィールドが存在する場合、**`post_agent_response` を直接呼ばず**、`notify_chat` タスクを enqueue して dialogue に委譲する:
+4. **30% 超の本文書き換えは自動的に保留される**: `update_article` に `body` を渡すと内部で `ReviewService.proposeUpdate` が呼ばれ、変更率がしきい値(既定 30%)を超えると `status='pending_approval'` で保留状態になる(US-6.2)。レスポンスの `status` が `'pending_approval'` の場合、editor のレビュー判定を待つことになり、再度同記事を触らない
+5. 処理後 **`minakata.report_progress({ agent_name: "researcher", phase: "タスク完了", detail: <タスク種別 + 作成/更新した記事 ID> })`** を呼んでから `minakata.complete_task(id, cost_usd)` で完了報告。LLM トークン数 × 単価で cost_usd を算出
+6. **チャットへの完了通知**: タスクの **`session_id`** フィールドが存在する場合、**`post_agent_response` を直接呼ばず**、`notify_chat` タスクを enqueue して dialogue に委譲する:
    ```
    minakata.enqueue_task({
      type: "notify_chat",
@@ -88,7 +88,7 @@ metadata:
    })
    ```
    タスクが `research_followup` の場合は対象コメントの記事 ID を content に含めること。enqueue が失敗しても `complete_task` は呼ぶ。
-5. 失敗時は **`minakata.report_progress({ agent_name: "researcher", phase: "タスク失敗", detail: <失敗理由の概要> })`** を呼んでから `minakata.fail_task(id, reason)` を呼ぶ(指数バックオフで再キュー、3 回超で DLQ)
+7. 失敗時は **`minakata.report_progress({ agent_name: "researcher", phase: "タスク失敗", detail: <失敗理由の概要> })`** を呼んでから `minakata.fail_task(id, reason)` を呼ぶ(指数バックオフで再キュー、3 回超で DLQ)
 
 ## 既知の Pitfalls
 
@@ -103,13 +103,13 @@ metadata:
 
 ```typescript
 // ❌ エラーになる例
-topic_id: ""                          // 空文字列
-topic_id: "react-ecosystem"           // 存在しないトピック名
+topic_id: ""; // 空文字列
+topic_id: "react-ecosystem"; // 存在しないトピック名
 
 // ✅ 正しい例
 // トピック未定・不要ならキーごと省略
 // createArticleParams から topic_id を削除
-delete params.topic_id
+delete params.topic_id;
 
 // トピック指定が必要な場合は事前に存在確認
 // minakata_by_tag 等で topics テーブルと照合してから渡す
@@ -132,6 +132,10 @@ delete params.topic_id
 - **不完全な切り詰めに気づいたら**: 不足している情報は `web_search` で別角度のクエリを投げて補完するか、別の類似ページから抽出する
 - **落とし穴**: 要約版だけを信じて事実誤認しないよう、数値や日付は複数ソースでクロスチェックする
 - **一次情報は優先的に**: 要約で落ちる可能性のある細かい技術的記述が必要な場合、公式リリースノートを最優先で抽出する（短いページは全文取得される）
+
+### `web_extract`エラー時の対応
+
+`web_extract` が失敗した場合、**`minakata.report_progress({ agent_name: "researcher", phase: "調査失敗", detail: <調査中だった内容> })`**をレポートし、調査タスクを終了する。`browser_navigate`を使った調査にフォールバックする必要はない。
 
 ## MCP 接続エラー時
 
