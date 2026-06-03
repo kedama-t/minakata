@@ -70,13 +70,12 @@ export class ReviewService {
   /**
    * 記事更新提案。しきい値以下なら即時反映、それ超なら review を保留する。
    * `proposed_body` には新しい本文を渡す。タイトル等は別途 articles.update で更新可能。
+   * 閾値はサーバ側固定(DEFAULT_THRESHOLD)。呼び出し側から変更不可。
    */
   async proposeUpdate(input: {
     article_id: string
     proposed_body: string
     author: string
-    /** デフォルト 0.3。0 なら常に保留(テスト用)、1 なら常に直接反映 */
-    threshold?: number
     cost_usd?: number
   }): Promise<
     | { kind: 'applied'; article_id: string }
@@ -87,7 +86,7 @@ export class ReviewService {
     const before = existing.body
     const after = input.proposed_body
     const changePct = ReviewService.computeChangePct(before, after)
-    const threshold = input.threshold ?? ReviewService.DEFAULT_THRESHOLD
+    const threshold = ReviewService.DEFAULT_THRESHOLD
     if (changePct <= threshold) {
       await this.articles.update({
         id: input.article_id,
