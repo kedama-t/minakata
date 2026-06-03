@@ -1,5 +1,9 @@
 // モニター画面用のエージェント人格カタログ。
 // 既知のエージェント (hermes/skills/*) ごとに、表示名・絵文字・グラデーション・役割を持つ。
+// エージェントを追加するときは core/src/schema/index.ts の AgentNameSchema にも追加すること。
+// AgentName 型で型付けしているため、片方が漏れるとコンパイルエラーになる。
+
+import type { AgentName } from '@minakata/core'
 
 export type AgentProfile = {
   /** audit_log.agent_name の素の値 */
@@ -12,7 +16,8 @@ export type AgentProfile = {
   ring?: string
 }
 
-const KNOWN_PROFILES: Record<string, AgentProfile> = {
+/** AgentName 全種のプロファイル。AgentNameSchema と型レベルで同期される */
+const PROFILES: Record<AgentName, AgentProfile> = {
   dialogue: {
     key: 'dialogue',
     emoji: '💬',
@@ -53,40 +58,40 @@ const KNOWN_PROFILES: Record<string, AgentProfile> = {
     avatar: '/agents/chiro.png',
     ring: 'ring-yellow-400',
   },
+  hermes: {
+    key: 'hermes',
+    emoji: '🛰️',
+    displayName: 'Hermes',
+    role: 'エージェントハーネス本体',
+    ring: 'ring-blue-400',
+  },
+  system: {
+    key: 'system',
+    emoji: '⚙️',
+    displayName: 'Q',
+    role: 'システムによる自動処理',
+    avatar: '/agents/q.png',
+    ring: 'ring-slate-400',
+  },
 }
 
-const HERMES_PROFILE: AgentProfile = {
-  key: 'hermes',
-  emoji: '🛰️',
-  displayName: 'Hermes',
-  role: 'エージェントハーネス本体',
-  ring: 'ring-blue-400',
-}
-
-export const SYSTEM_PROFILE: AgentProfile = {
-  key: 'system',
-  emoji: '⚙️',
-  displayName: 'Q',
-  role: 'システムによる自動処理',
-  avatar: '/agents/q.png',
-  ring: 'ring-slate-400',
-}
+export const SYSTEM_PROFILE: AgentProfile = PROFILES.system
 
 /**
  * agent_name / actor から表示用プロフィールを得る。
- * 未登録エージェントには名前ハッシュからグラデーションを決定論的に割り当てる。
+ * 未登録エージェントにはフォールバックプロファイルを返す。
  */
 export function getAgentProfile(agentName: string | null | undefined): AgentProfile {
-  if (!agentName) return HERMES_PROFILE
-  if (KNOWN_PROFILES[agentName]) return KNOWN_PROFILES[agentName]
-  if (agentName === 'hermes' || agentName.startsWith('hermes')) return HERMES_PROFILE
-  return {
-    key: agentName,
-    emoji: '✨',
-    displayName: agentName,
-    role: '稼働中のエージェント',
-    ring: 'ring-slate-400',
-  }
+  if (!agentName || agentName.startsWith('hermes')) return PROFILES.hermes
+  return (
+    (PROFILES as Record<string, AgentProfile>)[agentName] ?? {
+      key: agentName,
+      emoji: '✨',
+      displayName: agentName,
+      role: '稼働中のエージェント',
+      ring: 'ring-slate-400',
+    }
+  )
 }
 
 // ─── ツール名 → 自然文/カテゴリ ──────────────────────────────────────────
