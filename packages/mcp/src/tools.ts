@@ -3,6 +3,7 @@ import {
   ArticleStatusSchema,
   SourceRefSchema,
   TaskPrioritySchema,
+  TaskTypeSchema,
 } from '@minakata/core'
 /**
  * Minakata MCP の公開ツール群(Phase 1)。
@@ -46,12 +47,12 @@ export function registerArticleTools(
       description:
         '新規記事を作成する。Markdown 書き込み + DB インデックス + Git コミット。出典(US-5.1)は sources で渡す',
       inputSchema: {
-        title: z.string(),
+        title: z.string().min(1).max(500),
         slug: z.string(),
-        body: z.string(),
+        body: z.string().max(500_000),
         tags: z.array(z.string()).optional(),
         topic_id: z.string().optional(),
-        summary: z.string().optional(),
+        summary: z.string().max(2000).optional(),
         author: z.string().default('researcher'),
         source: ArticleSourceKindSchema.optional(),
         /** 出典(US-5.1 横断要件)。{url, fetched_at, archive_url?, used_in_sections?} の配列 */
@@ -88,11 +89,11 @@ export function registerArticleTools(
         '既存記事を更新する。body を渡した場合は ReviewService.proposeUpdate を経由し、変更率がしきい値(既定 30%)を超えると pending_approval で保留される(US-6.2)。body 以外のフィールド(タイトル等メタデータと add_sources)は直接反映する。出典(US-5.1)は add_sources で追記する',
       inputSchema: {
         id: z.string(),
-        body: z.string().optional(),
-        title: z.string().optional(),
+        body: z.string().max(500_000).optional(),
+        title: z.string().min(1).max(500).optional(),
         tags: z.array(z.string()).optional(),
         status: ArticleStatusSchema.optional(),
-        summary: z.string().optional(),
+        summary: z.string().max(2000).optional(),
         last_researched_at: z.string().datetime().optional(),
         cost_usd: z.number().nonnegative().optional(),
         author: z.string().default('researcher'),
@@ -441,10 +442,13 @@ export function registerTaskTools(server: McpServer, s: McpServices, ctx: CallCo
     {
       description: '調査・編集タスクをキューに投入する。dedup_key で冪等性確保',
       inputSchema: {
-        type: z.string(),
+        type: TaskTypeSchema,
         priority: TaskPrioritySchema,
-        payload: z.record(z.string(), z.unknown()).optional(),
-        dedup_key: z.string().optional(),
+        payload: z
+          .record(z.string(), z.unknown())
+          .refine((v) => JSON.stringify(v).length <= 10_000, 'payload は 10KB 以内にしてください')
+          .optional(),
+        dedup_key: z.string().max(255).optional(),
         parent_task_id: z.string().optional(),
         parent_review_id: z.string().optional(),
         requested_by: z.string().optional(),
