@@ -116,11 +116,19 @@ export class AuthService {
         [string]
       >('SELECT id, email, password_hash, role, created_at FROM users WHERE email = ?')
       .get(email)
-    if (!row) return null
+    if (!row) {
+      // ユーザー不在時も verify を実行してタイミングを均一化(ユーザー列挙防止)
+      await verify(AuthService.DUMMY_HASH, password).catch(() => {})
+      return null
+    }
     const ok = await verify(row.password_hash, password)
     if (!ok) return null
     return { id: row.id, email: row.email, role: row.role, created_at: row.created_at }
   }
+
+  // ユーザー列挙対策用ダミーハッシュ(存在しないユーザーのログイン試行でも同程度の時間を消費)
+  private static readonly DUMMY_HASH =
+    '$argon2id$v=19$m=65536,t=3,p=4$ZHVtbXlkdW1teWR1bW15$hbikWtYliFlmBBUeKmWkLqYB+HRTM0RLOhEuPHMO6OI'
 
   // --- セッション ---
 
