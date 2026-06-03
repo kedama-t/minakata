@@ -7,8 +7,8 @@ import { getServices } from '../app/lib/services.ts'
 import { scrapeUrl } from './scraper.ts'
 
 const MCP_TOKEN = process.env.MCP_TOKEN ?? ''
-// Hermes は FIRECRAWL_API_KEY を Bearer token として送ってくるため、優先して使用する
-const SCRAPER_TOKEN = process.env.FIRECRAWL_API_KEY ?? process.env.SCRAPER_TOKEN ?? MCP_TOKEN
+// SCRAPER_TOKEN は FIRECRAWL_API_KEY とは独立した専用トークン。未設定時は fail-close(全拒否)
+const SCRAPER_TOKEN = process.env.SCRAPER_TOKEN ?? ''
 
 const scrapeBodySchema = z.object({
   url: z.string().url(),
@@ -30,6 +30,14 @@ function mountScraper(app: Hono) {
       ) {
         return c.json({ success: false, error: 'Unauthorized' }, 401)
       }
+    // SCRAPER_TOKEN 未設定時は fail-close(全拒否)
+    if (!SCRAPER_TOKEN) {
+      return c.json({ success: false, error: 'Scraper endpoint is disabled' }, 503)
+    }
+    const auth = c.req.header('Authorization') ?? ''
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : ''
+    if (token !== SCRAPER_TOKEN) {
+      return c.json({ success: false, error: 'Unauthorized' }, 401)
     }
 
     const body = await c.req.json().catch(() => null)
@@ -46,8 +54,12 @@ function mountScraper(app: Hono) {
       })
       return c.json({ success: true, data: result })
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      return c.json({ success: false, error: message }, 500)
+      // エラー詳細を外部に漏洩させない
+      const isBlocked = err instanceof Error && err.message.startsWith('SSRF:')
+      return c.json(
+        { success: false, error: isBlocked ? err.message : 'Failed to scrape URL' },
+        500,
+      )
     }
   })
 }
@@ -65,7 +77,8 @@ export default createHonoServer({
     services.maintenance.runMigrations()
 
     if (!MCP_TOKEN) {
-      console.warn('[minakata] MCP_TOKEN is not set — /mcp endpoint will reject all requests')
+      // MCP_TOKEN 未設定でも hono.ts の Bearer 検証で全拒否になるが、明示的に通知する
+      console.error('[minakata] MCP_TOKEN is not set — all /mcp requests will be rejected with 401')
     }
 
     app.get('/health', (c) => c.json({ status: 'ok' }))

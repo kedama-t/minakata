@@ -35,7 +35,7 @@ function buildServices(): { services: McpServices; cleanup: () => void } {
     tasks,
     audit: new AuditService(db),
     activity: new ActivityService(db),
-    maintenance: new MaintenanceService(db),
+    maintenance: new MaintenanceService(db, join(dir, 'snapshots')),
     reviews: new ReviewService(db, articles, tasks),
     policy: new PolicyService(db),
     comments: new CommentService(db),
@@ -51,7 +51,7 @@ describe('mountMcp', () => {
     const { services, cleanup } = buildServices()
     const app = new Hono()
     mountMcp(app, { token: 't', services })
-    const res = await app.request('/mcp', { method: 'POST' })
+    const res = await app.request('http://localhost/mcp', { method: 'POST' })
     expect(res.status).toBe(401)
     cleanup()
   })
@@ -61,10 +61,11 @@ describe('mountMcp', () => {
     const app = new Hono()
     mountMcp(app, { token: 't', services })
     const call = async (method: string, params: unknown, id: number) => {
-      const res = await app.request('/mcp', {
+      const res = await app.request('http://localhost/mcp', {
         method: 'POST',
         headers: {
           authorization: 'Bearer t',
+          host: 'localhost',
           'content-type': 'application/json',
           accept: 'application/json, text/event-stream',
         },
@@ -108,10 +109,11 @@ describe('mountMcp', () => {
     mountMcp(app, { token: 't', services })
 
     // 1) initialize
-    const init = await app.request('/mcp', {
+    const init = await app.request('http://localhost/mcp', {
       method: 'POST',
       headers: {
         authorization: 'Bearer t',
+        host: 'localhost',
         'content-type': 'application/json',
         accept: 'application/json, text/event-stream',
       },
@@ -129,10 +131,11 @@ describe('mountMcp', () => {
     expect(init.status).toBe(200)
 
     // 2) tools/list
-    const list = await app.request('/mcp', {
+    const list = await app.request('http://localhost/mcp', {
       method: 'POST',
       headers: {
         authorization: 'Bearer t',
+        host: 'localhost',
         'content-type': 'application/json',
         accept: 'application/json, text/event-stream',
       },
@@ -153,10 +156,11 @@ describe('mountMcp', () => {
     const app = new Hono()
     mountMcp(app, { token: 't', services })
     const call = async (method: string, params: unknown, id: number) => {
-      const res = await app.request('/mcp', {
+      const res = await app.request('http://localhost/mcp', {
         method: 'POST',
         headers: {
           authorization: 'Bearer t',
+          host: 'localhost',
           'content-type': 'application/json',
           accept: 'application/json, text/event-stream',
         },
@@ -228,10 +232,11 @@ describe('mountMcp', () => {
     const app = new Hono()
     mountMcp(app, { token: 't', services })
     const call = async (method: string, params: unknown, id: number) => {
-      const res = await app.request('/mcp', {
+      const res = await app.request('http://localhost/mcp', {
         method: 'POST',
         headers: {
           authorization: 'Bearer t',
+          host: 'localhost',
           'content-type': 'application/json',
           accept: 'application/json, text/event-stream',
         },
@@ -306,10 +311,11 @@ describe('mountMcp', () => {
     mountMcp(app, { token: 't', services })
 
     const call = async (method: string, params: unknown, id: number) => {
-      const res = await app.request('/mcp', {
+      const res = await app.request('http://localhost/mcp', {
         method: 'POST',
         headers: {
           authorization: 'Bearer t',
+          host: 'localhost',
           'content-type': 'application/json',
           accept: 'application/json, text/event-stream',
         },

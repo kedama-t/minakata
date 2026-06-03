@@ -16,7 +16,11 @@ export interface McpMountOptions {
   token: string
   /** マウントパス。デフォルトは /mcp */
   path?: string
-  /** 許可する Host ヘッダ。空配列なら検証スキップ(本番では必ず指定) */
+  /**
+   * 許可する Host ヘッダ(DNS rebinding 対策)。
+   * 未設定または空配列の場合は localhost / 127.0.0.1 のみ許可(fail-close)。
+   * 本番では MCP_ALLOWED_HOSTS に実ホスト名を必ず設定すること。
+   */
   allowedHosts?: string[]
   services: McpServices
 }
@@ -40,16 +44,17 @@ export function mountMcp(app: Hono, options: McpMountOptions): void {
         headers: { 'content-type': 'application/json' },
       })
     }
-    // Host 検証(DNS rebinding 対策)
-    const allowed = options.allowedHosts ?? []
-    if (allowed.length > 0) {
-      const host = req.headers.get('host') ?? ''
-      if (!allowed.includes(host)) {
-        return new Response(JSON.stringify({ error: 'forbidden_host' }), {
-          status: 403,
-          headers: { 'content-type': 'application/json' },
-        })
-      }
+    // Host 検証(DNS rebinding 対策): 未設定時は localhost のみ許可(fail-close)
+    const allowed =
+      options.allowedHosts && options.allowedHosts.length > 0
+        ? options.allowedHosts
+        : ['localhost', '127.0.0.1']
+    const host = req.headers.get('host') ?? ''
+    if (!allowed.includes(host)) {
+      return new Response(JSON.stringify({ error: 'forbidden_host' }), {
+        status: 403,
+        headers: { 'content-type': 'application/json' },
+      })
     }
 
     // stateless 構造:リクエストごとに transport を作って即破棄

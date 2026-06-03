@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { hash, verify } from '@node-rs/argon2'
 import { encodeBase64url } from '@oslojs/encoding'
 import type { Db } from '../db/index.ts'
@@ -130,16 +131,23 @@ export class AuthService {
     const rand = new Uint8Array(32)
     crypto.getRandomValues(rand)
     const token = `${id}.${encodeBase64url(rand)}`
+    // トークン全体の SHA-256 ハッシュを保存し、resolveSession で照合する
+    const tokenHash = createHash('sha256').update(token).digest('hex')
     const expires = new Date(Date.now() + SESSION_TTL_DAYS * 86_400_000).toISOString()
     this.db
-      .prepare('INSERT INTO sessions (id, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)')
-      .run(id, user_id, expires, now())
+      .prepare(
+        'INSERT INTO sessions (id, user_id, expires_at, created_at, token_hash) VALUES (?, ?, ?, ?, ?)',
+      )
+      .run(id, user_id, expires, now(), tokenHash)
     return { id, token, expires_at: expires }
   }
 
   resolveSession(token: string): User | null {
-    const sessionId = token.split('.')[0]
-    if (!sessionId) return null
+    const parts = token.split('.')
+    const sessionId = parts[0]
+    if (!sessionId || parts.length < 2) return null
+    // トークン全体の SHA-256 ハッシュで照合(ランダム部分も必ず検証)
+    const tokenHash = createHash('sha256').update(token).digest('hex')
     const row = this.db
       .query<
         {
@@ -148,14 +156,15 @@ export class AuthService {
           email: string
           role: Role
           created_at: string
+          token_hash: string | null
         },
-        [string]
+        [string, string]
       >(
-        `SELECT s.user_id, s.expires_at, u.email, u.role, u.created_at
+        `SELECT s.user_id, s.expires_at, s.token_hash, u.email, u.role, u.created_at
          FROM sessions s JOIN users u ON u.id = s.user_id
-         WHERE s.id = ?`,
+         WHERE s.id = ? AND (s.token_hash IS NULL OR s.token_hash = ?)`,
       )
-      .get(sessionId)
+      .get(sessionId, tokenHash)
     if (!row) return null
     if (Date.parse(row.expires_at) < Date.now()) {
       this.deleteSession(sessionId)

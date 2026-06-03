@@ -33,7 +33,7 @@ describe('MaintenanceService.reindexEmbeddings', () => {
     })
     const articles = new ArticleService(db, dir, git, embedding)
     const search = new SearchService(db)
-    const maintenance = new MaintenanceService(db)
+    const maintenance = new MaintenanceService(db, join(dir, 'snapshots'))
 
     // 全部同じタイトル。区別は本文中の数字のみ
     const a = await articles.create({ title: 'T', slug: 'a', body: 'mentions 1', author: 'u' })
