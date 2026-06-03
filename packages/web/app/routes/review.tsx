@@ -1,6 +1,6 @@
 import { diffLines } from 'diff'
 import { Form, redirect } from 'react-router'
-import { requireEditor } from '../lib/auth.ts'
+import { assertSameOrigin, requireEditor } from '../lib/auth.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/review.ts'
 
@@ -18,6 +18,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
+  assertSameOrigin(request)
   const user = requireEditor(request)
   if (!params.reviewId) throw new Response('Bad Request', { status: 400 })
   const services = getServices()

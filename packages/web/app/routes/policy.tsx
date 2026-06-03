@@ -1,5 +1,5 @@
 import { Form } from 'react-router'
-import { requireAdmin } from '../lib/auth.ts'
+import { assertSameOrigin, requireAdmin } from '../lib/auth.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/policy.ts'
 
@@ -9,6 +9,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export async function action({ request }: Route.ActionArgs) {
+  assertSameOrigin(request)
   const admin = requireAdmin(request)
   const form = await request.formData()
   const body = String(form.get('body_md') ?? '')

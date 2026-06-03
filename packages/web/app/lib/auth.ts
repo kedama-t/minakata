@@ -58,3 +58,17 @@ export function requireAdmin(req: Request): User {
   if (user.role !== 'admin') throw new Response('Forbidden', { status: 403 })
   return user
 }
+
+/**
+ * POST/PUT/DELETE リクエストの Origin ヘッダを検証して CSRF を防ぐ。
+ * Origin が存在して自サイト origin と一致しない場合は 403 を throw する。
+ * Origin なしリクエスト(同一オリジンの古いブラウザ等)は SameSite=Lax に委ねる。
+ */
+export function assertSameOrigin(req: Request): void {
+  const origin = req.headers.get('origin')
+  if (!origin) return
+  const expected = new URL(req.url).origin
+  if (origin !== expected) {
+    throw new Response('Forbidden', { status: 403 })
+  }
+}
