@@ -35,7 +35,7 @@ function buildServices(): { services: McpServices; cleanup: () => void } {
     tasks,
     audit: new AuditService(db),
     activity: new ActivityService(db),
-    maintenance: new MaintenanceService(db),
+    maintenance: new MaintenanceService(db, join(dir, 'snapshots')),
     reviews: new ReviewService(db, articles, tasks),
     policy: new PolicyService(db),
     comments: new CommentService(db),

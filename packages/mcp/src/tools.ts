@@ -47,7 +47,12 @@ export function registerArticleTools(
         '新規記事を作成する。Markdown 書き込み + DB インデックス + Git コミット。出典(US-5.1)は sources で渡す',
       inputSchema: {
         title: z.string(),
-        slug: z.string(),
+        slug: z
+          .string()
+          .regex(
+            /^[a-z0-9][a-z0-9-]*(?:\/[a-z0-9][a-z0-9-]*)*$/,
+            'slug は英小文字・数字・ハイフンのみ（スラッシュで階層化可）',
+          ),
         body: z.string(),
         tags: z.array(z.string()).optional(),
         topic_id: z.string().optional(),
@@ -208,48 +213,6 @@ export function registerArticleTools(
         status: 'pending_approval',
         proposed_at: proposal.created_at,
       })
-    },
-  )
-
-  server.registerTool(
-    'minakata.approve_archive',
-    {
-      description: 'アーカイブ提案を admin が承認し、記事を archived に遷移させる',
-      inputSchema: { proposal_id: z.string(), reviewer_id: z.string() },
-    },
-    async (args) => {
-      const before = s.archives.get(args.proposal_id)
-      await s.archives.approve(args.proposal_id, args.reviewer_id)
-      s.audit.log({
-        actor: `user:${args.reviewer_id}`,
-        tool_name: 'minakata.approve_archive',
-        target_article_id: before?.article_id ?? null,
-        metadata: { proposal_id: args.proposal_id },
-      })
-      return ok({ proposal_id: args.proposal_id, status: 'approved' })
-    },
-  )
-
-  server.registerTool(
-    'minakata.reject_archive',
-    {
-      description: 'アーカイブ提案を却下する(admin)。記事は archived にならず published のまま',
-      inputSchema: {
-        proposal_id: z.string(),
-        reviewer_id: z.string(),
-        reason: z.string().min(1),
-      },
-    },
-    async (args) => {
-      const before = s.archives.get(args.proposal_id)
-      s.archives.reject(args.proposal_id, args.reviewer_id, args.reason)
-      s.audit.log({
-        actor: `user:${args.reviewer_id}`,
-        tool_name: 'minakata.reject_archive',
-        target_article_id: before?.article_id ?? null,
-        metadata: { proposal_id: args.proposal_id, reason: args.reason },
-      })
-      return ok({ proposal_id: args.proposal_id, status: 'rejected' })
     },
   )
 
@@ -572,10 +535,11 @@ export function registerMaintenanceTools(server: McpServer, s: McpServices): voi
   server.registerTool(
     'minakata.snapshot_db',
     {
-      description: 'SQLite を VACUUM INTO で別ファイルに退避する',
-      inputSchema: { path: z.string() },
+      description:
+        'SQLite を VACUUM INTO でサーバ固定ディレクトリ配下に退避する。filename は小文字英数字・ハイフン・アンダースコアのみ使用可能で .sqlite 拡張子必須',
+      inputSchema: { filename: z.string().regex(/^[a-z0-9_-]+\.sqlite$/) },
     },
-    async ({ path }) => ok(s.maintenance.snapshot(path)),
+    async ({ filename }) => ok(s.maintenance.snapshot(filename)),
   )
 
   server.registerTool(
@@ -637,44 +601,6 @@ export function registerReviewTools(
   )
 
   server.registerTool(
-    'minakata.approve_review',
-    {
-      description: 'レビューを承認して proposed_body を実反映する',
-      inputSchema: { review_id: z.string(), reviewer_id: z.string() },
-    },
-    async (args) => {
-      await s.reviews.approve(args.review_id, args.reviewer_id)
-      s.audit.log({
-        actor: `user:${args.reviewer_id}`,
-        tool_name: 'minakata.approve_review',
-        metadata: { review_id: args.review_id },
-      })
-      return ok({ review_id: args.review_id, status: 'approved' })
-    },
-  )
-
-  server.registerTool(
-    'minakata.reject_review',
-    {
-      description: 'レビューを差し戻し、revise タスクをキューに投入する',
-      inputSchema: {
-        review_id: z.string(),
-        reviewer_id: z.string(),
-        comment: z.string().min(1),
-      },
-    },
-    async (args) => {
-      const r = await s.reviews.reject(args.review_id, args.reviewer_id, args.comment)
-      s.audit.log({
-        actor: `user:${args.reviewer_id}`,
-        tool_name: 'minakata.reject_review',
-        metadata: { review_id: args.review_id, comment: args.comment },
-      })
-      return ok({ ...r, status: 'rejected' })
-    },
-  )
-
-  server.registerTool(
     'minakata.add_review_comment',
     {
       description: 'レビューに行コメントを追加する',
@@ -706,11 +632,7 @@ export function registerReviewTools(
   )
 }
 
-export function registerPolicyTools(
-  server: McpServer,
-  s: McpServices,
-  ctx: CallContext = {},
-): void {
+export function registerPolicyTools(server: McpServer, s: McpServices): void {
   server.registerTool(
     'minakata.get_research_policy',
     {
@@ -718,23 +640,6 @@ export function registerPolicyTools(
       inputSchema: {},
     },
     async () => ok(s.policy.get()),
-  )
-
-  server.registerTool(
-    'minakata.update_research_policy',
-    {
-      description: 'リサーチ方針を更新する(admin 専用想定)',
-      inputSchema: { body_md: z.string(), updated_by: z.string() },
-    },
-    async (args) => {
-      s.policy.update(args.body_md, args.updated_by)
-      s.audit.log({
-        actor: ctx.agent ?? `user:${args.updated_by}`,
-        tool_name: 'minakata.update_research_policy',
-        metadata: { length: args.body_md.length },
-      })
-      return ok({ ok: true })
-    },
   )
 }
 
@@ -831,40 +736,6 @@ export function registerSkillTools(server: McpServer, s: McpServices, ctx: CallC
   )
 
   server.registerTool(
-    'minakata.approve_skill',
-    {
-      description: 'スキル提案を承認し、SKILL.md を書き出す',
-      inputSchema: { id: z.string(), reviewer_id: z.string() },
-    },
-    async (args) => {
-      const r = s.skills.approve(args.id, args.reviewer_id)
-      s.audit.log({
-        actor: `user:${args.reviewer_id}`,
-        tool_name: 'minakata.approve_skill',
-        metadata: { id: args.id, ...r },
-      })
-      return ok({ id: args.id, ...r })
-    },
-  )
-
-  server.registerTool(
-    'minakata.reject_skill',
-    {
-      description: 'スキル提案を却下',
-      inputSchema: { id: z.string(), reviewer_id: z.string() },
-    },
-    async (args) => {
-      s.skills.reject(args.id, args.reviewer_id)
-      s.audit.log({
-        actor: `user:${args.reviewer_id}`,
-        tool_name: 'minakata.reject_skill',
-        metadata: { id: args.id },
-      })
-      return ok({ id: args.id, status: 'rejected' })
-    },
-  )
-
-  server.registerTool(
     'minakata.list_skill_proposals',
     {
       description: 'スキル提案一覧',
@@ -896,7 +767,7 @@ export function registerAllTools(
   registerTaskTools(server, services, ctx)
   registerMaintenanceTools(server, services)
   registerReviewTools(server, services, ctx)
-  registerPolicyTools(server, services, ctx)
+  registerPolicyTools(server, services)
   registerCommentTools(server, services)
   registerSkillTools(server, services, ctx)
   registerTopicTools(server, services)
