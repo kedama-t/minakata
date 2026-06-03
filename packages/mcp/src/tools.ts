@@ -535,10 +535,11 @@ export function registerMaintenanceTools(server: McpServer, s: McpServices): voi
   server.registerTool(
     'minakata.snapshot_db',
     {
-      description: 'SQLite を VACUUM INTO で別ファイルに退避する',
-      inputSchema: { path: z.string() },
+      description:
+        'SQLite を VACUUM INTO でサーバ固定ディレクトリ配下に退避する。filename は小文字英数字・ハイフン・アンダースコアのみ使用可能で .sqlite 拡張子必須',
+      inputSchema: { filename: z.string().regex(/^[a-z0-9_-]+\.sqlite$/) },
     },
-    async ({ path }) => ok(s.maintenance.snapshot(path)),
+    async ({ filename }) => ok(s.maintenance.snapshot(filename)),
   )
 
   server.registerTool(
