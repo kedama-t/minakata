@@ -1,4 +1,5 @@
 import {
+  AgentNameSchema,
   ArticleSourceKindSchema,
   ArticleStatusSchema,
   SourceRefSchema,
@@ -377,7 +378,7 @@ export function registerMessageTools(
       description:
         '現在の作業状況を実況する。モニターのタイムラインとエージェントカードに反映される(監査ログとは別)',
       inputSchema: {
-        agent_name: z.string(),
+        agent_name: AgentNameSchema,
         phase: z.string(),
         detail: z.string().optional(),
         target_article_id: z.string().optional(),

@@ -1,5 +1,17 @@
 import { z } from 'zod'
 
+/** hermes/skills/* の既知エージェント名。web/app/lib/agent-profiles.ts と型レベルで同期する */
+export const AgentNameSchema = z.enum([
+  'dialogue',
+  'researcher',
+  'daily_research',
+  'freshness_checker',
+  'changelog_writer',
+  'hermes',
+  'system',
+])
+export type AgentName = z.infer<typeof AgentNameSchema>
+
 export const RoleSchema = z.enum(['viewer', 'editor', 'admin'])
 export type Role = z.infer<typeof RoleSchema>
 
