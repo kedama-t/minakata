@@ -1,7 +1,15 @@
+import { timingSafeEqual } from 'node:crypto'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
 import type { Hono } from 'hono'
 import { createMinakataMcpServer } from './server.ts'
 import type { McpServices } from './services.ts'
+
+/** タイミング攻撃を防ぐ定数時間 Bearer トークン比較 */
+function safeCompareBearer(auth: string, token: string): boolean {
+  const expected = `Bearer ${token}`
+  if (auth.length !== expected.length) return false
+  return timingSafeEqual(Buffer.from(auth), Buffer.from(expected))
+}
 
 export interface McpMountOptions {
   /** Bearer Token。Hermes 側にも同じ値を共有する */
@@ -28,9 +36,9 @@ export function mountMcp(app: Hono, options: McpMountOptions): void {
   const path = options.path ?? '/mcp'
 
   const handle = async (req: Request): Promise<Response> => {
-    // 認証
+    // 認証(定数時間比較でタイミング攻撃を防ぐ)
     const auth = req.headers.get('authorization') ?? ''
-    if (auth !== `Bearer ${options.token}`) {
+    if (!safeCompareBearer(auth, options.token)) {
       return new Response(JSON.stringify({ error: 'unauthorized' }), {
         status: 401,
         headers: { 'content-type': 'application/json' },

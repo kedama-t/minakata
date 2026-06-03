@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto'
 import { mountMcp } from '@minakata/mcp'
 import type { Hono } from 'hono'
 import { createHonoServer } from 'react-router-hono-server/bun'
@@ -19,6 +20,16 @@ const scrapeBodySchema = z.object({
 /** Firecrawl /v1/scrape 互換エンドポイントをマウントする */
 function mountScraper(app: Hono) {
   app.post('/v1/scrape', async (c) => {
+    // Bearer トークン認証(定数時間比較でタイミング攻撃を防ぐ)
+    if (SCRAPER_TOKEN) {
+      const auth = c.req.header('Authorization') ?? ''
+      const token = auth.startsWith('Bearer ') ? auth.slice(7) : ''
+      if (
+        token.length !== SCRAPER_TOKEN.length ||
+        !timingSafeEqual(Buffer.from(token), Buffer.from(SCRAPER_TOKEN))
+      ) {
+        return c.json({ success: false, error: 'Unauthorized' }, 401)
+      }
     // SCRAPER_TOKEN 未設定時は fail-close(全拒否)
     if (!SCRAPER_TOKEN) {
       return c.json({ success: false, error: 'Scraper endpoint is disabled' }, 503)
