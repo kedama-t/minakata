@@ -113,6 +113,7 @@ const td = new TurndownService({
 })
 
 export interface ScrapeResult {
+  /** フェンス付き Markdown。外部コンテンツは <untrusted_content> タグで囲まれている */
   markdown: string
   metadata: {
     title: string
@@ -120,6 +121,15 @@ export interface ScrapeResult {
     sourceURL: string
     statusCode: number
   }
+}
+
+/**
+ * 外部コンテンツを <untrusted_content> タグで囲みプロンプトインジェクションを緩和する。
+ * タグ内に含まれる閉じタグ文字列をエスケープして偽タグによるフェンス脱出を防ぐ。
+ */
+function fenceUntrustedContent(content: string): string {
+  const escaped = content.replaceAll('</untrusted_content>', '<\\/untrusted_content>')
+  return `<untrusted_content>\n${escaped}\n</untrusted_content>`
 }
 
 /** URLを取得してMarkdownとメタデータを返す。SSRF検証に失敗した場合は例外を投げる */
@@ -171,7 +181,7 @@ export async function scrapeUrl(
   }
 
   return {
-    markdown: fenceContent(markdown),
+    markdown: fenceUntrustedContent(markdown),
     metadata: {
       title,
       description: metaDesc,
