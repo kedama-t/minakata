@@ -1,9 +1,10 @@
 import { Form, redirect } from 'react-router'
-import { serializeSession } from '../lib/auth.ts'
+import { assertSameOrigin, serializeSession } from '../lib/auth.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/invitation.ts'
 
 export async function action({ request, params }: Route.ActionArgs) {
+  assertSameOrigin(request)
   const form = await request.formData()
   const password = String(form.get('password') ?? '')
   if (password.length < 8) return { error: 'パスワードは 8 文字以上' }

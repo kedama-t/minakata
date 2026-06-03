@@ -32,6 +32,12 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/packages ./packages
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/tsconfig.json ./tsconfig.json
+# data / models ディレクトリをあらかじめ作成し bun ユーザーに所有権を付与する。
+# ボリュームマウント時に UID がずれる場合は docker-compose.yml の
+# user フィールドか MINAKATA_UID 環境変数でホスト UID を合わせること。
+RUN mkdir -p /app/data /app/.cache/huggingface \
+  && chown -R bun:bun /app/data /app/.cache/huggingface
+USER bun
 EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=3 \
   CMD curl -fsS http://127.0.0.1:3000/health || exit 1

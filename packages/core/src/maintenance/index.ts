@@ -1,3 +1,5 @@
+import { mkdirSync } from 'node:fs'
+import { join, resolve } from 'node:path'
 import type { ArticleService } from '../article/index.ts'
 import type { Db } from '../db/index.ts'
 import { runMigrations } from '../db/index.ts'
@@ -11,14 +13,35 @@ import { newId, now } from '../util/id.ts'
  * - reindex: FTS5 + sqlite-vec の再インデックス(モデル変更時)
  */
 export class MaintenanceService {
-  constructor(private readonly db: Db) {}
+  private readonly snapshotDir: string
+
+  constructor(
+    private readonly db: Db,
+    snapshotDir: string,
+  ) {
+    this.snapshotDir = resolve(snapshotDir)
+    mkdirSync(this.snapshotDir, { recursive: true })
+  }
 
   runMigrations(): void {
     runMigrations(this.db)
   }
 
-  /** SQLite を別ファイルに VACUUM INTO で吐き出す。Hermes の `minakata.snapshot_db` から呼ぶ */
-  snapshot(toPath: string): { path: string; created_at: string } {
+  /** SQLite を固定ディレクトリ配下にファイル名指定で VACUUM INTO する。Hermes の `minakata.snapshot_db` から呼ぶ */
+  snapshot(filename: string): { path: string; created_at: string } {
+    if (!/^[a-z0-9_-]+\.sqlite$/.test(filename)) {
+      throw new Error(
+        'Invalid snapshot filename. Use lowercase letters, digits, hyphens, underscores, and .sqlite extension.',
+      )
+    }
+    const toPath = join(this.snapshotDir, filename)
+    // resolve 後もsnapshotDir配下であることを確認(パストラバーサル防止)
+    if (
+      !resolve(toPath).startsWith(`${this.snapshotDir}/`) &&
+      resolve(toPath) !== this.snapshotDir
+    ) {
+      throw new Error('Snapshot path traversal detected.')
+    }
     this.db.prepare('VACUUM INTO ?').run(toPath)
     return { path: toPath, created_at: now() }
   }

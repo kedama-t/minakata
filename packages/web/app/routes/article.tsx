@@ -1,6 +1,6 @@
 import type { Article } from '@minakata/core'
 import { Form } from 'react-router'
-import { requireEditor, requireUser } from '../lib/auth.ts'
+import { assertSameOrigin, requireEditor, requireUser } from '../lib/auth.ts'
 import { ArticleMarkdown } from '../lib/markdown.tsx'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/article.ts'
@@ -25,6 +25,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
+  assertSameOrigin(request)
   const user = requireEditor(request)
   const services = getServices()
   const slug = params['*']

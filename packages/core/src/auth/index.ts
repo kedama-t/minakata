@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { hash, verify } from '@node-rs/argon2'
 import { encodeBase64url } from '@oslojs/encoding'
 import type { Db } from '../db/index.ts'
@@ -116,11 +117,19 @@ export class AuthService {
         [string]
       >('SELECT id, email, password_hash, role, created_at FROM users WHERE email = ?')
       .get(email)
-    if (!row) return null
+    if (!row) {
+      // ユーザー不在時も verify を実行してタイミングを均一化(ユーザー列挙防止)
+      await verify(AuthService.DUMMY_HASH, password).catch(() => {})
+      return null
+    }
     const ok = await verify(row.password_hash, password)
     if (!ok) return null
     return { id: row.id, email: row.email, role: row.role, created_at: row.created_at }
   }
+
+  // ユーザー列挙対策用ダミーハッシュ(存在しないユーザーのログイン試行でも同程度の時間を消費)
+  private static readonly DUMMY_HASH =
+    '$argon2id$v=19$m=65536,t=3,p=4$ZHVtbXlkdW1teWR1bW15$hbikWtYliFlmBBUeKmWkLqYB+HRTM0RLOhEuPHMO6OI'
 
   // --- セッション ---
 
@@ -130,16 +139,23 @@ export class AuthService {
     const rand = new Uint8Array(32)
     crypto.getRandomValues(rand)
     const token = `${id}.${encodeBase64url(rand)}`
+    // トークン全体の SHA-256 ハッシュを保存し、resolveSession で照合する
+    const tokenHash = createHash('sha256').update(token).digest('hex')
     const expires = new Date(Date.now() + SESSION_TTL_DAYS * 86_400_000).toISOString()
     this.db
-      .prepare('INSERT INTO sessions (id, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)')
-      .run(id, user_id, expires, now())
+      .prepare(
+        'INSERT INTO sessions (id, user_id, expires_at, created_at, token_hash) VALUES (?, ?, ?, ?, ?)',
+      )
+      .run(id, user_id, expires, now(), tokenHash)
     return { id, token, expires_at: expires }
   }
 
   resolveSession(token: string): User | null {
-    const sessionId = token.split('.')[0]
-    if (!sessionId) return null
+    const parts = token.split('.')
+    const sessionId = parts[0]
+    if (!sessionId || parts.length < 2) return null
+    // トークン全体の SHA-256 ハッシュで照合(ランダム部分も必ず検証)
+    const tokenHash = createHash('sha256').update(token).digest('hex')
     const row = this.db
       .query<
         {
@@ -148,14 +164,15 @@ export class AuthService {
           email: string
           role: Role
           created_at: string
+          token_hash: string | null
         },
-        [string]
+        [string, string]
       >(
-        `SELECT s.user_id, s.expires_at, u.email, u.role, u.created_at
+        `SELECT s.user_id, s.expires_at, s.token_hash, u.email, u.role, u.created_at
          FROM sessions s JOIN users u ON u.id = s.user_id
-         WHERE s.id = ?`,
+         WHERE s.id = ? AND (s.token_hash IS NULL OR s.token_hash = ?)`,
       )
-      .get(sessionId)
+      .get(sessionId, tokenHash)
     if (!row) return null
     if (Date.parse(row.expires_at) < Date.now()) {
       this.deleteSession(sessionId)

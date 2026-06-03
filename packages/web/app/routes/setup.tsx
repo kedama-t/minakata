@@ -1,9 +1,10 @@
 import { Form, redirect } from 'react-router'
-import { serializeSession } from '../lib/auth.ts'
+import { assertSameOrigin, serializeSession } from '../lib/auth.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/setup.ts'
 
 export async function action({ request }: Route.ActionArgs) {
+  assertSameOrigin(request)
   const services = getServices()
   if (!services.auth.isInitialSetup()) throw redirect('/')
   const form = await request.formData()

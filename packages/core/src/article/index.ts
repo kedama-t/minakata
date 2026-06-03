@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, join, resolve, sep } from 'node:path'
 import matter from 'gray-matter'
 import type { Db } from '../db/index.ts'
 import type { EmbeddingService } from '../embedding/index.ts'
@@ -87,6 +87,7 @@ export class ArticleService {
       .get(slugOrId, slugOrId)
     if (!row) return null
     const fullPath = join(this.articlesRoot, row.path)
+    if (!resolve(fullPath).startsWith(resolve(this.articlesRoot) + sep)) return null
     if (!existsSync(fullPath)) return null
     const raw = readFileSync(fullPath, 'utf8')
     const parsed = matter(raw)
@@ -263,6 +264,9 @@ export class ArticleService {
     op: 'create' | 'update',
   ): Promise<{ hash: string }> {
     const fullPath = join(this.articlesRoot, relativePath)
+    if (!resolve(fullPath).startsWith(resolve(this.articlesRoot) + sep)) {
+      throw new Error(`invalid article path: ${relativePath}`)
+    }
     if (!existsSync(dirname(fullPath))) mkdirSync(dirname(fullPath), { recursive: true })
     const md = matter.stringify(body, fm)
     writeFileSync(fullPath, md, 'utf8')
