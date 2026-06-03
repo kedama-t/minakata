@@ -17,13 +17,13 @@ metadata:
 ## 行動ルール
 
 1. **`minakata.report_progress({ agent_name: "changelog_writer", phase: "ChangeLog 執筆開始", detail: "記事一覧を集計しています" })`** で実況する(失敗しても無視してよい)
-2. `minakata.list_articles({limit: 200})` で記事一覧を取得し、`updated_at` が前日 03:00〜本日 07:00 のものを抽出
+2. `minakata.list_articles({limit: 200})` で記事一覧を取得し、`updated_at` が前日 07:00〜本日 07:00 のものを抽出
 3. 同じ手順で `source = 'agent_research'` の新規作成記事を抽出。抽出完了後に **`minakata.report_progress({ agent_name: "changelog_writer", phase: "記事集計完了", detail: "新規N件・更新M件を抽出。Markdown 生成中" })`** を呼ぶ
 4. 抽出結果から以下のセクションを持つ Markdown を生成:
    - 新規作成された記事一覧(タイトル + 要約 + ID)
      - なお、[[id:01HXYZ...]] と書くと Web 側で記事タイトルに展開されるため、ID を併記する形で記載する
    - 更新された記事一覧(タイトル + 差分要約 + ID)
-   - 失敗したタスク: `minakata.list_dlq({ since: "<前日 03:00 ISO>" })` を呼んで DLQ 件数とタスク種別一覧を取得し記載
+   - 失敗したタスク: `minakata.list_dlq({ since: "<前日 07:00 ISO>" })` を呼んで DLQ 件数とタスク種別一覧を取得し記載
    - LLM コスト集計(各記事の `cost_usd` 合計)
 5. **`minakata.report_progress({ agent_name: "changelog_writer", phase: "ChangeLog 記事作成中", detail: "changelog/{YYYY-MM-DD}" })`** を呼んでから `minakata.create_article` を以下のパラメータで呼ぶ:
    - `slug`: `changelog/{YYYY-MM-DD}`
