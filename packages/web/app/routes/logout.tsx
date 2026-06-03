@@ -1,9 +1,10 @@
 import { redirect } from 'react-router'
-import { clearSessionCookie, getSessionToken } from '../lib/auth.ts'
+import { assertSameOrigin, clearSessionCookie, getSessionToken } from '../lib/auth.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/logout.ts'
 
 export async function action({ request }: Route.ActionArgs) {
+  assertSameOrigin(request)
   const token = getSessionToken(request)
   if (token) {
     const sessionId = token.split('.')[0]

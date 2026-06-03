@@ -4,7 +4,7 @@ import { redirect, useFetcher, useRevalidator } from 'react-router'
 import remarkGfm from 'remark-gfm'
 import { Avatar, UserAvatar } from '../components/ui/avatar.tsx'
 import { getAgentProfile } from '../lib/agent-profiles.ts'
-import { requireEditor } from '../lib/auth.ts'
+import { assertSameOrigin, requireEditor } from '../lib/auth.ts'
 import { HighlightedCode } from '../lib/markdown.tsx'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/chat.ts'
@@ -34,6 +34,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
+  assertSameOrigin(request)
   const user = requireEditor(request)
   const form = await request.formData()
   const content = String(form.get('content') ?? '').trim()

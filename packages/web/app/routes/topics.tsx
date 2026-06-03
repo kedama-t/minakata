@@ -1,7 +1,7 @@
 import { newId, now } from '@minakata/core'
 import { useEffect, useRef, useState } from 'react'
 import { Form, useFetcher } from 'react-router'
-import { requireEditor } from '../lib/auth.ts'
+import { assertSameOrigin, requireEditor } from '../lib/auth.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/topics.ts'
 
@@ -53,6 +53,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export async function action({ request }: Route.ActionArgs) {
+  assertSameOrigin(request)
   const user = requireEditor(request)
   const services = getServices()
   const { db } = services
