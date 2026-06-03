@@ -1,15 +1,26 @@
 import { Form, redirect } from 'react-router'
 import { serializeSession } from '../lib/auth.ts'
+import { isRateLimited, resetRateLimit } from '../lib/rateLimit.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/login.ts'
 
 export async function action({ request }: Route.ActionArgs) {
+  // IP ベースのレート制限(5 分間に 5 回まで)
+  const ip =
+    request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    request.headers.get('x-real-ip') ??
+    'unknown'
+  if (isRateLimited(ip)) {
+    return { error: 'しばらく時間をおいてから再試行してください' }
+  }
+
   const form = await request.formData()
   const email = String(form.get('email') ?? '')
   const password = String(form.get('password') ?? '')
   const services = getServices()
   const user = await services.auth.verifyPassword(email, password)
   if (!user) return { error: 'メールまたはパスワードが正しくありません' }
+  resetRateLimit(ip)
   const session = services.auth.createSession(user.id)
   return redirect('/', { headers: { 'Set-Cookie': serializeSession(session.token) } })
 }
