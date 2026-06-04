@@ -58,6 +58,27 @@ const PROFILES: Record<AgentName, AgentProfile> = {
     avatar: '/agents/chiro.png',
     ring: 'ring-yellow-400',
   },
+  synthesizer: {
+    key: 'synthesizer',
+    emoji: '🔮',
+    displayName: 'ソラ',
+    role: '体系化担当：類似記事を統合して上位概念の記事を生成します',
+    ring: 'ring-violet-400',
+  },
+  gap_detector: {
+    key: 'gap_detector',
+    emoji: '🕳️',
+    displayName: 'ガプ',
+    role: 'ギャップ検出：知識の穴を見つけて調査タスクを投入します',
+    ring: 'ring-orange-400',
+  },
+  taxonomy_builder: {
+    key: 'taxonomy_builder',
+    emoji: '🌿',
+    displayName: 'タクサ',
+    role: '分類整理：タグ・カテゴリ体系を自動で整備します',
+    ring: 'ring-teal-400',
+  },
   hermes: {
     key: 'hermes',
     emoji: '🛰️',
@@ -161,6 +182,7 @@ const TOOL_DICT: Record<string, { phrase: string; category: ToolCategory }> = {
   'minakata.fulltext_search': { phrase: 'ナレッジを検索しました', category: 'read' },
   'minakata.by_tag': { phrase: 'タグから記事を探しました', category: 'read' },
   'minakata.similar_articles': { phrase: '関連する記事を探しました', category: 'read' },
+  'minakata.list_tags': { phrase: 'タグ一覧を確認しました', category: 'read' },
   'minakata.list_article_comments': { phrase: 'コメントを確認しました', category: 'read' },
   'minakata.list_archive_proposals': {
     phrase: 'アーカイブ提案を確認しました',

@@ -315,6 +315,24 @@ export function registerSearchTools(server: McpServer, s: McpServices): void {
     },
     async (args) => ok({ hits: s.search.similar(args.article_id, args.limit ?? 5) }),
   )
+
+  server.registerTool(
+    'minakata.list_tags',
+    {
+      description: 'タグ別の記事件数を降順で返す(taxonomy_builder が全体構造を俯瞰するために使う)',
+      inputSchema: {
+        status: ArticleStatusSchema.optional(),
+        exclude_archived: z.boolean().optional(),
+      },
+    },
+    async (args) =>
+      ok({
+        tags: s.articles.listTags({
+          status: args.status,
+          excludeArchived: args.exclude_archived ?? false,
+        }),
+      }),
+  )
 }
 
 export function registerMessageTools(
