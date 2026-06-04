@@ -21,7 +21,7 @@ services:
       TIMEZONE: "${TIMEZONE:-Asia/Tokyo}"
       # MCP の DNS rebinding 対策。本番では Hermes コンテナの hostname と Caddy 経由の公開ホストを指定
       MCP_ALLOWED_HOSTS: "${MCP_ALLOWED_HOSTS:-minakata:3000,localhost,localhost:3000}"
-      # /v1/scrape の Bearer 認証。Hermes が FIRECRAWL_API_KEY を送ってくる値と一致させる
+      # /v1/scrape の Bearer 認証。Hermes が送る FIRECRAWL_API_KEY と同じ値で検証する
       FIRECRAWL_API_KEY: "${FIRECRAWL_API_KEY}"
       SNAPSHOT_DIR: "/app/data/snapshots"
     restart: unless-stopped

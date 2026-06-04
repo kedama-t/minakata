@@ -20,3 +20,38 @@ server:
   # 外部からの直接アクセスは docker network で遮断する想定
   public_instance: false
   image_proxy: false
+
+outgoing:
+  # デフォルト 3s は Wikipedia / Wikidata でタイムアウトしやすい
+  request_timeout: 10.0
+  max_request_timeout: 15.0
+  # HTTP/2 は TLS フィンガープリントで Google に bot 判定される原因になる
+  enable_http2: false
+
+engines:
+  # Brave はインスタンス IP をすぐレート制限し自動巡回では常時サスペンドになる
+  - name: brave
+    disabled: true
+  # Startpage は latest イメージ(Python 3.14)でレスポンスパースが壊れている
+  - name: startpage
+    disabled: true
+  # DuckDuckGo は自動巡回で CAPTCHA を返し全検索が失敗する
+  - name: duckduckgo
+    disabled: true
+  # Google: HTTP/2 無効化 + レート制限でCAPTCHAを緩和。IP環境次第で効果が変わる
+  - name: google
+    disabled: false
+  - name: google news
+    disabled: false
+  - name: google scholar
+    disabled: false
+  - name: google images
+    disabled: true
+  - name: google videos
+    disabled: true
+  # Presearch: Cloudflare で 403 が返り全滅(searxng/searxng#5438)
+  - name: presearch
+    disabled: true
+  # Wikidata: HTTP 403 初期化エラーの報告多数(searxng/searxng#6051)
+  - name: wikidata
+    disabled: true

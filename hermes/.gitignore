@@ -7,9 +7,10 @@
 #   - skills/{我々の 5 subagent}
 # それ以外は基本全部 ignore。
 
-# --- skills: 我々の 5 つだけ残し、Hermes 内蔵 sync 分は ignore ---
+# --- skills: 我々の 5 つ + 共通リファレンスだけ残し、Hermes 内蔵 sync 分は ignore ---
 /skills/*
 !/skills/changelog_writer/
+!/skills/common/
 !/skills/daily_research/
 !/skills/dialogue/
 !/skills/freshness_checker/

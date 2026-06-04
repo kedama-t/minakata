@@ -7,8 +7,7 @@ import { getServices } from '../app/lib/services.ts'
 import { scrapeUrl } from './scraper.ts'
 
 const MCP_TOKEN = process.env.MCP_TOKEN ?? ''
-// SCRAPER_TOKEN は FIRECRAWL_API_KEY とは独立した専用トークン。未設定時は fail-close(全拒否)
-const SCRAPER_TOKEN = process.env.SCRAPER_TOKEN ?? ''
+const SCRAPER_TOKEN = process.env.FIRECRAWL_API_KEY ?? ''
 
 const scrapeBodySchema = z.object({
   url: z.string().url(),

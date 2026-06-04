@@ -1,7 +1,7 @@
 ---
 name: researcher
 description: 調査タスクキューを消化する。Web 検索 → 抽出 → 記事化を行う。
-version: 0.2.0
+version: 0.3.1
 author: minakata
 license: MIT
 platforms: [linux]
@@ -41,7 +41,13 @@ metadata:
    - `minakata.create_article` / `minakata.update_article` 直前: `{ agent_name: "researcher", phase: "記事執筆中", detail: <記事タイトルや更新内容の概要> }`
 3. タスク種別ごとに処理:
    - `type="research"` (新規調査): `fulltext_search` / `similar_articles` で主題の重複記事がないか確認 → `web_search` → `web_extract` → 統合 → `minakata.create_article`(新規) または `minakata.update_article`(既存に追記)
-     - **先行記事チェック**: create_article の前に必ず `fulltext_search`、`by_tag`、または `similar_articles` で同名・同主題の既存記事を検索する。`fulltext_search` がヒットしない場合でも、`by_tag` で関連タグから見つかることがあるため、併用を推奨する。該当記事があれば新規作成ではなく追記モード（update_article）に切り替える。
+     - **先行記事チェック**: create_article の前に必ず `fulltext_search`、`by_tag`、または `similar_articles` で同名・同主題の既存記事を検索する。`fulltext_search` がヒットしない場合でも、`by_tag` で関連タグから見つかることがあるため、併用を推奨する。該当記事があれば原則として追記モード（update_article）に切り替えるが、以下の条件を**すべて**満たす場合は新規作成も許容される:
+       - 既存記事が広範な比較・俯瞰記事であり、タスクの主題が特定の狭いトピックに絞られている
+       - 追記すると既存記事の主題一貫性を損なう（記事の焦点がぼやけるリスクがある）
+       - 既存記事内で当該トピックに十分な深さのセクションが確保されていない
+       判断に迷う場合は、必ず既存記事を `read_article` して全容を確認してから決定する。
+       - **複数既存記事の評価**: 同じ主題に複数の既存記事がある場合（例: 包括比較記事＋個別ツール詳細記事）、それぞれ `read_article` で主題範囲を確認する。タスクの主題が既存記事群のいずれにも深くカバーされていない特定の角度（移行事例・実践ガイド・特定ユースケースなど）であれば、新規作成が適切。逆に、既存記事のいずれかに自然に追記可能な情報量であれば、追記モードを優先する。
+       - **既存記事が直近（作成・更新から数日以内）で内容が新鮮な場合**: 無理に追記すると変更率が閾値（30%）を超えて `pending_approval` になるリスクがあり、editor のレビュー待ちで既存記事の可用性が一時的に低下する。新たな情報量が少なければ、既存記事の `last_researched_at` のみ更新して完了する判断も検討する。十分な新規情報がある場合は、新規記事として独立させる方が既存記事の焦点を保ちやすい。
      - **検索戦略**: `payload.query` を出発点に、複数の角度から並列で `web_search` を実行する。例: 公式ブログ・リリースノートを狙うクエリ、コミュニティ分析記事のクエリ、GitHub Discussions のクエリを同時に投げ、カバレッジを確保する。`web_extract` も並列（1回の呼び出しに最大5URL）で行う。
        - **二段階検索（Two-Pass Search）**: 初回の並列検索 + `web_extract` で得た情報に不十分な点（不足している数値・日付・特定セクションの詳細）がある場合、**レビュー後に追加のターゲット検索**を投げる。例えば、`web_extract` の要約切り詰め（5000文字制限）で欠落した詳細を補うため、`web_search(query="<特定トピック> <特定キーワード> 2026")` を投げ、その結果からさらに `web_extract` を行う。目安: 初回 4-5 並列検索 → レビュー → 2-3 のフォローアップ検索。この二段階により、初回でカバーできなかった角度を効率的に埋められる。
        - **`similar_articles` の適用範囲**: `similar_articles` は既存の記事 ID を入力としてコサイン類似度を計算するため、**完全新規トピックの最初の調査では使用できない**。`fulltext_search` + `by_tag` で代用する。`fulltext_search` が 0 件の場合でも `by_tag` で関連タグから記事を発見できることがあるため、必ず両方を試す。
@@ -68,6 +74,7 @@ metadata:
           - **ビジネスイベント**: 開発元の経営状況の変化（レイオフ・資金調達・買収・収益悪化・スポンサーシップ）
           - **コミュニティ変動**: フォーク・分裂・メンテナンス終了・ライセンス変更・スター数の急変
           - **市場分析**: 「best <カテゴリ> 2026」「<カテゴリ> comparison」など、新しい比較・評価記事
+     - **検索クエリの実例**: 各角度に対応する具体的な検索クエリ例と、`web_extract` が利用不能な場合のバックアップ検索戦略は `references/refresh-search-patterns.md` を参照。特に GitHub releases の検索では `site:` + date フィルタが空を返すことが多いため、シンプルなクエリ（`"product" version release`）を使う。
      - **作成直後（1週間以内）の記事の注意点**: 元記事作成時に未収録だった同時発表（資金調達・買収・パートナーシップなど）や**それ以前から存在していた主要リリース（バージョン更新・新製品発表など）** を見落としている可能性がある。記事作成日の前後数週間の全リリースノートを時系列で把握し、元記事がカバーすべきだった内容を漏れなく補完する。
      - **body 更新の pending_approval**: 作成直後の記事への body 追記は、たとえ変更量が小さくても予想以上の `change_pct` が検出されることがある。`status: "pending_approval"` は正常なフローであり、`review_id` を確認して通常通り `complete_task` を呼んでタスクを完了してよい。editor がレビュー後に内容を反映するまで、再度同記事を触らない。
    - `type="research_followup"` (フォローアップ調査): デフォルトでは既存記事に追記する前提のタスク。payload に `article_id`（親記事 ID）・`comment`（調査依頼の内容）・`anchor`（コメントが紐づく記事内の箇所）が含まれる。処理手順: `read_article` で親記事を読む → comment/anchor から必要な追加調査テーマを特定 → `web_search` + `web_extract` で情報収集。
@@ -75,19 +82,21 @@ metadata:
      - **別記事モード**: `comment` に「別の記事として」「新規記事として」など新規作成を指示するキーワードが含まれる場合、`fulltext_search` で重複確認後、`create_article` で新規作成する。decision heuristic: comment が「〜についても調べてください」「〜を別記事で」といった表現で、親記事の拡張ではなく独立した主題を求めている場合は別記事モードを選択する。`research_followup` タスクであっても `create_article` は正常動作する。
 4. **30% 超の本文書き換えは自動的に保留される**: `update_article` に `body` を渡すと内部で `ReviewService.proposeUpdate` が呼ばれ、変更率がしきい値(既定 30%)を超えると `status='pending_approval'` で保留状態になる(US-6.2)。レスポンスの `status` が `'pending_approval'` の場合、editor のレビュー判定を待つことになり、再度同記事を触らない
 5. 処理後 **`minakata.report_progress({ agent_name: "researcher", phase: "タスク完了", detail: <タスク種別 + 作成/更新した記事 ID> })`** を呼んでから `minakata.complete_task(id, cost_usd)` で完了報告。LLM トークン数 × 単価で cost_usd を算出
-6. **チャットへの完了通知**: タスクの **`session_id`** フィールドが存在する場合、**`post_agent_response` を直接呼ばず**、`notify_chat` タスクを enqueue して dialogue に委譲する:
-   ```
-   minakata.enqueue_task({
-     type: "notify_chat",
-     priority: "interactive",
-     session_id: task.session_id,
-     payload: {
-       content: "調査が完了しました。記事「<タイトル>」を作成/更新しました。\n\n<要点の概要 2〜3 文>",
-       is_final: true
-     }
-   })
-   ```
-   タスクが `research_followup` の場合は対象コメントの記事 ID を content に含めること。enqueue が失敗しても `complete_task` は呼ぶ。
+6. **チャットへの完了通知**: タスクの **`session_id`** フィールドが存在する場合、**`post_agent_response` を直接呼ばず**、まず dialogue への通知を試みる。通知方法は環境によって異なる:
+   - **理想的**: `notify_chat` タスクを enqueue して dialogue に委譲する。以下の形式を試行する:
+     ```
+     minakata.enqueue_task({
+       type: "notify_chat",
+       priority: "interactive",
+       session_id: task.session_id,
+       payload: {
+         content: "調査が完了しました。記事「<タイトル>」を作成/更新しました。\n\n<要点の概要 2〜3 文>",
+         is_final: true
+       }
+     })
+     ```
+   - **フォールバック**: `enqueue_task` の type バリデーションスキーマが `["research", "refresh", "daily_research", "research_followup"]` のみを受け付ける環境では `notify_chat` は常に失敗する（「既知の Pitfalls」参照）。その場合は通知をスキップし、`complete_task` に進む。チャットセッションに届ける必要がある情報は `complete_task` の `result` オブジェクトに格納する（dialogue が `get_task` で参照できる）。
+   タスクが `research_followup` の場合は対象コメントの記事 ID を通知内容に含めること。enqueue が失敗しても `complete_task` は呼ぶ。
 7. 失敗時は **`minakata.report_progress({ agent_name: "researcher", phase: "タスク失敗", detail: <失敗理由の概要> })`** を呼んでから `minakata.fail_task(id, reason)` を呼ぶ(指数バックオフで再キュー、3 回超で DLQ)
 
 ## 既知の Pitfalls
@@ -117,6 +126,17 @@ delete params.topic_id;
 
 **原則**: トピックが未定または不要な場合は `topic_id` フィールドを**パラメータごと省略する**。空文字列・ `null`・未確認の topic_id 値を明示的に渡さず、JavaScript オブジェクトからキーごと削除する。`topic_id` が必要な場合のみ、事前にトピックの存在を確認してから指定する。
 
+### `minakata.enqueue_task` — `notify_chat` type がバリデーションエラーになる
+
+`enqueue_task` の MCP スキーマは `type` に `"research"`, `"refresh"`, `"daily_research"`, `"research_followup"` の4種類のみを受け付ける。`"notify_chat"` は受け付けられず、以下のエラーになる:
+
+```
+MCP error -32602: Input validation error: Invalid arguments for tool minakata.enqueue_task:
+[{"code": "invalid_value", "path": ["type"], "message": "Invalid option: expected one of \"research\"|\"refresh\"|...}]
+```
+
+**対処**: 行動ルール6に従い、enqueue が失敗した場合は通知をスキップして `complete_task` に進む。`complete_task` の `result` オブジェクトに記事 ID や概要を格納し、dialogue が `get_task` で参照できるようにしておく。`post_agent_response` を直接呼ばない（dialogue の役割を侵害しない）。
+
 ### `update_article` — body の有無で処理経路が変わる
 
 `update_article` は `body` パラメータの有無で挙動が異なる：
@@ -124,6 +144,23 @@ delete params.topic_id;
 - **`body` なし（メタデータのみ）**: 直接適用される (`status: "applied"`)。ReviewService を経由しないため、refresh タスクで差分がない場合の `last_researched_at` のみ更新は安全に行える。
 - **`body` あり**: 内部で `ReviewService.proposeUpdate` が呼ばれ、変更率がしきい値（既定 30%）を超えると `status: "pending_approval"` で保留される (US-6.2)。
   - 本文を変更しない更新でも**既存の本文内容を `body` に再送すると**変更率 0% 判定で無駄なレビュー経路が走る。本文変更がない場合は `body` パラメータごと除外すること。
+
+### `by_tag` のタグ名 — 大文字小文字・ハイフン・スペースの厳密一致
+
+`by_tag(tag)` はタグ名を**完全一致**で検索し、大文字小文字・ハイフン・スペースの違いでもヒットしない。実際のタグ形式（通常は `lowercase-hyphenated`）と異なる表記で検索すると既存記事を見逃す原因になる。
+
+**対処**: `by_tag` で記事を検索する際は複数の表記バリエーションを試すこと：
+
+```typescript
+// ❌ ヒットしない例
+by_tag("Claude Code");   // スペース＋大文字のため不一致
+
+// ✅ ヒットする例
+by_tag("claude-code");   // 実際の保存形式（小文字ハイフン区切り）
+by_tag("ai-coding");     // 関連タグも併せて試す
+```
+
+既存記事のタグ形式が不明な場合、関連する `fulltext_search` のヒットを `read_article` して確認すると確実。
 
 ### `web_extract` の内容切り詰め
 
@@ -135,7 +172,21 @@ delete params.topic_id;
 
 ### `web_extract`エラー時の対応
 
-`web_extract` が失敗した場合、**`minakata.report_progress({ agent_name: "researcher", phase: "調査失敗", detail: <調査中だった内容> })`**をレポートし、調査タスクを終了する。`browser_navigate`を使った調査にフォールバックする必要はない。
+`web_extract` が失敗した場合、エラーの原因によって対応が異なる:
+
+- **Minakata スクレイパーレベルのエラー**（`Unauthorized: Invalid token` / `Internal server error` / レート制限など）: スクレイパー自体が利用不可の状態。この場合は `web_search` のスニペット情報のみで調査を完結させる多段階検索を行う:
+  - **事前検知（必須）**: 多段階検索に入る前に、`web_search` 自体が機能しているか確認する。最初の研究クエリと同時に**ベースラインクエリ**（例: `web_search(query="Test")` や `web_search(query="Wikipedia")` など、確実にヒットする汎用英単語）を投げる。**注意**: 「Linux kernel」のような特定ドメインのクエリは検索エンジンのインデックス状態によって空になるため、ベースラインには使わない。ベースラインが空を返した場合、`web_search` も利用不可と判断し、多段階検索をスキップする。この場合は **`## web_search フォールバック手順`** に従いブラウザ検索に切り替える。
+  - **ベースライン品質ゲート**: ベースラインが空でなくとも、結果の**内容**を確認する。「Test」が Wikipedia の曖昧さ回避ページ（`Topics referred to by the same term`）など、単なるリンク集・ナビゲーションページしか返さない場合、それは検索エンジンが実質的なコンテンツをインデックスしていない兆候である。この場合、第二ベースライン（`web_search(query="hello world")` や `web_search(query="function")` など、別の汎用語）を投げて再確認する。第二ベースラインも同様に非実質的だった場合は、検索エンジンを利用不可と判断して **`## web_search フォールバック手順`** に従いブラウザ検索に切り替える。
+  - **ベースライン通過後トピック固有クエリが全滅する場合**: ベースラインが空でなくとも、トピック固有の検索クエリを 4-5 本異なる角度から試して全て 0 件だった場合は、検索エンジンが該当トピックのコンテンツを一切インデックスしていないと判断する。特に日本語・中国語など非英語コンテンツで発生しやすい。この場合は多段階検索（スニペットベース調査）も実行不可能なため、調査失敗として直ちに報告する。**余分なフォローアップ検索は行わず、早期に失敗報告する** — 何度クエリを変えても空の検索エンジンに数十回の API コールを費やすのは無駄である。
+
+1. **第一段: 広域並列検索（2〜4本）** — トピックの各側面をカバーする `web_search` を並列実行。各結果のタイトル・概要スニペットから基本情報（CVSSスコア・影響バージョン・修正バージョン・日付・脆弱性タイプなど）を抽出する。
+2. **第二段: ドメイン特定 `site:` 検索** — 第一段の結果から主要情報源のドメイン（公式サイト・脆弱性DB・信頼できるメディア）を抽出し、`site:<domain> <キーワード>` でスニペット精度を高める。公式サイトのスニペットが一次情報として最も信頼できる。
+3. **第三段: クロスチェック** — 不足する数値・日付・バージョンを特定し、複数ソースのスニペット間で比較する。2箇所以上で一致する事実のみを採用し、単一ソースのみの情報は「要検証」と扱う。
+4. **第四段: フォローアップ** — 二段階検索（Two-Pass Search, §3 参照）の要領で、カバーできなかった角度を追加のターゲット検索（1〜2本）で補う。それでも不足する情報は記事内に明記した上で調査を完了する。
+
+`web_extract` で取得できなかった数値・日付などの詳細情報は、複数の検索結果のスニペットや別ソースのクロスチェックで補う。ブラウザツール（`browser_navigate`）へのフォールバックは行わない。
+- **対象ページレベルのエラー**（404 / 503 / タイムアウト / アクセス拒否など）: スクレイパーは正常だが該当ページが取得不可。代替の類似ページを`web_search` で探してから再試行するか、`web_extract` の別 URL に切り替える。ブラウザツールへのフォールバックは行わない。
+- 上記の補完検索でも情報が不足する場合、報告して終了する方針に切り替える。その場合は **`minakata.report_progress({ agent_name: "researcher", phase: "調査失敗", detail: <調査中だった内容> })`** をレポートし、調査タスクを終了する。`browser_navigate`を使った調査にフォールバックする必要はない。
 
 ## MCP 接続エラー時
 
@@ -180,3 +231,9 @@ Minakata MCP が `unreachable` / `not connected` を返した場合は **再試�
 
 - 記事作成時、本文と検索キーワードから 3-7 個のタグを推定して付与
 - タグは既存タグ集合と比較し、表記ゆれは正規化する(`React.js` → `react` など)
+
+## web_search フォールバック手順
+
+SearXNG バックエンドが CAPTCHA や無応答で完全に利用不可と判断された場合（ベースライン全滅確認後）、`browser_navigate` を使ったブラウザ検索にフォールバックする。
+
+詳細手順は `../common/web-search-fallback.md` を参照。

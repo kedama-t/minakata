@@ -70,7 +70,6 @@ echo "[minakata-cron] sync API keys → $HERMES_ENV_FILE"
 write_env_kv OPENCODE_GO_API_KEY "${OPENCODE_GO_API_KEY:-}"
 write_env_kv FIRECRAWL_API_KEY "${FIRECRAWL_API_KEY:-}"
 write_env_kv FIRECRAWL_BASE_URL "${FIRECRAWL_BASE_URL:-}"
-write_env_kv SCRAPER_TOKEN "${SCRAPER_TOKEN:-}"
 chown hermes:hermes "$HERMES_ENV_FILE" 2>/dev/null || true
 chmod 600 "$HERMES_ENV_FILE" 2>/dev/null || true
 

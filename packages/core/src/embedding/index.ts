@@ -41,7 +41,9 @@ export class EmbeddingService {
     if (this.extractor) return this.extractor
     if (this.loadingPromise) return this.loadingPromise
     this.loadingPromise = (async () => {
-      const { pipeline } = await import('@huggingface/transformers')
+      const { pipeline, env } = await import('@huggingface/transformers')
+      // v4 defaults to a .cache/ dir inside the package itself; override to a writable path
+      env.cacheDir = process.env.HF_HOME ?? '/app/.cache/huggingface'
       const pipe = (await pipeline('feature-extraction', MODEL_ID, {
         dtype: 'q8',
       })) as FeatureExtractionPipeline

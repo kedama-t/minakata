@@ -117,6 +117,14 @@ report_progress(開始)
 - `web_extract` は **行わない**（コストを抑え、researcher に委ねる）
 - `web_search` で得た情報はログ記事のサマリ用のみ。記事の本文には書かない
 
+## web_search 利用不可時のフォールバック
+
+ベースラインクエリ（`web_search(query="Test")` など）が空を返す、または品質ゲートを通過できない場合、SearXNG が利用不可と判断し `browser_navigate` によるブラウザ検索にフォールバックする。
+
+詳細手順は `../common/web-search-fallback.md` を参照。
+
+`web_extract` はこのスキルでは使用しないため、ブラウザで取得したスニペットのみでスキャンを完結させる。
+
 ## ペイロードの書き方
 
 ### `goal`
