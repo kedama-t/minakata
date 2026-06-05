@@ -80,7 +80,7 @@ chmod 600 "$HERMES_ENV_FILE" 2>/dev/null || true
 GATEWAY_SKILLS_DIR="${HERMES_HOME:-/opt/data}/.hermes/skills"
 mkdir -p "$GATEWAY_SKILLS_DIR"
 chown hermes:hermes "$GATEWAY_SKILLS_DIR" 2>/dev/null || true
-for skill in dialogue researcher daily_research freshness_checker changelog_writer; do
+for skill in dialogue researcher daily_research freshness_checker changelog_writer synthesizer gap_detector taxonomy_builder; do
     dest="$GATEWAY_SKILLS_DIR/$skill"
     if [ ! -e "$dest" ]; then
         ln -sfn "../../skills/$skill" "$dest"
@@ -152,5 +152,14 @@ ensure_cron "minakata-freshness-checker" "every 6h" "freshness_checker" \
 
 ensure_cron "minakata-changelog-writer" "$(local_cron_to_utc '0 7 * * *')" "changelog_writer" \
     "Summarize yesterday's research agent activity into a ChangeLog article. Follow the changelog_writer skill's rules."
+
+ensure_cron "minakata-synthesizer" "$(local_cron_to_utc '0 23 * * *')" "synthesizer" \
+    "Detect synthesis opportunities among published articles by finding clusters of similar articles, then generate integrated overview articles. Follow the synthesizer skill's rules."
+
+ensure_cron "minakata-gap-detector" "$(local_cron_to_utc '0 4 * * *')" "gap_detector" \
+    "Scan published articles for topics that are mentioned but lack standalone articles, then enqueue research tasks to fill those knowledge gaps. Follow the gap_detector skill's rules."
+
+ensure_cron "minakata-taxonomy-builder" "$(local_cron_to_utc '0 5 * * 1')" "taxonomy_builder" \
+    "Review all article tags, normalize spelling variants, merge duplicates, and clean up orphaned tags. Follow the taxonomy_builder skill's rules."
 
 echo "[minakata-cron] done"
