@@ -8,6 +8,8 @@ platforms: [linux]
 metadata:
   hermes:
     tags: [minakata, synthesis, structure]
+    config:
+      model: "deepseek-v4-pro"
 ---
 
 # synthesizer
@@ -47,9 +49,24 @@ admin が WebUI `/admin/archives` で行い、承認後に初めて元記事が 
      （相互 KNN に入っている）
    - 相互に類似する記事が 3 件以上まとまっている
    - いずれの記事もまだ未処理（同ターン内で別クラスタに割り当て済みでない）
-   
+
    既に `synthesis/` 配下の統合記事が存在するクラスタは**スキップ**する（冪等性）。
    **`minakata.report_progress({ agent_name: "synthesizer", phase: "クラスタ検出", detail: "N件のクラスタを検出" })`** を呼ぶ（N は実数）
+
+   **クラスタが巨大な場合のサブクラスタリング**: 相互 KNN グラフが単一の巨大な連結成分
+   （10 記事以上）を形成することがある。この場合、全記事を一つの統合記事にまとめようと
+   すると「断片の寄せ集め」になるリスクが高い。以下の方針でサブクラスタに分割する：
+   - 共通するテーマ・カテゴリ・スタック（例: 「CSS フレームワーク」「Python Web フレームワーク」
+     「React エコシステム」「セキュリティ脆弱性」など）でグループ化する
+   - サブクラスタ内で相互 KNN が成立しているか再確認する（全ペアは不要、3 件以上でよい）
+   - 各サブクラスタを独立したクラスタとして step 5 で処理する（最大 3 件の制限はサブクラスタ
+     単位でカウントする）
+   - サブクラスタに分割できないテーマ混在の記事群は「材料不足」と判断しスキップする。\*\*
+
+   **パフォーマンス注意**: 対象記事が 20 件以上ある場合、`similar_articles` を全記事に
+   対して同期的に呼ぶと多くの API ターンが発生する。最初の 10〜15 件でクラスタが検出
+   されたら残りの記事の類似チェックをスキップしてよい（既存クラスタの未処理記事を
+   処理対象とし、新規の `similar_articles` 呼び出しは打ち切る）。
 
 4. クラスタが 0 件なら **`minakata.report_progress({ agent_name: "synthesizer", phase: "終了", detail: "統合対象なし" })`** を呼んでターンを終了する
 
@@ -58,79 +75,84 @@ admin が WebUI `/admin/archives` で行い、承認後に初めて元記事が 
    a. **`minakata.read_article({ id_or_slug: id })`** で各元記事の本文を取得する
 
    b. **統合可能性を判定する**。これらの記事を統合して価値ある上位概念記事を書けるか？
-      以下のような場合は「材料が不足」と判断する：
-      - クラスタを束ねる中核概念（共通の上位カテゴリ）を説明する記事が無く、
-        統合すると「断片の寄せ集め」になってしまう
-      - 各記事が前提とする背景知識が KB 内に欠けており、概観として一貫性が出ない
-      - クラスタ内の記事が同一トピックの重複ではなく、橋渡しとなる中間概念が要る
+   以下のような場合は「材料が不足」と判断する：
+   - クラスタを束ねる中核概念（共通の上位カテゴリ）を説明する記事が無く、
+     統合すると「断片の寄せ集め」になってしまう
+   - 各記事が前提とする背景知識が KB 内に欠けており、概観として一貫性が出ない
+   - クラスタ内の記事が同一トピックの重複ではなく、橋渡しとなる中間概念が要る
 
-      **材料が不足している場合** → 橋渡しに必要なトピックを 1〜2 件特定し、それぞれ
-      **`minakata.report_progress({ agent_name: "synthesizer", phase: "統合保留", detail: "クラスタ『…』の統合に必要な橋渡し調査を依頼" })`** を呼んでから
+   **材料が不足している場合** → 橋渡しに必要なトピックを 1〜2 件特定し、それぞれ
+   **`minakata.report_progress({ agent_name: "synthesizer", phase: "統合保留", detail: "クラスタ『…』の統合に必要な橋渡し調査を依頼" })`** を呼んでから
 
-      **`minakata.enqueue_task({`**
-      ```
-      type: "research",
-      priority: "maintenance",
-      payload: {
-        goal: "<橋渡しトピック>の概要記事を作成",
-        instructions: "既存記事 [[id:XXX]]、[[id:YYY]] の統合に必要な橋渡し概念。これらを束ねる上位カテゴリ／前提背景として <観点> を中心に簡潔にまとめること",
-        query: "<橋渡しトピックの検索クエリ>",
-        keywords: ["<橋渡しトピック>", ...関連語]
-      },
-      dedup_key: "synth-research:<cluster-key>:<topic-slug>"
-      **`})`** を呼ぶ。
-      ```
-      `cluster-key` はクラスタを代表する安定な文字列（例: クラスタ内で最も古い記事の
-      slug）、`topic-slug` は橋渡しトピックを英小文字・数字・ハイフンで表したもの。
-      **`dedup_key` に日付を含めない**こと（毎日起動しても同じ橋渡し調査を二重投入
-      しないため）。
+   **`minakata.enqueue_task({`**
 
-      依頼を投入したら **このクラスタは今回統合せずスキップ** し、次のクラスタへ進む。
-      翌日の起動時、researcher が橋渡し記事を publish していればクラスタに取り込まれ、
-      統合可能と判定されて合成が進む。
+   ```
+   type: "research",
+   priority: "maintenance",
+   payload: {
+     goal: "<橋渡しトピック>の概要記事を作成",
+     instructions: "既存記事 [[id:XXX]]、[[id:YYY]] の統合に必要な橋渡し概念。これらを束ねる上位カテゴリ／前提背景として <観点> を中心に簡潔にまとめること",
+     query: "<橋渡しトピックの検索クエリ>",
+     keywords: ["<橋渡しトピック>", ...関連語]
+   },
+   dedup_key: "synth-research:<cluster-key>:<topic-slug>"
+   **`})`** を呼ぶ。
+   ```
 
-      **材料が十分にある場合** → 次の c へ進んで統合記事を生成する。
+   `cluster-key` はクラスタを代表する安定な文字列（例: クラスタ内で最も古い記事の
+   slug）、`topic-slug` は橋渡しトピックを英小文字・数字・ハイフンで表したもの。
+   **`dedup_key` に日付を含めない**こと（毎日起動しても同じ橋渡し調査を二重投入
+   しないため）。
+
+   依頼を投入したら **このクラスタは今回統合せずスキップ** し、次のクラスタへ進む。
+   翌日の起動時、researcher が橋渡し記事を publish していればクラスタに取り込まれ、
+   統合可能と判定されて合成が進む。
+
+   **材料が十分にある場合** → 次の c へ進んで統合記事を生成する。
 
    c. 取得した本文をすべて把握した上で、**統合記事の Markdown 本文**を生成する。
-      以下の構造を推奨する：
-      ```
-      > この記事は [[id:XXX]]、[[id:YYY]]、[[id:ZZZ]] を統合した上位概念記事です。
-      
-      ## 概要
-      （全体を俯瞰した 2〜3 段落）
-      
-      ## <トピック A>
-      ...
-      
-      ## <トピック B>
-      ...
-      
-      ## 参考
-      - [[id:XXX]] <元記事タイトル>
-      - ...
-      ```
-      リンクは `[[id:<ulid>]]` 形式（リネーム耐性 placeholder）。元記事の `sources` を
-      すべてマージして `sources` パラメータに渡す。
-   
+   以下の構造を推奨する：
+
+   ```
+   > この記事は [[id:XXX]]、[[id:YYY]]、[[id:ZZZ]] を統合した上位概念記事です。
+
+   ## 概要
+   （全体を俯瞰した 2〜3 段落）
+
+   ## <トピック A>
+   ...
+
+   ## <トピック B>
+   ...
+
+   ## 参考
+   - [[id:XXX]] <元記事タイトル>
+   - ...
+   ```
+
+   リンクは `[[id:<ulid>]]` 形式（リネーム耐性 placeholder）。元記事の `sources` を
+   すべてマージして `sources` パラメータに渡す。
+
    d. **`minakata.create_article({`**
-      ```
-      slug: "synthesis/<topic-slug>",  // 英小文字・数字・ハイフンのみ。クラスタの主題を反映
-      title: "<統合記事タイトル>",
-      body: <生成した Markdown>,
-      summary: <200字以内の要約>,
-      tags: <元記事タグの和集合>,
-      author: "synthesizer",
-      source: "agent_research",
-      sources: <元記事 sources のマージ配列>
-      **`})`** を呼ぶ。UNIQUE 制約違反（既存 slug）が返った場合はこのクラスタをスキップする。
-      ```
-   
+
+   ```
+   slug: "synthesis/<topic-slug>",  // 英小文字・数字・ハイフンのみ。クラスタの主題を反映
+   title: "<統合記事タイトル>",
+   body: <生成した Markdown>,
+   summary: <200字以内の要約>,
+   tags: <元記事タグの和集合>,
+   author: "synthesizer",
+   source: "agent_research",
+   sources: <元記事 sources のマージ配列>
+   **`})`** を呼ぶ。UNIQUE 制約違反（既存 slug）が返った場合はこのクラスタをスキップする。
+   ```
+
    e. 統合記事の作成が成功したら、元記事ごとに：
-      **`minakata.archive_article({ id: <元記事id>, author: "synthesizer", reason: "synthesizer により『<統合記事タイトル>』(slug: synthesis/<topic-slug>) に統合" })`**
-      を呼ぶ。これは `archive_proposals` に `proposed` 行を残すだけであり、**即時 archive しない**。
-      admin が WebUI `/admin/archives` で承認したときに初めて `articles.status='archived'` へ反映される。
-      既に `proposed` が出ている記事に再度呼んでも UNIQUE 制約で既存提案 ID を返すだけ（冪等）。
-   
+   **`minakata.archive_article({ id: <元記事id>, author: "synthesizer", reason: "synthesizer により『<統合記事タイトル>』(slug: synthesis/<topic-slug>) に統合" })`**
+   を呼ぶ。これは `archive_proposals` に `proposed` 行を残すだけであり、**即時 archive しない**。
+   admin が WebUI `/admin/archives` で承認したときに初めて `articles.status='archived'` へ反映される。
+   既に `proposed` が出ている記事に再度呼んでも UNIQUE 制約で既存提案 ID を返すだけ（冪等）。
+
    f. **`minakata.report_progress({ agent_name: "synthesizer", phase: "統合完了", detail: "統合記事『<タイトル>』 / 元記事N件のアーカイブ提案" })`** を呼ぶ
 
 6. 全クラスタ処理後に **`minakata.report_progress({ agent_name: "synthesizer", phase: "セッション終了", detail: "統合N件・統合保留（調査依頼）K件・アーカイブ提案M件" })`** で締める（失敗しても無視してよい）

@@ -54,6 +54,8 @@ metadata:
        - **複数対象の比較調査**: ペイロードが複数のツール・製品を列挙している場合、各対象の個別検索（公式サイト・リリースノート）と横断比較検索（比較記事・人気度データ）の二段階で並列検索を行う。詳細は `references/comparison-research.md` 参照。
        - **セキュリティ/脆弱性ニュース調査**: ゼロデイ攻撃・CVE・脆弱性インシデントが主題の場合、バイリンガル検索（日本語＋英語）と一次情報の信頼性階層（CISA KEV > ベンダーアドバイザリ > NVD > 検証済みメディア）を意識したクエリ設計が必要。`payload.keywords` がブロードな場合、時間スコープ（年月）を明示して直近の情報に絞る。詳細は `references/security-research.md` 参照。
        - **リスト/ランキングデータの再構成**: アワード・ランキング・カンファレンス一覧など、順序付きリストが主題で`web_extract`がブロックされた場合、複数の検索スニペットを横断照合して完全なリストを再構成する。詳細は `references/list-reconstruction.md` 参照。
+       - **バージョンリリース調査**: フレームワーク・ライブラリ・ツールの新バージョンが主題の場合、公式リリースブログ・GitHub Releases・アグリゲーターサイト・canary/changelog を多層的に調査し、パッチ履歴・セキュリティ修正・先行開発の全容を把握する。詳細は `references/version-release-research.md` 参照。
+       - **ナレッジグラフギャップ解消調査（gap_detector タスク）**: `dedup_key` プレフィックスが `gap:` のタスクは、既存記事から参照・言及されているが専用記事がないトピックの調査。既存の参照記事を `read_article` で読み、参照文脈を把握した上で新規記事を作成する。詳細は `references/framework-overview-research.md` 参照。
      - **一次情報優先**: リサーチ方針(P1)に従い、公式サイト・GitHubリポジトリを必ず含める。二次情報（ブログ・分析記事）は補完・検証用として扱う。
    - `type="daily_research"` (購読バッチ):
      1. `payload.topic_id` がある場合、`list_topics` で該当トピックの `name` と `keywords` を解決し、記事タイトルや `detail` に反映する
@@ -70,14 +72,15 @@ metadata:
        3. **プラットフォーム拡大**: 発表されたプロダクトが新たなプラットフォームで利用可能になったか
        4. **競合リアクション / 独立競合リリースのスキャン**: 競合からの応答発表や市場の分析記事に加え、**元記事の対象とは独立した競合の新規リリース**も確認する。例: DeepSeek V4 の記事を refresh する場合、Claude / GPT / Gemini が記事作成後に新バージョンをリリースしていないか調べる。「リアクション」ではなく独立した競合製品のアップデートであり、比較・展望系の記事では必ず追記する。`web_search(query="<競合名> release <年月>")` や `web_search(query="<競合名> announcement benchmark 2026")` で素早くチェックできる。
        5. **ポストローンチ分析**: 初期発表後に公開された深掘り技術分析・レビュー記事
-       6. **エコシステム全体の動向**: 以下のようなエコシステムレベルのイベントを並列検索で確認する:
-          - **新規参入**: 前回調査以降に登場した新しいライブラリ・ツール・フレームワーク
-          - **ビジネスイベント**: 開発元の経営状況の変化（レイオフ・資金調達・買収・収益悪化・スポンサーシップ）
-          - **コミュニティ変動**: フォーク・分裂・メンテナンス終了・ライセンス変更・スター数の急変
-          - **市場分析**: 「best <カテゴリ> 2026」「<カテゴリ> comparison」など、新しい比較・評価記事
-     - **検索クエリの実例**: 各角度に対応する具体的な検索クエリ例と、`web_extract` が利用不能な場合のバックアップ検索戦略は `references/refresh-search-patterns.md` を参照。特に GitHub releases の検索では `site:` + date フィルタが空を返すことが多いため、シンプルなクエリ（`"product" version release`）を使う。
-     - **作成直後（1週間以内）の記事の注意点**: 元記事作成時に未収録だった同時発表（資金調達・買収・パートナーシップなど）や**それ以前から存在していた主要リリース（バージョン更新・新製品発表など）** を見落としている可能性がある。記事作成日の前後数週間の全リリースノートを時系列で把握し、元記事がカバーすべきだった内容を漏れなく補完する。
+       6. **エコシステム全体の動向**: 以下のようなエコシステムレベルのイベントを並列検索で確認する:\n          - **新規参入**: 前回調査以降に登場した新しいライブラリ・ツール・フレームワーク\n          - **ビジネスイベント**: 開発元の経営状況の変化（レイオフ・資金調達・買収・収益悪化・スポンサーシップ）\n          - **コミュニティ変動**: フォーク・分裂・メンテナンス終了・ライセンス変更・スター数の急変\n          - **市場分析**: 「best <カテゴリ> 2026」「<カテゴリ> comparison」など、新しい比較・評価記事\n       7. **インダストリースコアカード・アナリストレポートのクロスリファレンス**: フレームワーク・ライブラリ・ツールの比較記事や俯瞰記事の場合、業界のエコシステムスコアカードや包括的なベンダー分析レポートを確認する。元記事で未参照であれば、独立した第三者の客観的評価レイヤーを追加できる。`web_search(query="<カテゴリ> ecosystem scorecard <年>")` や `web_search(query="<カテゴリ> comparison ranking <年>")` で見つけられる。Uvik Python Ecosystem Scorecard や JetBrains State of Developer Ecosystem などの年次レポートが該当する。\n       8. **GitHub milestone 進捗確認**: オープンソースプロジェクトの場合、GitHub の milestone ページで次期バージョンの進捗率・未解決 issue 数を確認する。例えば Flask 3.2.0 の milestone が 94% 完了で 1 issue 未解決、といった具体的な進捗データが得られる。`site:github.com/<org>/<repo>/milestone` で検索するか、`browser_navigate` で直接開く。\n       9. **コア依存ライブラリの更新監査**: フレームワーク自身に新バージョンがなくても、その中核依存ライブラリ（Werkzeug ↔ Flask, Starlette ↔ FastAPI など）にセキュリティパッチや改善が蓄積されている場合がある。元記事のコア技術セクションに記載された依存ライブラリの changelog を個別に確認し、記事作成後にリリースされたバージョンがあれば追記する。`web_search(query="site:<dependency-domain>/changes/")` や GitHub Releases で確認できる。
+          - **依存 CVE スキャン（重要）**: changelog 確認に加え、コア依存ライブラリに新たな CVE が公開されていないか明示的に検索する。`web_search(query="<dependency-name> CVE security advisory <year>")` や `web_search(query="<dependency-name> vulnerability 2026")` で発見できる。フレームワーク本体に更新がなくても、依存ライブラリの CVE が記事の読者にとって重要なセキュリティアラートになり得る。詳細なパターンと実例は `references/refresh-search-patterns.md` の Angle 9a を参照。\n     - **検索クエリの実例**: 各角度に対応する具体的な検索クエリ例と、`web_extract` が利用不能な場合のバックアップ検索戦略は `references/refresh-search-patterns.md` を参照。特に GitHub releases の検索では `site:` + date フィルタが空を返すことが多いため、シンプルなクエリ（`"product" version release`）を使う。
+     - **作成直後（1週間以内）の記事の注意点**: 元記事作成時に未収録だった同時発表（資金調達・買収・パートナーシップなど）や**それ以前から存在していた主要リリース（バージョン更新・新製品発表など）** を見落としている可能性がある。記事作成日の前後数週間の全リリースノートを時系列で把握し、元記事がカバーすべきだった内容を漏れなく補完する。\n     - **作成直後記事のエンリッチメント判断基準**: 作成直後でコア主題に変更がない場合でも、以下の「補完的エンリッチメント」を評価する。1 つ以上該当し、変更率 30% を超えない範囲の追記であれば body 更新に値する:\n       - **スコアカード/格付け**: 元記事が参照していない独立した業界スコアカードやランキングが存在する（例: Uvik の Python Ecosystem Scorecard など）\n       - **依存ライブラリの更新蓄積**: フレームワーク自身にリリースがなくても、コア依存ライブラリ（Werkzeug, Click, Starlette など）にセキュリティパッチや改善が蓄積されている\n       - **マイルストーン進捗データ**: GitHub milestone で次期バージョンの具体的な進捗率・残件数が確認できる\n       - **競合の独立リリース**: 比較・俯瞰記事の場合、競合製品が記事作成後に新バージョンをリリースしている\n       - **新しい移行・評価事例**: 実運用の移行レポートや評価記事が記事作成後に公開されている。`web_search(query="<対象> migration story 2026")` や `web_search(query="<対象> production 2026")` で見つけられる\n     どのエンリッチメントも不十分な場合は、`last_researched_at` のみ更新して完了する。
      - **body 更新の pending_approval**: 作成直後の記事への body 追記は、たとえ変更量が小さくても予想以上の `change_pct` が検出されることがある。`status: "pending_approval"` は正常なフローであり、`review_id` を確認して通常通り `complete_task` を呼んでタスクを完了してよい。editor がレビュー後に内容を反映するまで、再度同記事を触らない。
+     - **`updated_at` vs `last_researched_at` の不一致**: `update_article(body=...)` で本文を編集的に更新すると、`updated_at` は更新されるが `last_researched_at` は変わらない（ReviewService の proposeUpdate 経路は research timestamp を更新しない）。以下の判断に役立つ:
+       - `updated_at > last_researched_at` → 本文は編集的に更新されたが、能動的な調査は行われていない。body の内容は信用できるが、検索の時間スコープは `last_researched_at` ではなく **`updated_at` を基準** に設定する（`last_researched_at` 〜 `updated_at` の期間は編集作業でカバー済みと見なせる）
+       - `updated_at` が数日以内かつ `updated_at > last_researched_at` → コアトピックに変更がない可能性が高い。フルアングル検索（9角度）ではなく、依存ライブラリ更新（角度9）・競合リリース（角度4）・スコアカード（角度7）の3つに絞ったクイックチェックで十分なことが多い
+       - `updated_at == last_researched_at`（または差が微小）→ 通常の refresh 手順通り全角度から並列検索
+     - **具体例**: 記事が `updated_at: 2026-06-04`、`last_researched_at: 2026-06-01` の場合、06-01〜06-04 の期間は編集でカバー済みと見なし、06-04 以降の新情報のみを検索対象にする。`web_search(query="site:example.com/news after:2026-06-04")` など。
    - `type="research_followup"` (フォローアップ調査): デフォルトでは既存記事に追記する前提のタスク。payload に `article_id`（親記事 ID）・`comment`（調査依頼の内容）・`anchor`（コメントが紐づく記事内の箇所）が含まれる。処理手順: `read_article` で親記事を読む → comment/anchor から必要な追加調査テーマを特定 → `web_search` + `web_extract` で情報収集。
      - **追記モード（デフォルト）**: `update_article(body=..., add_sources=...)` で追記。第 3 者が見たときに理解できるよう、追記セクションは見出しで明確に区切り、add_sources の used_in_sections にセクション名を指定する。
      - **別記事モード**: `comment` に「別の記事として」「新規記事として」など新規作成を指示するキーワードが含まれる場合、`fulltext_search` で重複確認後、`create_article` で新規作成する。decision heuristic: comment が「〜についても調べてください」「〜を別記事で」といった表現で、親記事の拡張ではなく独立した主題を求めている場合は別記事モードを選択する。`research_followup` タスクであっても `create_article` は正常動作する。
@@ -163,6 +166,22 @@ by_tag("ai-coding");     // 関連タグも併せて試す
 
 既存記事のタグ形式が不明な場合、関連する `fulltext_search` のヒットを `read_article` して確認すると確実。
 
+### Cloudflare / bot対策サイトの非透過性
+
+大手テクノロジー企業（OpenAI, Anthropic, Google 等）の公式サイトの多くは Cloudflare 等の高度な bot 検出/DDOS 対策を採用しており、`web_extract`（Minakata スクレイパー）と `browser_navigate`（Browserbase）の**両方**がブロックされる場合がある。この場合、該当ページの内容は直接取得できない。
+
+**対処**: 以下の代替手段を組み合わせる:
+0. **Markdown エンドポイントを試す（最優先）**: 公式ドキュメントサイトの多くは `index.md` を URL 末尾に追加すると Markdown 版が返る（Cloudflare Docs, ReadTheDocs, MkDocs 等）。また `llms.txt` でページインデックスが得られる場合がある。Cloudflare Docs はこの手法を**明示的に推奨**しており、HTML より格段に軽量で高速に取得できる。詳細は `references/documentation-extraction.md` の「先に試す: Markdown エンドポイントパターン」参照。
+1. **`site:` 検索に切り替える**: 直接アクセスがブロックされていても検索エンジンのスニペット（タイトル・説明文）は取得できる。`web_search(query="site:<domain> <keyword>")` でスニペットから基本情報を抽出する。公式サイトのスニペットは検索エンジンがインデックスした一次情報であり、二次情報より信頼できる。
+2. **二次情報・第三者メディアを活用する**: 公式サイトがブロックされていても、TechCrunch, VentureBeat, The New Stack, Impress Watch, innovaTopia などの第三者メディアが同じ内容を報じていることが多い。これらのサイトは bot 対策が緩い傾向があり、`browser_navigate` で閲覧可能な場合がある。
+3. **検索スニペットを横断照合する**: 複数の異なるクエリ角度（例: 機能名・日付・バージョン番号を変えた検索）で同じ内容のスニペットが複数ヒットすれば、その情報の信頼性は高いと判断してよい。`web_extractエラー時の対応` セクションの多段階検索手順（第一段〜第四段）に従う。
+4. **公式発表であってもブラウザ経由の直接取得を試みすぎない**: Cloudflare は browser_navigate でも通過できないことが多い。2-3回の試行でブロックされたら即座に検索スニペット戦略に切り替え、ブラウザでの再試行は行わない。
+
+**具体例**（2026年6月の OpenAI Codex 調査）:
+- `openai.com/index/codex-for-every-role-tool-workflow/` → web_extract: `Unauthorized: Invalid token`, browser_navigate: Cloudflare ブロック
+- 代わりに `web_search(query="site:openai.com Codex plugins sites annotations 2026")` でスニペットから公式発表の要約を取得
+- 第三者メディア（thenewstack.io, innovatopia.jp）は browser_navigate で全文取得可能だった
+
 ### `web_extract` の内容切り詰め
 
 `web_extract` はページが 5000 文字を超える場合、LLM による要約が適用され、末尾が `[... content truncated for context management ...]` で途切れる。これは正常な動作であり、以下の対応が必要：
@@ -185,7 +204,20 @@ by_tag("ai-coding");     // 関連タグも併せて試す
 3. **第三段: クロスチェック** — 不足する数値・日付・バージョンを特定し、複数ソースのスニペット間で比較する。2箇所以上で一致する事実のみを採用し、単一ソースのみの情報は「要検証」と扱う。
 4. **第四段: フォローアップ** — 二段階検索（Two-Pass Search, §3 参照）の要領で、カバーできなかった角度を追加のターゲット検索（1〜2本）で補う。それでも不足する情報は記事内に明記した上で調査を完了する。
 
-`web_extract` で取得できなかった数値・日付などの詳細情報は、複数の検索結果のスニペットや別ソースのクロスチェックで補う。`web_search` で対象 URL が特定できた場合は `browser_navigate` で直接取得してよい（適用条件は `references/refresh-search-patterns.md` 参照）。アワード一覧・ランキングなど順序付きリストの場合は `references/list-reconstruction.md` の手法も参照。
+`web_extract` で取得できなかった数値・日付などの詳細情報は、複数の検索結果のスニペットや別ソースのクロスチェックで補う。
+
+**推奨代替順序**: `web_extract` がグローバルエラー（`Unauthorized: Invalid token` / `Internal server error` 等）で利用不可の場合、上記 4 段階のスニペット検索に入る前に `browser_navigate` を試行する。多くのセキュリティ・テックサイト（NVD, GitHub, Red Hat, CloudSEK, NetSPI, JVNDB, IoT/OT Security News 等）はブラウザからアクセス可能であり、スニペット再構成より格段にリッチなデータを得られる。`raw.githubusercontent.com` のプレーンテキスト URL（.md, .txt 等）もブラウザ経由で取得できる。`browser_console` の `expression` による全文抽出テクニック（下記参照）と組み合わせると、スクレイパー障害時でも同等の情報量を確保できる。Cloudflare 等でブラウザもブロックされた場合のみ、上記 4 段階のスニペット検索にフォールバックする。
+
+`web_search` で対象 URL が特定できた場合も同様に `browser_navigate` で直接取得してよい（適用条件は `references/refresh-search-patterns.md` 参照）。
+
+**browser_snapshot が切り詰められた場合のテクニック**: `browser_navigate` でページを開いた後、`browser_console` の `expression` パラメータでページのテキストコンテンツを直接取得すると、snapshot の文字数制限（~8000文字）を回避して全テキストを取得できる。ニュース記事・ドキュメントページなど、長文ページの抽出に有効。特に日本語の詳細記事で効果的。
+
+   - **セレクタの選択**: `document.body.innerText` はナビゲーション・サイドバーを含む全テキストを取得する。`document.querySelector('article').innerText` のように主要コンテンツ領域のみを絞ると、同一トークン予算でより深い内容を取得できる。Django 公式ドキュメント・InfoQ 記事など `<article>` 要素を持つページで特に効果的。`article` がない場合は `main` や `.content` などを試す。
+   - **段階的抽出（複数呼び出し）**: `browser_console({expression: "document.querySelector('article').innerText.substring(0, 12000)"})` で最初のチャンクを取得後、続けて `browser_console({expression: "document.querySelector('article').innerText.substring(12000, 24000)"})` で残りを取得する。このパターンを繰り返すと、長大なドキュメントページ（例: Django 6.0 リリースノート、全文 20000+ 文字）も完全に抽出できる。目安: 1チャンク 8000〜15000 文字。
+   - **エラーリカバリ**: `browser_console` の戻り値が空文字列になった場合はブラウザの JS コンテキストがリセットされた可能性が高い。`browser_navigate` でページをロードし直して再試行する。
+   - 詳細な手法は `references/documentation-extraction.md` を参照。
+
+アワード一覧・ランキングなど順序付きリストの場合は `references/list-reconstruction.md` の手法も参照。
 - **対象ページレベルのエラー**（404 / 503 / タイムアウト / アクセス拒否など）: スクレイパーは正常だが該当ページが取得不可。代替の類似ページを`web_search` で探してから再試行するか、`web_extract` の別 URL に切り替える。それでも取得不可かつ対象 URL が明確な場合は `browser_navigate` を使う。
 - 上記の補完検索・ブラウザ取得でも情報が不足する場合、報告して終了する方針に切り替える。その場合は **`minakata.report_progress({ agent_name: "researcher", phase: "調査失敗", detail: <調査中だった内容> })`** をレポートし、調査タスクを終了する。
 

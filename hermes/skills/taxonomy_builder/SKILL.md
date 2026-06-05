@@ -1,7 +1,7 @@
 ---
 name: taxonomy_builder
 description: タグ・カテゴリ体系を俯瞰し、表記揺れ統合・孤立タグ整理・粒度調整を自動で行う。承認不要・自動反映。
-version: 0.1.0
+version: 0.2.0
 author: minakata
 license: MIT
 platforms: [linux]
@@ -38,6 +38,8 @@ metadata:
      （例: `JavaScript` → `javascript`、`React Hooks` → `react-hooks`）
    - 全角英数は半角に統一する
    - 末尾の `s` 差異（`api` vs `apis`）は件数の多い方に統一する
+   - 日本語・英語で同一概念が重複している場合（例: `セキュリティ` / `security`）、
+     件数の多い方を残す。同数の場合は英語側を優先する。
 
    **B. 孤立タグの整理**（優先度: 中）
    - 件数が 1 の孤立タグは、より一般的なタグへのマージを検討する
@@ -45,24 +47,36 @@ metadata:
    - 孤立タグを完全に削除する場合は、空タグ配列ではなく**より上位のタグに置き換える**
 
    **C. 上位下位の重複解消**（優先度: 低）
-   - 明らかに同義のタグ（`js` と `javascript`、`ml` と `machine-learning`）は
+   - 明らかに同義のタグ（`js` と `javascript`、`ml` と `machine-learning`、`codex` と `openai-codex`）は
      正式名称・長い方へ統一する
    - 上位概念（`frontend`）と下位概念（`react`）は**両方残す**（削除しない）
 
-4. 正規化対象のタグごとに **`minakata.by_tag({ tag: "<旧タグ>", limit: 200 })`** で
-   対象記事を取得する。
-   
-   対象記事ごとに（更新済み 50 件に達したらそれ以降はスキップ）：
-   
-   **`minakata.report_progress({ agent_name: "taxonomy_builder", phase: "タグ更新", detail: "<旧タグ> → <新タグ> / 記事 ...末尾8文字" })`** を呼んでから
-   
-   **`minakata.update_article({ id: <記事id>, tags: <正規化後のタグ配列全体>, author: "taxonomy_builder" })`** を呼ぶ。
-   
-   - `body` は**絶対に渡さない**（渡すと 30% ゲートを誤発火させる）
-   - `tags` は旧タグを新タグに置き換えた配列全体を渡す（`read_article` で現在の tags を確認してから構築する）
-   - 既に正規化済み（現在の tags が既に正規形と一致）の記事は update しない（冪等性）
+4. 正規化対象の全旧タグを決定したら、**まず全旧タグに対して並列で `minakata.by_tag` を呼び出し**、
+   影響を受ける全記事の一覧を取得する。これにより同一記事が複数の旧タグに紐づく場合の
+   重複取得を防ぐ（例: `CVE` と `NGINX` が同一記事に共存しているケース）。
+
+   取得した全記事を記事 ID でグループ化し、各記事に適用すべきタグ変更をまとめた
+   **変更マップ**を構築する。その後、マップ上の各記事に対して update_article を 1 回だけ呼ぶ。
+
+   各記事の更新手順（更新済み 50 件に達したらそれ以降はスキップ）：
+
+   a. 記事の現在の tags を確認する（`by_tag` の結果で取得済み、なければ `read_article`）
+   b. 既に全旧タグが正規形に置き換わっている場合はスキップ
+   c. 記事内で旧タグを正規形に置き換えた tags 配列を構築する
+      - **注意**: 同一記事内に旧タグと正規形の両方が既に存在する場合
+        （例: `codex` と `openai-codex` の両方がある記事）、旧タグを削除するだけでよい
+        （正規形は残す）。正規形が存在しない記事では旧タグを単純に置き換える。
+   d. **`minakata.report_progress({ agent_name: "taxonomy_builder", phase: "タグ更新", detail: "<旧タグ> → <新タグ> / 記事 ...末尾8文字" })`** を呼ぶ
+   e. **`minakata.update_article({ id: <記事id>, tags: <正規化後のタグ配列全体>, author: "taxonomy_builder" })`** を呼ぶ
+      - `body` は**絶対に渡さない**（渡すと 30% ゲートを誤発火させる）
 
 5. **`minakata.report_progress({ agent_name: "taxonomy_builder", phase: "終了", detail: "正規化タグN種・更新記事M件" })`** で締める（失敗しても無視してよい）
+
+## 更新後の確認（任意）
+
+全更新が applied になった後、旧タグの一部（特に件数が減ったはずのもの）に対して
+**`minakata.by_tag({ tag: "<旧タグ>", limit: 1 })`** を呼び、ヒット件数が
+0（または期待通り減少していること）を確認する。0 でない場合は更新漏れが存在する。
 
 ## 注意: update_article の body 省略について
 
