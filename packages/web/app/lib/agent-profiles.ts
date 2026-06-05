@@ -134,7 +134,7 @@ export type ToolCategory =
 const CATEGORY_STYLE: Record<ToolCategory, { bg: string; text: string; icon: string }> = {
   read: {
     bg: 'bg-neutral/10',
-    text: 'text-neutral-content',
+    text: 'text-neutral',
     icon: '👀',
   },
   write: {
@@ -174,7 +174,7 @@ const CATEGORY_STYLE: Record<ToolCategory, { bg: string; text: string; icon: str
   },
   system: {
     bg: 'bg-neutral/10',
-    text: 'text-neutral-content',
+    text: 'text-neutral',
     icon: '🔧',
   },
 }
@@ -236,6 +236,15 @@ const TOOL_DICT: Record<string, { phrase: string; category: ToolCategory }> = {
   },
   'minakata.recompute_freshness': { phrase: '鮮度を計算し直しました', category: 'policy' },
   'minakata.snapshot_db': { phrase: 'DB をバックアップしました', category: 'system' },
+
+  'web.approve_archive': { phrase: 'アーカイブを承認しました', category: 'approve' },
+  'web.reject_archive': { phrase: 'アーカイブを差し戻しました', category: 'reject' },
+  'web.unarchive_article': { phrase: 'アーカイブから戻しました', category: 'archive' },
+  'web.approve_review': { phrase: 'レビューを承認しました', category: 'approve' },
+  'web.reject_review': { phrase: 'レビューを差し戻しました', category: 'reject' },
+  'web.approve_skill': { phrase: 'スキルを承認しました', category: 'approve' },
+  'web.reject_skill': { phrase: 'スキル提案を却下しました', category: 'reject' },
+  'web.update_role': { phrase: 'ユーザー権限を変更しました', category: 'policy' },
 }
 
 export function describeTool(toolName: string): {
