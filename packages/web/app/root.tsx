@@ -28,8 +28,15 @@ export async function loader({ request }: Route.LoaderArgs) {
   if (!services.auth.isInitialSetup() && url.pathname === '/setup') {
     throw redirect('/')
   }
+  const user = getCurrentUser(request)
+  // サイドバー「承認依頼」のバッジ件数。権限を持つロールのみ集計する
+  const approvals = {
+    reviews: user && user.role !== 'viewer' ? services.reviews.listPending().length : 0,
+    archives: user?.role === 'admin' ? services.archives.list('proposed').length : 0,
+  }
   return {
-    user: getCurrentUser(request),
+    user,
+    approvals,
     theme: readThemeCookie(request),
     timezone: process.env.TIMEZONE ?? 'Asia/Tokyo',
   }
@@ -81,6 +88,7 @@ function ThemeManager({ theme }: { theme: Theme }) {
 export default function App({ loaderData }: Route.ComponentProps) {
   const user = loaderData?.user ?? null
   const theme = loaderData?.theme ?? 'system'
+  const approvals = loaderData?.approvals ?? { reviews: 0, archives: 0 }
 
   // 未ログイン (login / setup / invitation 画面) はサイドバーなしで全幅レンダリング
   if (!user) {
@@ -97,7 +105,7 @@ export default function App({ loaderData }: Route.ComponentProps) {
   return (
     <div className="min-h-screen">
       <ThemeManager theme={theme} />
-      <Sidebar user={user} theme={theme} />
+      <Sidebar user={user} theme={theme} approvals={approvals} />
       <main className="lg:ml-64 min-h-screen">
         <Outlet />
       </main>

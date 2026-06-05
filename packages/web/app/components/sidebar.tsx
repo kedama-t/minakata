@@ -30,12 +30,16 @@ type NavItem = {
   label: string
   icon: (p: { size?: number }) => React.ReactElement
   matchPrefixes?: string[]
+  badge?: number
 }
 
 type NavGroup = {
   heading: string
   items: NavItem[]
 }
+
+/** サイドバー「承認依頼」のバッジ件数 */
+export type Approvals = { reviews: number; archives: number }
 
 const MAIN_GROUPS: NavGroup[] = [
   {
@@ -55,7 +59,6 @@ const MAIN_GROUPS: NavGroup[] = [
         matchPrefixes: ['/articles'],
       },
       { to: '/topics', label: '購読トピック', icon: BookmarkIcon },
-      { to: '/reviews', label: 'レビュー', icon: CheckCircleIcon },
     ],
   },
   {
@@ -79,8 +82,33 @@ const ADMIN_GROUP: NavGroup = {
     { to: '/settings/members', label: 'メンバー', icon: UsersIcon },
     { to: '/settings/policy', label: 'リサーチ方針', icon: SettingsIcon },
     { to: '/admin/skills', label: 'スキル', icon: SparkleIcon },
-    { to: '/admin/archives', label: 'アーカイブ承認', icon: ArchiveIcon },
   ],
+}
+
+/**
+ * 「承認依頼」グループをロールと承認待ち件数から構築する。
+ * レビューは editor 以上、アーカイブ承認は admin のみが対象。
+ */
+function buildApprovalGroup(role: string, approvals: Approvals): NavGroup | null {
+  const items: NavItem[] = []
+  if (role !== 'viewer') {
+    items.push({
+      to: '/reviews',
+      label: 'レビュー',
+      icon: CheckCircleIcon,
+      badge: approvals.reviews,
+    })
+  }
+  if (role === 'admin') {
+    items.push({
+      to: '/admin/archives',
+      label: 'アーカイブ承認',
+      icon: ArchiveIcon,
+      badge: approvals.archives,
+    })
+  }
+  if (items.length === 0) return null
+  return { heading: '承認依頼', items }
 }
 
 function isActive(currentPath: string, item: NavItem): boolean {
@@ -100,7 +128,12 @@ function NavLink({ item, currentPath }: { item: NavItem; currentPath: string }) 
       }`}
     >
       <Icon size={16} />
-      <span>{item.label}</span>
+      <span className="flex-1">{item.label}</span>
+      {item.badge != null && item.badge > 0 && (
+        <span className="badge badge-primary px-2 py-0.5 text-xs min-w-[1.25rem]">
+          {item.badge}
+        </span>
+      )}
     </a>
   )
 }
@@ -217,12 +250,15 @@ function SidebarContent({
   user,
   theme,
   currentPath,
+  approvals,
 }: {
   user: { email: string; role: string }
   theme: Theme
   currentPath: string
+  approvals: Approvals
 }) {
   const canEdit = user.role !== 'viewer'
+  const approvalGroup = buildApprovalGroup(user.role, approvals)
   return (
     <div className="flex flex-col h-full">
       <div className="p-4 flex items-center gap-2">
@@ -239,6 +275,7 @@ function SidebarContent({
         {MAIN_GROUPS.map((g) => (
           <NavGroupBlock key={g.heading} group={g} currentPath={currentPath} />
         ))}
+        {approvalGroup && <NavGroupBlock group={approvalGroup} currentPath={currentPath} />}
         {user.role === 'admin' && <NavGroupBlock group={ADMIN_GROUP} currentPath={currentPath} />}
       </div>
       <UserPanel user={user} theme={theme} />
@@ -253,9 +290,11 @@ function SidebarContent({
 export function Sidebar({
   user,
   theme,
+  approvals,
 }: {
   user: { email: string; role: string }
   theme: Theme
+  approvals: Approvals
 }) {
   const location = useLocation()
   const currentPath = location.pathname
@@ -308,7 +347,7 @@ export function Sidebar({
 
       {/* デスクトップ用固定サイドバー */}
       <aside className="hidden lg:flex fixed top-0 left-0 bottom-0 w-64 flex-col bg-surface border-r border-border z-20">
-        <SidebarContent user={user} theme={theme} currentPath={currentPath} />
+        <SidebarContent user={user} theme={theme} currentPath={currentPath} approvals={approvals} />
       </aside>
 
       {/* モバイル用 drawer */}
@@ -331,7 +370,12 @@ export function Sidebar({
                 <XIcon size={18} />
               </button>
             </div>
-            <SidebarContent user={user} theme={theme} currentPath={currentPath} />
+            <SidebarContent
+              user={user}
+              theme={theme}
+              currentPath={currentPath}
+              approvals={approvals}
+            />
           </aside>
         </>
       )}
