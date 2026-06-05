@@ -34,7 +34,11 @@ export function clearSessionCookie(): string {
 export function getSessionToken(req: Request): string | null {
   const raw = req.headers.get('cookie') ?? ''
   for (const part of raw.split(';')) {
-    const [k, v] = part.trim().split('=')
+    const trimmed = part.trim()
+    const eqIdx = trimmed.indexOf('=')
+    if (eqIdx === -1) continue
+    const k = trimmed.slice(0, eqIdx)
+    const v = trimmed.slice(eqIdx + 1)
     if (k === COOKIE_NAME && v) return decodeURIComponent(v)
   }
   return null

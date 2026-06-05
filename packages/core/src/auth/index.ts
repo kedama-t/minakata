@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { hash, verify } from '@node-rs/argon2'
-import { encodeBase64url } from '@oslojs/encoding'
+import { encodeBase64urlNoPadding } from '@oslojs/encoding'
 import type { Db } from '../db/index.ts'
 import type { Role } from '../schema/index.ts'
 import { newId, now } from '../util/id.ts'
@@ -138,7 +138,7 @@ export class AuthService {
     // 不透明トークン:ID + 32 バイトランダム
     const rand = new Uint8Array(32)
     crypto.getRandomValues(rand)
-    const token = `${id}.${encodeBase64url(rand)}`
+    const token = `${id}.${encodeBase64urlNoPadding(rand)}`
     // トークン全体の SHA-256 ハッシュを保存し、resolveSession で照合する
     const tokenHash = createHash('sha256').update(token).digest('hex')
     const expires = new Date(Date.now() + SESSION_TTL_DAYS * 86_400_000).toISOString()
@@ -191,7 +191,7 @@ export class AuthService {
     const id = newId()
     const rand = new Uint8Array(24)
     crypto.getRandomValues(rand)
-    const token = encodeBase64url(rand)
+    const token = encodeBase64urlNoPadding(rand)
     const created_at = now()
     const expires_at = new Date(Date.now() + INVITATION_TTL_DAYS * 86_400_000).toISOString()
     this.db
