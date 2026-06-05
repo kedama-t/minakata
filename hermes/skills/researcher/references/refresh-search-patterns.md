@@ -176,3 +176,159 @@ web_search(query: "npm <package-name> version latest <年月>")
 web_search(query: "<competitor-name> release <年月> new version")
 web_search(query: "<competitor-name> new version release <年月>")
 ```
+
+## GitHub の Markdown ファイル（CHANGELOG, README 等）のブラウザ抽出テクニック
+
+GitHub でホストされている Markdown ベースのドキュメント（CHANGELOG.md, README.md, リリースノート等）は `web_extract` で `Unauthorized` になることが多いが、`browser_navigate` + `browser_console` で確実に全文取得できる。
+
+### 推奨パターン
+
+```typescript
+// 1. ページを開く
+browser_navigate(url: "https://github.com/<org>/<repo>/blob/master/CHANGELOG.md")
+
+// 2. browser_snapshot で内容を一読（ただし長いファイルは8000文字で切り詰められる）
+
+// 3. browser_console で DOM から全文抽出
+//    GitHub はレンダリング済み Markdown を <article> 要素内に配置する
+browser_console({
+  expression: "document.querySelector('article').innerText.substring(0, 5000)"
+})
+```
+
+**この手法が有効な理由**:
+- GitHub はサーバサイドで Markdown → HTML にレンダリング済みのページを返すため、`document.querySelector('article')` で確実に本文が取得できる
+- `document.body.innerText` よりノイズが少ない（GitHub のナビゲーション・UI 要素を含まない）
+- `substring(0, N)` で長さ制限を突破できる（browser_console の戻り値にもサイズ制限はあるが snapshot よりはるかに大きい）
+- 5000文字〜10万文字の CHANGELOG でも問題なく全文をチャンク分割して取得可能
+
+**代替セレクタ**: 一部のページでは `article` が存在しない場合がある。その場合は `document.querySelector('.markdown-body')?.innerText` や `document.querySelector('[data-testid="readme"]')?.innerText` を試す。
+
+## 7. インダストリースコアカード・アナリストレポート (Industry Scorecard Cross-Reference)
+
+フレームワーク・ライブラリ・ツールの比較記事や俯瞰記事の refresh 時、独立した業界エコシステムスコアカードが元記事で未参照だった場合、第三者評価レイヤーを追加できる。
+
+```
+# 汎用パターン
+web_search(query="<category> ecosystem scorecard <year>")
+web_search(query="<category> comparison ranking <year>")
+web_search(query="<category> <product> rating score 2026")
+```
+
+**実例（Flask refresh, 2026年6月）**:
+
+```typescript
+// スコアカード発見
+web_search(query: "python ecosystem scorecard 2026")
+// → Uvik Python Ecosystem Scorecard 2026 (April/May 2026) を発見
+// Flask 2.5/5 (Specialist), FastAPI 4.5 (Foundational), Django 4.4 (Foundational)
+
+// スコアカード内の決定木も有用な追記材料に
+web_search(query: "Python framework decision tree 2026")
+```
+
+**注意点**:
+- ベンダーが自社製品の優位性を示すために公開したレポートはバイアスがかかっている可能性がある。Uvik Scorecard のように透明な方法論を公開しているものを優先する
+- スコアカードは publish 日時を確認し、元記事より**後**に公開または更新されたものだけが真の追記価値を持つ。元記事作成前に存在したスコアカードを追記する場合は、元記事がなぜ参照しなかったかを考慮する
+- スコアカードの数値（スコア・ランキング）だけをコピーせず、評価の根拠・文脈も合わせて記述する
+
+## 8. GitHub Milestone 進捗確認 (GitHub Milestone Progress)
+
+オープンソースプロジェクトの場合、次期バージョンの進捗状況を GitHub milestone から取得する。フレームワーク自身に新リリースがなくても、マイルストーン進捗率は記事の「今後の展望」セクションを具体化できる。
+
+```
+# リポジトリの milestone を発見
+web_search(query="github.com/<org>/<repo>/milestone <version>")
+
+# 直接アクセス（推奨）
+browser_navigate(url: "https://github.com/<org>/<repo>/milestone/<number>")
+```
+
+**実例（Flask 3.2.0 refresh, 2026年6月）**:
+
+```typescript
+// milestone ページを開く
+browser_navigate(url: "https://github.com/pallets/flask/milestone/37")
+
+// browser_snapshot から以下を抽出:
+// - 進捗率: "94% complete"
+// - 未解決: "Open (1)" 残 project
+// - 最終更新: "last month"
+// - Open issue #5918: "automatic options as separate route" (Feb 12, 2026)
+// - Closed issues: 17件
+```
+
+**抽出するデータ**: 進捗率（%）・未解決 issue 数とその概要・最終更新日・クローズ済み issue 数。これらを記事の「今後の展望」セクションに追記することで、単なる「リリース日未定」から「94% 完了（1 issue 残）」と具体化できる。
+
+## 9. コア依存ライブラリの更新監査 (Core Dependency Changelog Audit)
+
+フレームワーク自身に新バージョンがなくても、その中核依存ライブラリにセキュリティパッチや改善が蓄積されていることがある。特に refresh タスクでは、元記事の「コア技術」セクションに記載された依存ライブラリを個別にチェックする。
+
+```
+# 依存ライブラリの changelog
+web_search(query="site:<dependency-domain>/changes/")
+web_search(query="github.com/<org>/<dependency>/releases")
+web_search(query="<dependency-name> <version> changelog 2026")
+```
+
+### 9a. 依存ライブラリの CVE スキャン (Dependency CVE Scan)
+
+依存ライブラリの changelog 確認に加え、**当該依存ライブラリに新たな CVE が公開されていないか**を明示的に検索する。フレームワーク本体に更新がなくても、コア依存に CVE が存在すれば記事読者にとって重要なセキュリティアラートとなる。これは記事作成後 1 週間以内の refresh でも価値がある（作成直前に公開された CVE が記事に未収録のままである可能性が高い）。
+
+```
+# パターンA: CVE ID 直接検索（CVE 番号が既知の場合）
+web_search(query="CVE-YYYY-XXXXX <dependency-name>")
+
+# パターンB: 汎用 CVE スキャン（番号未定、期間指定）
+web_search(query="<dependency-name> CVE security advisory <year>")
+web_search(query="<dependency-name> vulnerability <year>")
+
+# パターンC: セキュリティ監査レポート（最近の監査結果）
+web_search(query="<dependency-name> security audit OSTIF <year>")
+web_search(query="<dependency-name> X41 D-Sec OR Ada Logics OR Trail of Bits")
+```
+
+**発見した CVE の記事への反映**: 発見した CVE が記事の対象読者に影響する場合、以下の情報を構造化して新しい「セキュリティ注意喚起」サブセクションに追記する：
+- CVE ID と別名（例: CVE-2026-48710 / BadHost）
+- CVSS スコアと影響範囲
+- 影響するバージョン範囲と修正バージョン
+- 対策手順（具体的なアップグレードコマンド）
+- 出典（NVD, ベンダーアドバイザリ, 検証済みメディア）
+
+**実例（FastAPI refresh, 2026年6月: Starlette CVE-2026-48710 の発見）**:
+
+```typescript
+// FastAPI の refresh タスク。Starlette の CVE を検索
+web_search({ query: "Starlette CVE security advisory 2026" })
+// → CVE-2026-48710 (BadHost) を発見
+// Starlette 1.0.1 未満の全バージョンに影響
+// Host ヘッダ未検証により request.url ベースのセキュリティ制限がバイパス可能
+// CVSS 3.1: 6.5 MEDIUM
+
+// NVD 詳細をブラウザで取得（web_extract がブロックされるため fallback）
+browser_navigate({ url: "https://nvd.nist.gov/vuln/detail/CVE-2026-48710" })
+
+// 技術メディアの記事で深掘り情報を補完
+browser_navigate({ url: "https://iototsecnews.jp/2026/05/27/badhost-vulnerability-exposes-sensitive-ai-agent-server-endpoints-to-attackers/" })
+```
+
+**実例（Flask refresh, 2026年6月: Werkzeug と Click のチェック）**:
+
+```typescript
+// Flask の中核依存 Werkzeug の changelog を確認
+browser_navigate(url: "https://werkzeug.palletsprojects.com/en/stable/changes/")
+
+// Werkzeug 3.1.5 (2026-01-08) → 3.1.8 (2026-04-02) の間に複数のセキュリティ修正:
+// - 3.1.8: Request.host/get_host のバリデーション強化
+// - 3.1.6: safe_join の Windows パス脆弱性修正
+// - 3.1.5: safe_join の追加修正
+
+// Click の changelog も確認
+web_search(query: "site:click.palletsprojects.com/en/stable/changes/")
+// Click 8.3.3 (2026-04-20): shell=True 除去によるサブプロセスセキュリティ改善
+```
+
+**記事への反映方法**:
+- 開発の経緯セクションに「コア依存ライブラリの更新状況」サブセクションを追加
+- バージョン・リリース日・主な変更点（特にセキュリティ修正）を表形式で整理
+- ユーザーにとっての実質的な影響（「Flask を更新しなくても pip install --upgrade werkzeug でセキュリティ改善を得られる」等）を付記する

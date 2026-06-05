@@ -61,8 +61,9 @@ const PROFILES: Record<AgentName, AgentProfile> = {
   synthesizer: {
     key: 'synthesizer',
     emoji: '🔮',
-    displayName: 'ソラ',
+    displayName: 'トーゴ',
     role: '体系化担当：類似記事を統合して上位概念の記事を生成します',
+    avatar: '/agents/togo.png',
     ring: 'ring-violet-400',
   },
   gap_detector: {
@@ -70,13 +71,15 @@ const PROFILES: Record<AgentName, AgentProfile> = {
     emoji: '🕳️',
     displayName: 'ガプ',
     role: 'ギャップ検出：知識の穴を見つけて調査タスクを投入します',
+    avatar: '/agents/gap.png',
     ring: 'ring-orange-400',
   },
   taxonomy_builder: {
     key: 'taxonomy_builder',
-    emoji: '🌿',
-    displayName: 'タクサ',
+    emoji: '📂',
+    displayName: 'ケイト',
     role: '分類整理：タグ・カテゴリ体系を自動で整備します',
+    avatar: '/agents/kate.png',
     ring: 'ring-teal-400',
   },
   hermes: {
