@@ -153,7 +153,7 @@ ensure_cron "minakata-freshness-checker" "every 6h" "freshness_checker" \
 ensure_cron "minakata-changelog-writer" "$(local_cron_to_utc '0 7 * * *')" "changelog_writer" \
     "Summarize yesterday's research agent activity into a ChangeLog article. Follow the changelog_writer skill's rules."
 
-ensure_cron "minakata-synthesizer" "$(local_cron_to_utc '0 23 * * 0')" "synthesizer" \
+ensure_cron "minakata-synthesizer" "$(local_cron_to_utc '0 23 * * *')" "synthesizer" \
     "Detect synthesis opportunities among published articles by finding clusters of similar articles, then generate integrated overview articles. Follow the synthesizer skill's rules."
 
 ensure_cron "minakata-gap-detector" "$(local_cron_to_utc '0 4 * * *')" "gap_detector" \
