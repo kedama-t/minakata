@@ -68,10 +68,14 @@ Minakata は購読トピックを毎晩自動調査し、調査結果を Markdow
 # 1) クローンして移動
 git clone <repo-url> minakata && cd minakata
 
-# 2) 環境変数を準備
-cp .env.example .env
-# .env を編集:最低限 MCP_TOKEN と SEARXNG_SECRET を埋める
-#   生成例: openssl rand -hex 32
+# 2) 環境変数を準備(対話型セットアップ推奨)
+bun run setup
+# API キー / デフォルトモデル / Firecrawl baseUrl などを対話で設定し
+# .env と hermes/config.yaml を生成。MCP_TOKEN / SEARXNG_SECRET は自動生成、
+# HERMES_UID/GID は自動検出。既存 .env があれば値を初期値にマージする。
+#
+# 手動で済ませる場合: cp .env.example .env して MCP_TOKEN / SEARXNG_SECRET
+# を埋める(生成例: openssl rand -hex 32)。
 
 # 3) Minakata 本体(web + MCP)だけ先に起動
 docker compose -f docker/docker-compose.yml --env-file .env up -d minakata

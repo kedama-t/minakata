@@ -6,11 +6,12 @@
   "workspaces": ["packages/*"],
   "scripts": {
     "dev": "bun run --filter @minakata/web dev",
+    "setup": "bun run scripts/setup.ts",
     "build": "bun run --filter '*' build",
     "test": "bun test",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "typecheck": "bun run --filter '*' typecheck",
+    "typecheck": "bun run --filter '*' typecheck && tsc -p scripts/tsconfig.json --noEmit",
     "compose:up": "podman compose -f docker/docker-compose.yml --env-file .env up",
     "compose:up:agent": "podman compose -f docker/docker-compose.yml --env-file .env --profile agent up",
     "compose:down": "podman compose -f docker/docker-compose.yml --env-file .env down",
@@ -21,8 +22,10 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
+    "@clack/prompts": "^1.5.1",
     "@types/bun": "latest",
-    "typescript": "^5.6.3",
-    "lefthook": "^1.7.0"
+    "lefthook": "^1.7.0",
+    "picocolors": "^1.1.1",
+    "typescript": "^5.6.3"
   }
 }
