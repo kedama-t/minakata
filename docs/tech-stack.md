@@ -353,7 +353,7 @@ mcp_servers:
       Authorization: "Bearer ${MCP_TOKEN}"
 ```
 
-Skills は `hermes/skills/<name>/SKILL.md` に置けば `/opt/data/skills/` として Hermes に直接見える(`external_dirs` は不要)。Cron job は `hermes/cron-bootstrap.sh` を `/etc/cont-init.d/99-minakata-cron` に :ro mount しておくと起動時に自動登録される(#52)。
+Skills の初期状態の正本はリポジトリ直下 `hermes-skills/<name>/SKILL.md` に置き git 管理する。`hermes-skills/` を `/opt/minakata-skills` に :ro mount し、`hermes/cron-bootstrap.sh` が起動時に実行時 `/opt/data/skills/` へ seed する(既定は無い skill だけコピー、`MINAKATA_SKILLS_RESET=1` で初期状態へ強制上書き)。実行時 skill は Hermes が curator で自律編集するため `hermes/skills/` は gitignore して git から分離する(#187)。Cron job は `hermes/cron-bootstrap.sh` を `/etc/cont-init.d/99-minakata-cron` に :ro mount しておくと起動時に自動登録される(#52)。
 
 SearXNG / Firecrawl は Hermes 標準の `web_search` / `web_extract` ツールが自動で利用する。FIRECRAWL_API_KEY は環境変数で渡す。SearXNG エンドポイントは Hermes 側のデフォルトに任せる(必要なら Hermes 側 cli-config.yaml.example の web 設定を確認)。
 

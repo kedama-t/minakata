@@ -17,14 +17,14 @@ export interface SkillProposal {
 /**
  * Hermes による自己改善スキル提案(US-8.1, 8.2)。
  * - propose: Hermes が新しい SKILL.md を提案
- * - approve: admin が承認 → 実ファイルとして hermes/skills/<name>/SKILL.md に書き出す
+ * - approve: admin が承認 → 実ファイルとして hermes-skills/<name>/SKILL.md(正本)に書き出す
  * - reject: 理由を記録するだけ
  * 削除は status を 'rejected' に戻す形で簡素化(物理削除は呼び出し側で)
  */
 export class SkillProposalService {
   constructor(
     private readonly db: Db,
-    /** 承認時に書き込むスキルディレクトリ(コンテナ上は `/root/.hermes/skills` 等) */
+    /** 承認時に書き込むスキルの正本ディレクトリ(既定 `./hermes-skills`、#187) */
     private readonly skillsDir: string,
   ) {}
 
