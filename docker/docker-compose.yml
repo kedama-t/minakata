@@ -53,6 +53,11 @@ services:
       # され、host 側 hermes/config.yaml が我々の canonical な minimal
       # 設定のまま維持できる(git status が汚れない、#52)。
       - ../hermes/config.yaml:/opt/data/config.yaml:ro
+      # skill の初期状態の正本(git 管理)を :ro で届ける。cron-bootstrap.sh
+      # が起動時に /opt/data/skills/ へ seed する。Hermes は実行時コピーを
+      # curator で自律編集できるが、正本は read-only なので git は汚れない
+      # (seed-on-init、#187)。
+      - ../hermes-skills:/opt/minakata-skills:ro
       # cron job の登録は cont-init.d hook で自動化。本体 (main-hermes)
       # 起動前に s6 init が走らせるので、別コンテナ・別プロセスを増やさず済む。
       - ../hermes/cron-bootstrap.sh:/etc/cont-init.d/99-minakata-cron:ro
@@ -67,6 +72,9 @@ services:
       # `HERMES_UID=$(id -u)` / `HERMES_GID=$(id -g)` を .env に書く。
       HERMES_UID: "${HERMES_UID:-10000}"
       HERMES_GID: "${HERMES_GID:-10000}"
+      # 1 のとき cron-bootstrap.sh が実行時 skill を git 初期状態へ強制上書き
+      # する(#187)。既定(空)は「無い skill だけ seed」で進化版を維持。
+      MINAKATA_SKILLS_RESET: "${MINAKATA_SKILLS_RESET:-}"
       # OpenCode Go provider。base_url は plugin で hardcode、env 名も
       # 専用の OPENCODE_GO_API_KEY を使う(汎用 OPENAI_API_KEY ではない)。
       OPENCODE_GO_API_KEY: "${OPENCODE_API_KEY}"

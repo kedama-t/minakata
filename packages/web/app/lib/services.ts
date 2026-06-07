@@ -48,7 +48,9 @@ export function getServices(): Services {
   if (cached) return cached
   const dbPath = process.env.DATABASE_URL?.replace(/^file:/, '') ?? './data/minakata.db'
   const articlesRoot = process.env.ARTICLES_ROOT ?? './data/articles'
-  const skillsDir = process.env.SKILLS_DIR ?? './hermes/skills'
+  // 承認スキルは git 管理される正本に書き出す(#187)。実行時 hermes/skills/
+  // は gitignore され Hermes が curator で自律編集するため、承認スキルは正本へ。
+  const skillsDir = process.env.SKILLS_DIR ?? './hermes-skills'
   const snapshotDir = process.env.SNAPSHOT_DIR ?? './data/snapshots'
   const db = openDb({ path: dbPath })
   const git = new GitService(articlesRoot)

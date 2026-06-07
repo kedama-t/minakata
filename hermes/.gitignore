@@ -4,20 +4,14 @@
 #   - .gitignore
 #   - config.yaml (Hermes が re-write することもあるが canonical 源を保持)
 #   - cron-bootstrap.sh
-#   - skills/{我々の 5 subagent}
 # それ以外は基本全部 ignore。
+#
+# skill の初期状態の正本はリポジトリ直下 `hermes-skills/` で git 管理し、
+# 起動時に cron-bootstrap.sh が `/opt/data/skills/` へ seed する(#187)。
+# 実行時 skill は Hermes が curator で自律編集するため git からは完全に除外。
 
-# --- skills: 我々のサブエージェント + 共通リファレンスだけ残し、Hermes 内蔵 sync 分は ignore ---
-/skills/*
-!/skills/changelog_writer/
-!/skills/common/
-!/skills/daily_research/
-!/skills/dialogue/
-!/skills/freshness_checker/
-!/skills/researcher/
-!/skills/synthesizer/
-!/skills/gap_detector/
-!/skills/taxonomy_builder/
+# --- skills: 実行時コピーは全て ignore(正本は ../hermes-skills) ---
+/skills/
 
 # --- Hermes 生成のディレクトリ ---
 /.cache/

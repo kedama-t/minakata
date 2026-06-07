@@ -178,7 +178,7 @@ curl -X POST http://localhost:3000/mcp \
 | `DATABASE_URL`        | SQLite のパス(`file:` プレフィックス)。例: `file:/app/data/minakata.db` | 必須              |
 | `ARTICLES_ROOT`       | Markdown 記事ルート。例: `/app/data/articles`                          | 必須              |
 | `HF_HOME`             | Transformers.js モデルキャッシュ。例: `/app/.cache/huggingface`        | 必須              |
-| `SKILLS_DIR`          | スキル提案承認時に書き出すディレクトリ。例: `./hermes/skills`         | 任意              |
+| `SKILLS_DIR`          | スキル承認時に書き出す正本ディレクトリ。既定 `./hermes-skills`(git 管理)   | 任意              |
 | `OPENCODE_API_KEY`    | OpenCode (Go / Zen 共通) の API キー。Hermes コンテナのみが保持        | Hermes 起動時に必要 |
 | `HERMES_UID` / `HERMES_GID` | Hermes コンテナ内 hermes user の UID/GID。podman rootless 時はホストの `$(id -u)` / `$(id -g)` を渡す | Hermes 起動時に必要 |
 | `FIRECRAWL_API_KEY`   | Firecrawl Cloud の API キー。Hermes コンテナのみ                      | Hermes 起動時に必要 |
@@ -248,7 +248,7 @@ minakata/
 
 実装時に絶対に外さない設計原則(`docs/tech-stack.md` §8.1):
 
-- **Capability 分離**: Hermes の subagent ごとに `permitted_tools` で MCP ツールを限定(`hermes/skills/*/SKILL.md` 参照)。
+- **Capability 分離**: Hermes の subagent ごとに `permitted_tools` で MCP ツールを限定(`hermes-skills/*/SKILL.md` 参照)。
 - **コンテンツフェンシング**: 外部抽出テキストは `<untrusted_content>...</untrusted_content>` で囲み、命令文として解釈させない。
 - **行動制限**: エージェントが触れるのは Minakata MCP ツールのみ。`shell_exec` / 任意外部 HTTP は禁止。
 - **MCP 保護**: Bearer Token 認証(`MCP_TOKEN`)、Host ヘッダ検証(`MCP_ALLOWED_HOSTS`)、Zod による全入力バリデーション。

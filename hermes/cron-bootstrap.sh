@@ -73,6 +73,32 @@ write_env_kv FIRECRAWL_BASE_URL "${FIRECRAWL_BASE_URL:-}"
 chown hermes:hermes "$HERMES_ENV_FILE" 2>/dev/null || true
 chmod 600 "$HERMES_ENV_FILE" 2>/dev/null || true
 
+# --- (a2) skill の初期状態を実行時へ seed する -----------------------------
+# 正本 /opt/minakata-skills(git 管理 ../hermes-skills を :ro mount)を
+# 実行時 /opt/data/skills/ へコピーする(#187)。
+#   - 既定: 実行時に無い skill だけ seed し、Hermes curator の進化版は維持
+#   - MINAKATA_SKILLS_RESET=1: 既存も削除して初期状態へ強制上書き(リセット弁)
+SKILLS_SRC="/opt/minakata-skills"
+SKILLS_DEST="${HERMES_HOME:-/opt/data}/skills"
+if [ -d "$SKILLS_SRC" ]; then
+    mkdir -p "$SKILLS_DEST"
+    for src in "$SKILLS_SRC"/*/; do
+        [ -d "$src" ] || continue
+        name=$(basename "$src")
+        dest="$SKILLS_DEST/$name"
+        if [ -e "$dest" ] && [ "${MINAKATA_SKILLS_RESET:-0}" != "1" ]; then
+            echo "[minakata-cron] skill exists, keep: $name"
+            continue
+        fi
+        [ -e "$dest" ] && rm -rf "$dest" && echo "[minakata-cron] reset skill: $name"
+        cp -a "$src" "$dest"
+        chown -R hermes:hermes "$dest" 2>/dev/null || true
+        echo "[minakata-cron] seeded skill: $name"
+    done
+else
+    echo "[minakata-cron] WARN: $SKILLS_SRC not mounted; skip skill seed" >&2
+fi
+
 # --- (b) カスタム skills を .hermes/skills/ に symlink する ------------------
 # main-wrapper.sh override 後は gateway も HERMES_HOME=/opt/data を読むので
 # 通常 .hermes/skills/ 経路は使われない。万一フォールバックが発動したケース
