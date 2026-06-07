@@ -86,6 +86,10 @@ report_progress(開始)
       注: daily ログ記事への追記は変更率が 30% を超える場合は pending_approval になる可能性がある。その場合は admin が承認するまで反映が遅れる。
 6. **`minakata.report_progress({ agent_name: "daily_research", phase: "バッチ完了", detail: "N件のresearchタスクを投入。daily/<YYYY-MM-DD> にログ記録" })`** で締める（N は実数。失敗しても無視してよい）
 
+## 執筆インサイトの活用(#194)
+
+ログ記事を書く前、および research タスクの `instructions` を組み立てる際に **`minakata.get_feedback_insights`** を確認する。いいね傾向から導かれた執筆指針が空でなければ、調査の焦点や記事化の方針に反映する。インサイトは助言であり、リサーチ方針やタスク指示と矛盾する場合は後者を優先する。
+
 ## ログ記事の本文フォーマット
 
 ```markdown

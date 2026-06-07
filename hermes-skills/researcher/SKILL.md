@@ -103,6 +103,10 @@ metadata:
    タスクが `research_followup` の場合は対象コメントの記事 ID を通知内容に含めること。enqueue が失敗しても `complete_task` は呼ぶ。
 7. 失敗時は **`minakata.report_progress({ agent_name: "researcher", phase: "タスク失敗", detail: <失敗理由の概要> })`** を呼んでから `minakata.fail_task(id, reason)` を呼ぶ(指数バックオフで再キュー、3 回超で DLQ)
 
+## 執筆インサイトの活用(#194)
+
+記事を `create_article` / `update_article` する前に **`minakata.get_feedback_insights`** を呼び、蓄積された執筆インサイト(ユーザーのいいね傾向から feedback_analyst が導いた指針)を確認する。返ってきた `body_md` が空でなければ、その指針を踏まえて記事の構成・粒度・文体を調整する。これは読者に評価される記事を書くための自己改善ループの一部。インサイトは助言であり、リサーチ方針(`get_research_policy`)やタスクの `instructions` と矛盾する場合は後者を優先する。
+
 ## 既知の Pitfalls
 
 ### `minakata.create_article` の topic_id — FOREIGN KEY エラー

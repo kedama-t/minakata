@@ -76,6 +76,12 @@ const MAIN_GROUPS: NavGroup[] = [
   },
 ]
 
+/** editor 以上に見せる項目。執筆インサイトはエージェントの自己改善メモリ */
+const EDITOR_GROUP: NavGroup = {
+  heading: 'フィードバック',
+  items: [{ to: '/settings/insights', label: '執筆インサイト', icon: SparkleIcon }],
+}
+
 const ADMIN_GROUP: NavGroup = {
   heading: '管理',
   items: [
@@ -276,6 +282,7 @@ function SidebarContent({
           <NavGroupBlock key={g.heading} group={g} currentPath={currentPath} />
         ))}
         {approvalGroup && <NavGroupBlock group={approvalGroup} currentPath={currentPath} />}
+        {canEdit && <NavGroupBlock group={EDITOR_GROUP} currentPath={currentPath} />}
         {user.role === 'admin' && <NavGroupBlock group={ADMIN_GROUP} currentPath={currentPath} />}
       </div>
       <UserPanel user={user} theme={theme} />

@@ -157,6 +157,10 @@ admin が WebUI `/admin/archives` で行い、承認後に初めて元記事が 
 
 6. 全クラスタ処理後に **`minakata.report_progress({ agent_name: "synthesizer", phase: "セッション終了", detail: "統合N件・統合保留（調査依頼）K件・アーカイブ提案M件" })`** で締める（失敗しても無視してよい）
 
+## 執筆インサイトの活用(#194)
+
+統合記事を生成する前に **`minakata.get_feedback_insights`** を呼び、いいね傾向から導かれた執筆指針を確認する。`body_md` が空でなければ、上位概念記事の構成・粒度・文体に反映する。インサイトは助言であり、リサーチ方針と矛盾する場合は後者を優先する。
+
 ## 冪等性
 
 - 統合記事の `slug` を `synthesis/<安定キー>` に固定し、同一クラスタへの再統合を防ぐ（slug UNIQUE 制約が防壁になる）

@@ -13,7 +13,8 @@ export async function loader({ request }: Route.LoaderArgs) {
   // archived 以外を全て表示(pending_approval も含む)
   const articles = services.articles.list({ excludeArchived: true, tag, limit: PAGE_SIZE })
   const tags = services.articles.listTags({ excludeArchived: true })
-  return { articles, tags, tag: tag ?? '' }
+  const likeCounts = services.feedback.countsFor(articles.map((a) => a.id))
+  return { articles, tags, tag: tag ?? '', likeCounts }
 }
 
 function FreshnessBadge({ rank }: { rank: string }) {
@@ -86,7 +87,7 @@ function TagCloud({
 }
 
 export default function Articles({ loaderData }: Route.ComponentProps) {
-  const { articles, tags, tag } = loaderData
+  const { articles, tags, tag, likeCounts } = loaderData
   return (
     <div className="max-w-6xl mx-auto px-4 lg:px-8 py-6 lg:py-10 space-y-6">
       <header>
@@ -123,6 +124,9 @@ export default function Articles({ loaderData }: Route.ComponentProps) {
               </a>
               <FreshnessBadge rank={a.freshness_rank} />
               <PendingBadge status={a.status} />
+              {(likeCounts[a.id] ?? 0) > 0 && (
+                <span className="ml-2 text-xs text-primary tabular-nums">♥ {likeCounts[a.id]}</span>
+              )}
               {a.summary && (
                 <p className="text-sm text-base-content/60 mt-1.5 line-clamp-2">{a.summary}</p>
               )}

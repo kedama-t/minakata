@@ -89,6 +89,7 @@ export default createHonoServer({
         reviews: services.reviews,
         policy: services.policy,
         comments: services.comments,
+        feedback: services.feedback,
         skills: services.skills,
         archives: services.archives,
         topics: services.topics,

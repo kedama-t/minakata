@@ -82,6 +82,13 @@ const PROFILES: Record<AgentName, AgentProfile> = {
     avatar: '/agents/kate.png',
     ring: 'ring-teal-400',
   },
+  feedback_analyst: {
+    key: 'feedback_analyst',
+    emoji: '💗',
+    displayName: 'リカ',
+    role: 'フィードバック分析：いいねの傾向を読み解き執筆方針を磨きます',
+    ring: 'ring-rose-400',
+  },
   hermes: {
     key: 'hermes',
     emoji: '🛰️',
@@ -235,6 +242,12 @@ const TOOL_DICT: Record<string, { phrase: string; category: ToolCategory }> = {
     category: 'policy',
   },
   'minakata.recompute_freshness': { phrase: '鮮度を計算し直しました', category: 'policy' },
+  'minakata.get_feedback_signals': { phrase: 'いいねの傾向を集計しました', category: 'read' },
+  'minakata.get_feedback_insights': { phrase: '執筆インサイトを確認しました', category: 'read' },
+  'minakata.update_feedback_insights': {
+    phrase: '執筆インサイトを更新しました',
+    category: 'policy',
+  },
   'minakata.snapshot_db': { phrase: 'DB をバックアップしました', category: 'system' },
 
   'web.approve_archive': { phrase: 'アーカイブを承認しました', category: 'approve' },
