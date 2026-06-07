@@ -110,6 +110,15 @@ export class AuthService {
     return r ?? null
   }
 
+  findUserById(id: string): User | null {
+    const r = this.db
+      .query<{ id: string; email: string; role: Role; created_at: string }, [string]>(
+        'SELECT id, email, role, created_at FROM users WHERE id = ?',
+      )
+      .get(id)
+    return r ?? null
+  }
+
   async verifyPassword(email: string, password: string): Promise<User | null> {
     const row = this.db
       .query<

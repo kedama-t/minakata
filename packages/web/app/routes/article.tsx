@@ -1,5 +1,7 @@
 import type { Article } from '@minakata/core'
 import { Form } from 'react-router'
+import { Avatar, UserAvatar } from '../components/ui/avatar.tsx'
+import { getAgentProfile } from '../lib/agent-profiles.ts'
 import { assertSameOrigin, requireEditor, requireUser } from '../lib/auth.ts'
 import { ArticleMarkdown } from '../lib/markdown.tsx'
 import { getServices } from '../lib/services.ts'
@@ -19,9 +21,16 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     )
     .run(user.id, article.frontmatter.id, new Date().toISOString())
   const comments = services.comments.listByArticle(article.frontmatter.id)
+  // コメント投稿者 id → 表示名(email)。アバターと著者名の表示に使う
+  const authorNames: Record<string, string> = {}
+  for (const c of comments) {
+    if (!authorNames[c.author_id]) {
+      authorNames[c.author_id] = services.auth.findUserById(c.author_id)?.email ?? c.author_id
+    }
+  }
   const related = services.search.similar(article.frontmatter.id, 5)
   const body = resolveIdRefs(article.body, (id) => services.articles.read(id))
-  return { article, body, comments, related, role: user.role }
+  return { article, body, comments, authorNames, related, role: user.role }
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
@@ -78,8 +87,10 @@ export async function action({ request, params }: Route.ActionArgs) {
 }
 
 export default function ArticlePage({ loaderData, actionData }: Route.ComponentProps) {
-  const { article, body, comments, related, role } = loaderData
+  const { article, body, comments, authorNames, related, role } = loaderData
   const canEdit = role !== 'viewer'
+  // コメント返信は dialogue(ミミー)が担当する
+  const agentProfile = getAgentProfile('dialogue')
   return (
     <article className="max-w-3xl mx-auto p-6">
       <h1 className="text-3xl font-bold mb-1">{article.frontmatter.title}</h1>
@@ -137,28 +148,55 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
 
       <section className="mt-8 border-t pt-4">
         <h2 className="text-lg font-bold mb-2">コメント</h2>
-        <ul className="space-y-2">
-          {comments.map((c) => (
-            <li
-              key={c.id}
-              className={`bg-canvas p-2 rounded ${c.status === 'resolved' ? 'opacity-50' : ''}`}
-            >
-              <div className="text-xs text-base-content/60">
-                {c.author_id} - {c.created_at}
-                {c.anchor && <> / @{c.anchor}</>}
-              </div>
-              <p className="text-sm">{c.body}</p>
-              {canEdit && c.status === 'open' && (
-                <Form method="post" className="inline">
-                  <input type="hidden" name="intent" value="resolve" />
-                  <input type="hidden" name="comment_id" value={c.id} />
-                  <button type="submit" className="text-xs text-primary hover:underline">
-                    解決済みにする
-                  </button>
-                </Form>
-              )}
-            </li>
-          ))}
+        <ul className="space-y-4">
+          {comments.map((c) => {
+            const authorName = authorNames[c.author_id] ?? c.author_id
+            return (
+              <li
+                key={c.id}
+                className={`bg-canvas p-3 rounded ${c.status === 'resolved' ? 'opacity-50' : ''}`}
+              >
+                {/* ユーザーコメント */}
+                <div className="flex items-start gap-2">
+                  <UserAvatar email={authorName} size="sm" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs text-base-content/60">
+                      <span className="font-medium text-base-content/80">{authorName}</span> -{' '}
+                      {c.created_at}
+                      {c.anchor && <> / @{c.anchor}</>}
+                    </div>
+                    <p className="text-sm whitespace-pre-wrap">{c.body}</p>
+                  </div>
+                </div>
+
+                {/* dialogue(ミミー)からの返信 */}
+                {c.agent_reply && (
+                  <div className="flex items-start gap-2 mt-3 ml-6 border-l-2 border-base-300 pl-3">
+                    <Avatar profile={agentProfile} size="sm" />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs text-base-content/60">
+                        <span className="font-medium text-base-content/80">
+                          {agentProfile.displayName}
+                        </span>
+                        {c.agent_replied_at && <> - {c.agent_replied_at}</>}
+                      </div>
+                      <p className="text-sm whitespace-pre-wrap">{c.agent_reply}</p>
+                    </div>
+                  </div>
+                )}
+
+                {canEdit && c.status === 'open' && (
+                  <Form method="post" className="inline">
+                    <input type="hidden" name="intent" value="resolve" />
+                    <input type="hidden" name="comment_id" value={c.id} />
+                    <button type="submit" className="text-xs text-primary hover:underline mt-2">
+                      解決済みにする
+                    </button>
+                  </Form>
+                )}
+              </li>
+            )
+          })}
           {comments.length === 0 && (
             <p className="text-xs text-base-content/60">コメントはまだありません。</p>
           )}
