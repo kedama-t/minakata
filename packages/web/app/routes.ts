@@ -21,6 +21,7 @@ export default [
   route('reviews', 'routes/reviews.tsx'),
   route('reviews/:reviewId', 'routes/review.tsx'),
   route('settings/policy', 'routes/policy.tsx'),
+  route('settings/insights', 'routes/insights.tsx'),
   route('admin/skills', 'routes/skills.tsx'),
   route('admin/archives', 'routes/archives.tsx'),
 ] satisfies RouteConfig

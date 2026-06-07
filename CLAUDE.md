@@ -11,8 +11,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `packages/web/server/index.ts` — Hono サーバー兼 MCP マウント
 - `packages/web/app/routes/` — React Router v7 のルート(SSR + loader/action)
 - `packages/mcp/src/tools.ts` — 全 MCP ツールの登録
-- `packages/core/src/` — ドメインサービス (`article` / `auth` / `audit` / `message` / `task` / `search` / `review` / `policy` / `comment` / `skill` / `maintenance` / `embedding`)
-- `hermes-skills/<name>/SKILL.md` — Hermes subagent 定義の正本(git 管理) (`dialogue` / `researcher` / `daily_research` / `freshness_checker` / `changelog_writer` 他)。起動時に実行時 `hermes/skills/`(gitignore)へ seed される(#187)
+- `packages/core/src/` — ドメインサービス (`article` / `auth` / `audit` / `message` / `task` / `search` / `review` / `policy` / `comment` / `feedback` / `skill` / `maintenance` / `embedding`)
+- `hermes-skills/<name>/SKILL.md` — Hermes subagent 定義の正本(git 管理) (`dialogue` / `researcher` / `daily_research` / `freshness_checker` / `changelog_writer` / `feedback_analyst` 他)。起動時に実行時 `hermes/skills/`(gitignore)へ seed される(#187)
 
 実装を変更する前に、必読の仕様書と既存 Issue(`gh issue list`) を確認すること。
 

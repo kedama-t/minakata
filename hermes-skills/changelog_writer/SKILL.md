@@ -33,6 +33,10 @@ metadata:
    - `author`: `agent:changelog_writer`
 6. 作成完了後に **`minakata.report_progress({ agent_name: "changelog_writer", phase: "ChangeLog 完了", detail: "changelog/{YYYY-MM-DD} を作成" })`** で締める(失敗しても無視してよい)
 
+## 執筆インサイトの活用(#194)
+
+ChangeLog を書く前に **`minakata.get_feedback_insights`** を確認し、いいね傾向から導かれた執筆指針(読みやすい要約の書き方など)が空でなければ日報のまとめ方に反映する。インサイトは助言であり、本スキルの ChangeLog 規約と矛盾する場合は規約を優先する。
+
 ## ChangeLog 記事の規約
 
 - リネーム耐性のため、本文中の記事リンクは ID 解決の placeholder `[[id:01HXYZ...]]` を使う。Web 側で展開

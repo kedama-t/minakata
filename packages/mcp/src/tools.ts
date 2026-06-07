@@ -801,6 +801,54 @@ export function registerSkillTools(server: McpServer, s: McpServices, ctx: CallC
   )
 }
 
+export function registerFeedbackTools(
+  server: McpServer,
+  s: McpServices,
+  ctx: CallContext = {},
+): void {
+  server.registerTool(
+    'minakata.get_feedback_signals',
+    {
+      description:
+        'いいね/コメントの集計シグナルを返す(#194)。いいねが多い記事(成功例)と published だがいいねが付かない記事(対照例)を返す。feedback_analyst が傾向分析に使う',
+      inputSchema: { limit: z.number().int().positive().max(50).optional() },
+    },
+    async ({ limit }) => ok(s.feedback.signals({ ...(limit !== undefined && { limit }) })),
+  )
+
+  server.registerTool(
+    'minakata.get_feedback_insights',
+    {
+      description:
+        'いいね傾向から蓄積した執筆インサイト Markdown を返す(#194)。執筆系 subagent は記事作成前に読み、執筆方針に反映する',
+      inputSchema: {},
+    },
+    async () => ok(s.feedback.getInsights()),
+  )
+
+  server.registerTool(
+    'minakata.update_feedback_insights',
+    {
+      description:
+        'いいね/コメント分析で得た執筆インサイト Markdown を更新する(#194)。feedback_analyst が呼ぶ。全文置き換えなので既存内容を踏まえて統合した本文を渡すこと',
+      inputSchema: {
+        body_md: z.string().max(20_000),
+        author: z.string().default('feedback_analyst'),
+      },
+    },
+    async (args) => {
+      const actor = ctx.agent ?? args.author
+      s.feedback.updateInsights(args.body_md, actor)
+      s.audit.log({
+        actor,
+        tool_name: 'minakata.update_feedback_insights',
+        metadata: { length: args.body_md.length },
+      })
+      return ok({ updated: true })
+    },
+  )
+}
+
 export function registerTopicTools(server: McpServer, s: McpServices): void {
   server.registerTool(
     'minakata.list_topics',
@@ -826,5 +874,6 @@ export function registerAllTools(
   registerPolicyTools(server, services)
   registerCommentTools(server, services)
   registerSkillTools(server, services, ctx)
+  registerFeedbackTools(server, services, ctx)
   registerTopicTools(server, services)
 }

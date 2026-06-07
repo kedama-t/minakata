@@ -10,6 +10,7 @@ export const AgentNameSchema = z.enum([
   'synthesizer',
   'gap_detector',
   'taxonomy_builder',
+  'feedback_analyst',
   'hermes',
   'system',
 ])

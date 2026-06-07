@@ -4,6 +4,7 @@ import type {
   ArticleService,
   AuditService,
   CommentService,
+  FeedbackService,
   MaintenanceService,
   MessageService,
   PolicyService,
@@ -29,6 +30,7 @@ export interface McpServices {
   reviews: ReviewService
   policy: PolicyService
   comments: CommentService
+  feedback: FeedbackService
   skills: SkillProposalService
   archives: ArchiveProposalService
   topics: TopicService

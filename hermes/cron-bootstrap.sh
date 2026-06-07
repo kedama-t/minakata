@@ -106,7 +106,7 @@ fi
 GATEWAY_SKILLS_DIR="${HERMES_HOME:-/opt/data}/.hermes/skills"
 mkdir -p "$GATEWAY_SKILLS_DIR"
 chown hermes:hermes "$GATEWAY_SKILLS_DIR" 2>/dev/null || true
-for skill in dialogue researcher daily_research freshness_checker changelog_writer synthesizer gap_detector taxonomy_builder; do
+for skill in dialogue researcher daily_research freshness_checker changelog_writer synthesizer gap_detector taxonomy_builder feedback_analyst; do
     dest="$GATEWAY_SKILLS_DIR/$skill"
     if [ ! -e "$dest" ]; then
         ln -sfn "../../skills/$skill" "$dest"
@@ -178,6 +178,9 @@ ensure_cron "minakata-freshness-checker" "every 6h" "freshness_checker" \
 
 ensure_cron "minakata-changelog-writer" "$(local_cron_to_utc '0 7 * * *')" "changelog_writer" \
     "Summarize yesterday's research agent activity into a ChangeLog article. Follow the changelog_writer skill's rules."
+
+ensure_cron "minakata-feedback-analyst" "$(local_cron_to_utc '30 7 * * *')" "feedback_analyst" \
+    "Analyze article likes and comments, then update the writing insights that guide the research agents. Follow the feedback_analyst skill's rules."
 
 ensure_cron "minakata-synthesizer" "$(local_cron_to_utc '0 23 * * *')" "synthesizer" \
     "Detect synthesis opportunities among published articles by finding clusters of similar articles, then generate integrated overview articles. Follow the synthesizer skill's rules."

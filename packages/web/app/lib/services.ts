@@ -11,6 +11,7 @@ import {
   CommentService,
   type Db,
   EmbeddingService,
+  FeedbackService,
   GitService,
   MaintenanceService,
   MessageService,
@@ -37,6 +38,7 @@ export interface Services {
   reviews: ReviewService
   policy: PolicyService
   comments: CommentService
+  feedback: FeedbackService
   skills: SkillProposalService
   archives: ArchiveProposalService
   topics: TopicService
@@ -71,6 +73,7 @@ export function getServices(): Services {
     reviews: new ReviewService(db, articles, tasks),
     policy: new PolicyService(db),
     comments: new CommentService(db),
+    feedback: new FeedbackService(db),
     skills: new SkillProposalService(db, skillsDir),
     archives: new ArchiveProposalService(db, articles),
     topics: new TopicService(db),

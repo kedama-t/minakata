@@ -30,12 +30,15 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   }
   const related = services.search.similar(article.frontmatter.id, 5)
   const body = resolveIdRefs(article.body, (id) => services.articles.read(id))
-  return { article, body, comments, authorNames, related, role: user.role }
+  const likeCount = services.feedback.countByArticle(article.frontmatter.id)
+  const liked = services.feedback.isLikedBy(article.frontmatter.id, user.id)
+  return { article, body, comments, authorNames, related, role: user.role, likeCount, liked }
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
   assertSameOrigin(request)
-  const user = requireEditor(request)
+  // いいねは viewer も可能。それ以外の編集系操作は editor 以上が必要
+  const user = requireUser(request)
   const services = getServices()
   const slug = params['*']
   if (!slug) throw new Response('Bad Request', { status: 400 })
@@ -43,6 +46,12 @@ export async function action({ request, params }: Route.ActionArgs) {
   if (!article) throw new Response('Not Found', { status: 404 })
   const form = await request.formData()
   const intent = String(form.get('intent') ?? '')
+  if (intent === 'toggle_like') {
+    const result = services.feedback.toggle(article.frontmatter.id, user.id)
+    return { ok: true, like: result }
+  }
+  // 以降は editor 以上の操作
+  requireEditor(request)
   if (intent === 'add_comment') {
     const body = String(form.get('body') ?? '').trim()
     const anchor = String(form.get('anchor') ?? '').trim() || null
@@ -87,8 +96,10 @@ export async function action({ request, params }: Route.ActionArgs) {
 }
 
 export default function ArticlePage({ loaderData, actionData }: Route.ComponentProps) {
-  const { article, body, comments, authorNames, related, role } = loaderData
+  const { article, body, comments, authorNames, related, role, likeCount, liked } = loaderData
   const canEdit = role !== 'viewer'
+  // action 後は最新のいいね状態を反映する
+  const likeState = actionData?.like ?? { liked, count: likeCount }
   // コメント返信は dialogue(ミミー)が担当する
   const agentProfile = getAgentProfile('dialogue')
   return (
@@ -111,6 +122,25 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
       {article.frontmatter.summary && (
         <div className="bg-base-300 p-3 rounded mb-6 text-sm">{article.frontmatter.summary}</div>
       )}
+      <div className="mb-6">
+        <Form method="post" className="inline">
+          <input type="hidden" name="intent" value="toggle_like" />
+          <button
+            type="submit"
+            aria-pressed={likeState.liked}
+            className={`inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full border transition-colors ${
+              likeState.liked
+                ? 'bg-primary/10 border-primary text-primary'
+                : 'border-base-300 text-base-content/70 hover:border-primary/50'
+            }`}
+            title="この記事が役に立ったらいいねを送ろう"
+          >
+            <span>{likeState.liked ? '♥' : '♡'}</span>
+            <span>いいね</span>
+            <span className="font-medium">{likeState.count}</span>
+          </button>
+        </Form>
+      </div>
       <ArticleMarkdown source={body} />
       {article.frontmatter.sources.length > 0 && (
         <section className="mt-8 border-t pt-4">
