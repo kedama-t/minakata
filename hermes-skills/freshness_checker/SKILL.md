@@ -18,10 +18,12 @@ metadata:
 
 1. **`minakata.report_progress({ agent_name: "freshness_checker", phase: "鮮度チェック開始", detail: "recompute_freshness 実行中" })`** で実況する(失敗しても無視してよい)
 2. **`minakata.recompute_freshness(aging_h=24, stale_h=72, very_stale_h=168)`** を呼び、各記事の `freshness_rank` を最新化する。完了後に **`minakata.report_progress({ agent_name: "freshness_checker", phase: "ランク更新済", detail: "stale/very_stale 記事を選別中" })`** を呼ぶ
-3. `minakata.list_articles({status: 'published'})` で記事一覧を取得する。`last_accessed_at`(string ISO 8601 / null)と `freshness_rank`、`source_kind` を読んで次のアクションを決める
-4. `freshness_rank` が `stale` / `very_stale` **かつ `source_kind` が `'agent_changelog'` でも `'agent_daily'` でもない**記事に対して **`minakata.report_progress({ agent_name: "freshness_checker", phase: "リフレッシュ投入", detail: "記事 …" + article_id末尾8文字 })`** を呼んでから `enqueue_task(type="refresh", priority="scheduled", payload={article_id}, dedup_key="refresh:{article_id}:{YYYY-MM-DD}")`
-5. `last_accessed_at` が 30 日以上前(または `null` のまま `updated_at` から 30 日以上経過)の記事で、**`source_kind` が `'agent_changelog'` でも `'agent_daily'` でもない**ものは **`minakata.report_progress({ agent_name: "freshness_checker", phase: "アーカイブ提案", detail: "記事 …" + article_id末尾8文字 })`** を呼んでから `minakata.archive_article(id, reason)` を呼ぶ(US-7.2)
-6. 全件処理後に **`minakata.report_progress({ agent_name: "freshness_checker", phase: "チェック完了", detail: "リフレッシュN件・アーカイブ提案M件" })`** で締める(実際の件数を代入。失敗しても無視してよい)
+3. **`minakata.expire_ephemeral_articles(kinds=['agent_changelog','agent_daily'], max_age_days=7)`** を呼び、一過性記事(changelog / daily)を `created_at` から 7 日経過で強制アーカイブする。完了後に **`minakata.report_progress({ agent_name: "freshness_checker", phase: "一過性記事を整理", detail: "changelog/daily を N 件アーカイブ" })`** を呼ぶ(実際の件数を代入)
+   - **注意**: この経路は §6 承認ゲートを通さず**即時 archived 化**する例外。対象が一過性記事(`agent_changelog` / `agent_daily`)に限定されることが前提。通常記事(下記手順)とは別扱い
+4. `minakata.list_articles({status: 'published'})` で記事一覧を取得する。`last_accessed_at`(string ISO 8601 / null)と `freshness_rank`、`source_kind` を読んで次のアクションを決める
+5. `freshness_rank` が `stale` / `very_stale` **かつ `source_kind` が `'agent_changelog'` でも `'agent_daily'` でもない**記事に対して **`minakata.report_progress({ agent_name: "freshness_checker", phase: "リフレッシュ投入", detail: "記事 …" + article_id末尾8文字 })`** を呼んでから `enqueue_task(type="refresh", priority="scheduled", payload={article_id}, dedup_key="refresh:{article_id}:{YYYY-MM-DD}")`
+6. `last_accessed_at` が 30 日以上前(または `null` のまま `updated_at` から 30 日以上経過)の記事で、**`source_kind` が `'agent_changelog'` でも `'agent_daily'` でもない**ものは **`minakata.report_progress({ agent_name: "freshness_checker", phase: "アーカイブ提案", detail: "記事 …" + article_id末尾8文字 })`** を呼んでから `minakata.archive_article(id, reason)` を呼ぶ(US-7.2)
+7. 全件処理後に **`minakata.report_progress({ agent_name: "freshness_checker", phase: "チェック完了", detail: "リフレッシュN件・アーカイブ提案M件" })`** で締める(実際の件数を代入。失敗しても無視してよい)
    - **注意**: archive は §6 承認ゲートを通る。この MCP ツールは `archive_proposals` に `proposed` 行を残すだけで、即時 archive は行わない。admin が WebUI `/admin/archives` で承認したときに初めて `articles.status='archived'` へ反映される
    - 既に proposed が出ている記事に再度呼んでも UNIQUE 制約で既存提案 ID を返すだけ(冪等)
 

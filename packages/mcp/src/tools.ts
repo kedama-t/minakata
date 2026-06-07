@@ -551,7 +551,11 @@ export function registerTaskTools(server: McpServer, s: McpServices, ctx: CallCo
   )
 }
 
-export function registerMaintenanceTools(server: McpServer, s: McpServices): void {
+export function registerMaintenanceTools(
+  server: McpServer,
+  s: McpServices,
+  ctx: CallContext = {},
+): void {
   server.registerTool(
     'minakata.snapshot_db',
     {
@@ -580,6 +584,36 @@ export function registerMaintenanceTools(server: McpServer, s: McpServices): voi
           very_stale_h: args.very_stale_h,
         }),
       ),
+  )
+
+  server.registerTool(
+    'minakata.expire_ephemeral_articles',
+    {
+      description:
+        '一過性記事(changelog / daily 等)を created_at 基準で強制アーカイブする(#192)。§6 承認ゲートを通さず即時 archived 化する例外経路。対象は kinds の source に限定される',
+      inputSchema: {
+        kinds: z.array(z.string()).default(['agent_changelog', 'agent_daily']),
+        max_age_days: z.number().positive().default(7),
+        author: z.string().default('freshness_checker'),
+      },
+    },
+    async (args) => {
+      const actor = ctx.agent ?? args.author
+      const result = await s.maintenance.expireEphemeral(s.articles, {
+        kinds: args.kinds,
+        max_age_days: args.max_age_days,
+        author: actor,
+      })
+      for (const id of result.ids) {
+        s.audit.log({
+          actor,
+          tool_name: 'minakata.expire_ephemeral_articles',
+          target_article_id: id,
+          metadata: { max_age_days: args.max_age_days, kinds: args.kinds },
+        })
+      }
+      return ok(result)
+    },
   )
 }
 
@@ -787,7 +821,7 @@ export function registerAllTools(
   registerSearchTools(server, services)
   registerMessageTools(server, services, ctx)
   registerTaskTools(server, services, ctx)
-  registerMaintenanceTools(server, services)
+  registerMaintenanceTools(server, services, ctx)
   registerReviewTools(server, services, ctx)
   registerPolicyTools(server, services)
   registerCommentTools(server, services)

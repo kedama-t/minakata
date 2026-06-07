@@ -86,6 +86,33 @@ export class MaintenanceService {
   }
 
   /**
+   * 一過性記事(changelog / daily 等)を作成日基準で強制アーカイブする(#192)。
+   * 通常のアーカイブと違い §6 承認ゲートを通さず即時 archived 化する例外経路。
+   * 対象を `kinds` の source に限定することで正当化する。
+   * source of truth(Markdown)整合のため DB 直更新ではなく ArticleService.archive を経由する。
+   */
+  async expireEphemeral(
+    articles: ArticleService,
+    opts: { kinds: string[]; max_age_days: number; author: string },
+  ): Promise<{ archived: number; ids: string[] }> {
+    if (opts.kinds.length === 0) return { archived: 0, ids: [] }
+    const cutoff = new Date(Date.parse(now()) - opts.max_age_days * 86_400_000).toISOString()
+    const placeholders = opts.kinds.map(() => '?').join(', ')
+    const rows = this.db
+      .query<{ id: string }, string[]>(
+        `SELECT id FROM articles
+         WHERE source IN (${placeholders}) AND status != 'archived' AND created_at < ?`,
+      )
+      .all(...opts.kinds, cutoff)
+    const ids: string[] = []
+    for (const r of rows) {
+      await articles.archive(r.id, opts.author)
+      ids.push(r.id)
+    }
+    return { archived: ids.length, ids }
+  }
+
+  /**
    * 全記事の埋め込みを再生成する。モデル変更時に走らせる(M3-1)。
    * - 既存の articles_vec / article_vec_map は破棄して作り直す
    * - 各記事は ArticleService.recomputeEmbedding を経由して `${title}\n\n${body}`
