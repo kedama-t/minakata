@@ -191,4 +191,8 @@ ensure_cron "minakata-gap-detector" "$(local_cron_to_utc '0 4 * * *')" "gap_dete
 ensure_cron "minakata-taxonomy-builder" "$(local_cron_to_utc '0 5 * * 1')" "taxonomy_builder" \
     "Review all article tags, normalize spelling variants, merge duplicates, and clean up orphaned tags. Follow the taxonomy_builder skill's rules."
 
+# gap-detector が 04:00 を使うため衝突回避で 04:30 に置く
+ensure_cron "minakata-backup" "$(local_cron_to_utc '30 4 * * *')" "backup_agent" \
+    "Run the daily backup of articles, DB and runtime skills to the GitHub private repo. Follow the backup_agent skill's rules."
+
 echo "[minakata-cron] done"

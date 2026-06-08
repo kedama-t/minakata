@@ -615,6 +615,24 @@ export function registerMaintenanceTools(
       return ok(result)
     },
   )
+
+  server.registerTool(
+    'minakata.backup',
+    {
+      description:
+        '記事 Markdown・DB スナップショット・runtime skills を専用 git リポジトリに集約し、設定があれば GitHub private repo へ push する。Hermes の backup_agent から日次で呼ぶ',
+      inputSchema: { message: z.string().max(200).optional() },
+    },
+    async (args) => {
+      const r = await s.backup.run(args.message !== undefined ? { message: args.message } : {})
+      s.audit.log({
+        actor: ctx.agent ?? 'agent:backup',
+        tool_name: 'minakata.backup',
+        metadata: { committed: r.committed, pushed: r.pushed, changed: r.changedFiles },
+      })
+      return ok(r)
+    },
+  )
 }
 
 export function registerReviewTools(

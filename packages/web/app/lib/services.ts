@@ -8,6 +8,7 @@ import {
   ArticleService,
   AuditService,
   AuthService,
+  BackupService,
   CommentService,
   type Db,
   EmbeddingService,
@@ -34,6 +35,7 @@ export interface Services {
   audit: AuditService
   activity: ActivityService
   maintenance: MaintenanceService
+  backup: BackupService
   embedding: EmbeddingService
   reviews: ReviewService
   policy: PolicyService
@@ -54,6 +56,11 @@ export function getServices(): Services {
   // は gitignore され Hermes が curator で自律編集するため、承認スキルは正本へ。
   const skillsDir = process.env.SKILLS_DIR ?? './hermes-skills'
   const snapshotDir = process.env.SNAPSHOT_DIR ?? './data/snapshots'
+  // 定期バックアップ: data/ 配下の専用 git repo に集約し、設定があれば GitHub へ push
+  const backupDir = process.env.BACKUP_DIR ?? './data/backup'
+  const backupRemote = process.env.BACKUP_GIT_REMOTE
+  const backupToken = process.env.BACKUP_GIT_TOKEN
+  const runtimeSkillsDir = process.env.RUNTIME_SKILLS_DIR
   const db = openDb({ path: dbPath })
   const git = new GitService(articlesRoot)
   const embedding = new EmbeddingService()
@@ -69,6 +76,13 @@ export function getServices(): Services {
     audit: new AuditService(db),
     activity: new ActivityService(db),
     maintenance: new MaintenanceService(db, snapshotDir),
+    backup: new BackupService(db, {
+      backupDir,
+      articlesRoot,
+      ...(runtimeSkillsDir ? { runtimeSkillsDir } : {}),
+      ...(backupRemote ? { remote: backupRemote } : {}),
+      ...(backupToken ? { token: backupToken } : {}),
+    }),
     embedding,
     reviews: new ReviewService(db, articles, tasks),
     policy: new PolicyService(db),
