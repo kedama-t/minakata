@@ -89,6 +89,13 @@ const PROFILES: Record<AgentName, AgentProfile> = {
     role: 'フィードバック分析：いいねの傾向を読み解き執筆方針を磨きます',
     ring: 'ring-rose-400',
   },
+  backup_agent: {
+    key: 'backup_agent',
+    emoji: '💾',
+    displayName: 'クラ',
+    role: 'バックアップ担当：記事とデータを安全な場所へ毎日保管します',
+    ring: 'ring-indigo-400',
+  },
   hermes: {
     key: 'hermes',
     emoji: '🛰️',
@@ -249,6 +256,7 @@ const TOOL_DICT: Record<string, { phrase: string; category: ToolCategory }> = {
     category: 'policy',
   },
   'minakata.snapshot_db': { phrase: 'DB をバックアップしました', category: 'system' },
+  'minakata.backup': { phrase: '記事とデータをバックアップしました', category: 'system' },
 
   'web.approve_archive': { phrase: 'アーカイブを承認しました', category: 'approve' },
   'web.reject_archive': { phrase: 'アーカイブを差し戻しました', category: 'reject' },
