@@ -290,6 +290,15 @@ export function describeTool(toolName: string): {
   }
 }
 
+/**
+ * 実況 phase が「ターンの終了」を表すか判定する。
+ * 完了 / 終了 / スキップ を含む phase は、エージェントがそのターンを終えた合図。
+ * これにより「最終ログからの経過時間」ではなく実際の稼働状態を判定できる。
+ */
+export function isPhaseTerminal(phase: string): boolean {
+  return /完了|終了|スキップ/.test(phase)
+}
+
 /** ISO 8601 timestamp → "5分前" の相対表現 */
 export function relativeTime(iso: string, now: Date = new Date(), tz = 'Asia/Tokyo'): string {
   const t = new Date(iso).getTime()

@@ -6,6 +6,7 @@ import {
   SYSTEM_PROFILE,
   describeTool,
   getAgentProfile,
+  isPhaseTerminal,
   relativeTime,
 } from '../lib/agent-profiles.ts'
 import { requireUser } from '../lib/auth.ts'
@@ -16,7 +17,20 @@ import type { Route } from './+types/monitor.ts'
 
 const PAGE_SIZE = 100
 const REFRESH_INTERVAL_MS = 10_000
-const ACTIVE_THRESHOLD_MS = 5 * 60_000
+// 進行中 phase がこの時間より古ければ、終端ログを残さず止まった(クラッシュ等)とみなす
+const STALE_THRESHOLD_MS = 5 * 60_000
+
+/**
+ * エージェントが実際に稼働中(ターン実行中)かを判定する。
+ * 最終ログからの経過時間ではなく、最新 phase が終端(完了/終了/スキップ)でなく、
+ * かつ古すぎない場合のみ稼働中とみなす。
+ */
+function isAgentActive(stat: AgentStat): boolean {
+  const phase = stat.latestPhase
+  if (!phase) return false
+  if (isPhaseTerminal(phase.phase)) return false
+  return Date.now() - new Date(phase.at).getTime() <= STALE_THRESHOLD_MS
+}
 
 export async function loader({ request }: Route.LoaderArgs) {
   requireUser(request)
@@ -145,8 +159,7 @@ function buildAgentStats(
 }
 
 function AgentCard({ stat, tz }: { stat: AgentStat; tz: string }) {
-  const elapsed = Date.now() - new Date(stat.lastAt).getTime()
-  const active = elapsed <= ACTIVE_THRESHOLD_MS
+  const active = isAgentActive(stat)
   const favoriteTool = [...stat.toolCounts.entries()].sort((a, b) => b[1] - a[1])[0]
   const favoriteAction = favoriteTool ? describeTool(favoriteTool[0]) : null
   return (
@@ -315,9 +328,7 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
     [timeline, latestActivityEntries],
   )
   const now = useMemo(() => new Date(), [])
-  const activeCount = stats.filter(
-    (s) => Date.now() - new Date(s.lastAt).getTime() <= ACTIVE_THRESHOLD_MS,
-  ).length
+  const activeCount = stats.filter(isAgentActive).length
 
   return (
     <div className="max-w-5xl mx-auto px-4 lg:px-8 py-6 lg:py-10 space-y-8">
