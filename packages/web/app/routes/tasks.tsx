@@ -1,5 +1,8 @@
-import type { TaskRow, TaskStatus } from '@minakata/core'
+import type { TaskPriority, TaskRow, TaskStatus } from '@minakata/core'
+import BoringAvatar from 'boring-avatars'
+import { useState } from 'react'
 import { useRouteLoaderData } from 'react-router'
+import { getAgentProfile } from '../lib/agent-profiles.ts'
 import { requireEditor } from '../lib/auth.ts'
 import { formatDateTime } from '../lib/date.ts'
 import { getServices } from '../lib/services.ts'
@@ -32,13 +35,23 @@ export async function loader({ request }: Route.LoaderArgs) {
         before,
       })
 
-  // payload.article_id があるタスクは記事スラッグを引いて遷移できるようにする
-  const articleSlugs = new Map<string, string>()
+  // 「何を・どこから依頼したか」を出すために、依頼者・依頼元チャット・対象記事を引く
+  const requesters = new Map<string, string>()
+  const sessions = new Map<string, string>()
+  const articles = new Map<string, { slug: string; title: string }>()
   for (const t of tasks) {
+    if (t.requested_by && !requesters.has(t.requested_by)) {
+      const u = services.auth.findUserById(t.requested_by)
+      if (u) requesters.set(t.requested_by, u.email)
+    }
+    if (t.session_id && !sessions.has(t.session_id)) {
+      const sess = services.messages.getSession(t.session_id)
+      if (sess) sessions.set(t.session_id, sess.title)
+    }
     const aid = typeof t.payload.article_id === 'string' ? t.payload.article_id : null
-    if (aid && !articleSlugs.has(aid)) {
+    if (aid && !articles.has(aid)) {
       const a = services.articles.read(aid)
-      if (a) articleSlugs.set(aid, a.frontmatter.slug)
+      if (a) articles.set(aid, { slug: a.frontmatter.slug, title: a.frontmatter.title })
     }
   }
 
@@ -49,7 +62,9 @@ export async function loader({ request }: Route.LoaderArgs) {
     type: type ?? '',
     showAll,
     isAdmin: user.role === 'admin',
-    articleSlugs: Object.fromEntries(articleSlugs),
+    requesters: Object.fromEntries(requesters),
+    sessions: Object.fromEntries(sessions),
+    articles: Object.fromEntries(articles),
     nextCursor,
   }
 }
@@ -80,6 +95,46 @@ function statusLabel(status: TaskStatus): string {
   }
 }
 
+/** type ごとのアイコン・ラベル・色味(カードの先頭アイコンに使う) */
+function typeMeta(type: string): { icon: string; label: string; tint: string } {
+  switch (type) {
+    case 'research':
+      return { icon: '🔎', label: '調査', tint: 'bg-sky-500/15 text-sky-600' }
+    case 'refresh':
+      return { icon: '🔄', label: '鮮度更新', tint: 'bg-emerald-500/15 text-emerald-600' }
+    case 'daily_research':
+      return { icon: '🌅', label: '日次調査', tint: 'bg-amber-500/15 text-amber-600' }
+    case 'research_followup':
+      return { icon: '💬', label: '追加調査', tint: 'bg-fuchsia-500/15 text-fuchsia-600' }
+    default:
+      return { icon: '📋', label: type, tint: 'bg-base-200 text-base-content/70' }
+  }
+}
+
+function priorityMeta(p: TaskPriority): { label: string; dot: string } {
+  switch (p) {
+    case 'urgent':
+      return { label: '緊急', dot: 'bg-error' }
+    case 'interactive':
+      return { label: '対話', dot: 'bg-primary' }
+    case 'scheduled':
+      return { label: '定期', dot: 'bg-success' }
+    case 'maintenance':
+      return { label: '保守', dot: 'bg-base-content/40' }
+  }
+}
+
+/** payload から「何を依頼したか」を人間可読なタイトルに落とす */
+function taskTitle(t: TaskRow): string {
+  const p = t.payload
+  const pick = (k: string): string | null =>
+    typeof p[k] === 'string' && p[k] ? (p[k] as string) : null
+  const goal = pick('goal') ?? pick('query') ?? pick('comment')
+  if (goal) return goal
+  if (pick('reason') === 'unarchived') return 'アーカイブ復帰にともなう再調査'
+  return typeMeta(t.type).label
+}
+
 function tabClass(active: boolean): string {
   return active
     ? 'px-3 py-1 rounded-t border-b-2 border-primary text-primary font-medium'
@@ -96,11 +151,83 @@ function elapsed(from: string, to: string | null): string {
   return `${Math.floor(sec / 86400)}日`
 }
 
+/** 行内に置く小さなユーザーアバター */
+function MiniUserAvatar({ email }: { email: string }) {
+  return (
+    <span className="w-5 h-5 rounded-full overflow-hidden shrink-0 ring-1 ring-base-300">
+      <BoringAvatar size={20} name={email} variant="beam" />
+    </span>
+  )
+}
+
+/** 行内に置く小さなエージェントアバター(画像失敗時は絵文字) */
+function MiniAgentAvatar({ name }: { name: string }) {
+  const profile = getAgentProfile(name)
+  const [failed, setFailed] = useState(false)
+  return (
+    <span
+      className={`w-5 h-5 rounded-full overflow-hidden shrink-0 ring-1 ${profile.ring ?? 'ring-base-300'} bg-base-200 flex items-center justify-center text-[10px]`}
+      title={profile.displayName}
+    >
+      {profile.avatar && !failed ? (
+        <img
+          src={profile.avatar}
+          alt={profile.displayName}
+          className="w-full h-full object-cover"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <span>{profile.emoji}</span>
+      )}
+    </span>
+  )
+}
+
+/** 「どこから依頼したか」を表すバッジ(チャット / 記事 / 自動 への導線) */
+function SourceBadge({
+  task,
+  sessionTitle,
+  article,
+}: {
+  task: TaskRow
+  sessionTitle: string | null
+  article: { slug: string; title: string } | null
+}) {
+  if (task.session_id) {
+    return (
+      <a
+        href={`/chat/${task.session_id}`}
+        className="inline-flex items-center gap-1 text-primary hover:underline max-w-[20rem] truncate"
+      >
+        <span>💬</span>
+        <span className="truncate">{sessionTitle || 'チャット'}</span>
+      </a>
+    )
+  }
+  if (article) {
+    return (
+      <a
+        href={`/articles/${article.slug}`}
+        className="inline-flex items-center gap-1 text-primary hover:underline max-w-[20rem] truncate"
+      >
+        <span>📄</span>
+        <span className="truncate">{article.title}</span>
+      </a>
+    )
+  }
+  if (task.type === 'daily_research') {
+    return (
+      <span className="inline-flex items-center gap-1 text-base-content/60">🌅 自動(日次調査)</span>
+    )
+  }
+  return <span className="inline-flex items-center gap-1 text-base-content/60">⚙️ システム</span>
+}
+
 export default function Tasks({ loaderData }: Route.ComponentProps) {
-  const { tasks, status, type, showAll, isAdmin, articleSlugs, nextCursor } = loaderData
+  const { tasks, status, type, showAll, isAdmin, requesters, sessions, articles, nextCursor } =
+    loaderData
   const root = useRouteLoaderData<typeof rootLoader>('root')
   const tz = root?.timezone ?? 'Asia/Tokyo'
-  // クライアント側のリンク生成では loaderData の URL は分からないので、表示は簡素化
   return (
     <div className="max-w-5xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-4">タスク履歴</h1>
@@ -137,43 +264,80 @@ export default function Tasks({ loaderData }: Route.ComponentProps) {
           )}
         </div>
       </div>
-      <ul className="space-y-2">
+      <ul className="space-y-3">
         {tasks.map((t: TaskRow) => {
+          const tm = typeMeta(t.type)
+          const pm = priorityMeta(t.priority)
           const articleId = typeof t.payload.article_id === 'string' ? t.payload.article_id : null
-          const slug = articleId ? articleSlugs[articleId] : null
+          const article = articleId ? (articles[articleId] ?? null) : null
+          const sessionTitle = t.session_id ? (sessions[t.session_id] ?? null) : null
+          const requesterEmail = t.requested_by ? (requesters[t.requested_by] ?? null) : null
           return (
             <li
               key={t.id}
-              className="bg-surface p-3 rounded-lg border transition-colors hover:border-border-strong"
+              className="bg-surface rounded-xl border transition-colors hover:border-border-strong"
             >
-              <div className="flex items-center gap-2 text-xs">
-                <span className={`px-2 py-0.5 rounded ${statusBadge(t.status)}`}>
-                  {statusLabel(t.status)}
-                </span>
-                <span className="text-base-content/60">{t.type}</span>
-                <span className="text-base-content/40">priority: {t.priority}</span>
-                <span className="ml-auto text-base-content/40">
-                  {formatDateTime(t.created_at, tz)}
-                </span>
-              </div>
-              <div className="text-sm text-base-content/80 mt-1 flex items-center gap-3">
-                <span>
-                  経過: {elapsed(t.created_at, t.completed_at)}
-                  {t.cost_usd > 0 && (
-                    <span className="ml-2 text-base-content/60">${t.cost_usd.toFixed(4)}</span>
-                  )}
-                  {t.attempts > 0 && t.status !== 'done' && (
-                    <span className="ml-2 text-warning">attempts: {t.attempts}</span>
-                  )}
-                </span>
-                {slug && (
-                  <a
-                    href={`/articles/${slug}`}
-                    className="ml-auto text-primary hover:underline text-sm"
-                  >
-                    記事を開く →
-                  </a>
-                )}
+              <div className="flex items-start gap-3 p-4">
+                <div
+                  className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg shrink-0 ${tm.tint}`}
+                >
+                  {tm.icon}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 text-xs mb-1">
+                    <span className={`px-2 py-0.5 rounded ${statusBadge(t.status)}`}>
+                      {statusLabel(t.status)}
+                    </span>
+                    <span className="text-base-content/60">{tm.label}</span>
+                    <span className="inline-flex items-center gap-1 text-base-content/50">
+                      <span className={`w-1.5 h-1.5 rounded-full ${pm.dot}`} />
+                      {pm.label}
+                    </span>
+                    <span className="ml-auto text-base-content/40">
+                      {formatDateTime(t.created_at, tz)}
+                    </span>
+                  </div>
+                  <p className="font-medium text-base-content line-clamp-2">{taskTitle(t)}</p>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-xs text-base-content/70">
+                    <span className="inline-flex items-center gap-1">
+                      <span className="text-base-content/40">依頼元</span>
+                      <SourceBadge task={t} sessionTitle={sessionTitle} article={article} />
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <span className="text-base-content/40">依頼者</span>
+                      {requesterEmail ? (
+                        <>
+                          <MiniUserAvatar email={requesterEmail} />
+                          <span className="truncate max-w-[12rem]">{requesterEmail}</span>
+                        </>
+                      ) : (
+                        <span className="text-base-content/50">自動</span>
+                      )}
+                    </span>
+                    {t.claimed_by && (
+                      <span className="inline-flex items-center gap-1">
+                        <span className="text-base-content/40">担当</span>
+                        <MiniAgentAvatar name={t.claimed_by} />
+                        <span>{getAgentProfile(t.claimed_by).displayName}</span>
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3 mt-2 text-xs text-base-content/50">
+                    <span>経過 {elapsed(t.created_at, t.completed_at)}</span>
+                    {t.cost_usd > 0 && <span>${t.cost_usd.toFixed(4)}</span>}
+                    {t.attempts > 0 && t.status !== 'done' && (
+                      <span className="text-warning">再試行 {t.attempts}</span>
+                    )}
+                    {article && (
+                      <a
+                        href={`/articles/${article.slug}`}
+                        className="ml-auto text-primary hover:underline"
+                      >
+                        記事を開く →
+                      </a>
+                    )}
+                  </div>
+                </div>
               </div>
             </li>
           )
@@ -181,7 +345,7 @@ export default function Tasks({ loaderData }: Route.ComponentProps) {
         {tasks.length === 0 && (
           <p className="text-sm text-base-content/60">
             該当するタスクはありません
-            {!showAll && '（記事ページから追加調査を依頼するとここに表示されます）'}
+            {!showAll && '(記事ページから追加調査を依頼するとここに表示されます)'}
           </p>
         )}
       </ul>
