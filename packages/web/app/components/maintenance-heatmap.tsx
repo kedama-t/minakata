@@ -55,15 +55,15 @@ export function MaintenanceHeatmap({
               </div>
               {hours.map((h) => {
                 const cell = d.hours[h] ?? { hour: h, total: 0, created: 0, updated: 0 }
-                const label =
+                const tip =
                   cell.total === 0
                     ? `${d.day} ${String(h).padStart(2, '0')}時 — 更新なし`
                     : `${d.day} ${String(h).padStart(2, '0')}時 — 新規 ${cell.created} 件 / 更新 ${cell.updated} 件`
                 return (
                   <div
                     key={h}
-                    title={label}
-                    className={`w-5 h-4 rounded-[2px] transition-opacity hover:opacity-70 cursor-default ${cellColor(cell.total)}`}
+                    data-tip={tip}
+                    className={`tooltip tooltip-top w-5 h-4 rounded-[2px] cursor-default ${cellColor(cell.total)}`}
                   />
                 )
               })}
