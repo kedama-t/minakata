@@ -87,7 +87,7 @@ const ADMIN_GROUP: NavGroup = {
   items: [
     { to: '/settings/members', label: 'メンバー', icon: UsersIcon },
     { to: '/settings/policy', label: 'リサーチ方針', icon: SettingsIcon },
-    { to: '/admin/skills', label: 'スキル', icon: SparkleIcon },
+    //{ to: '/admin/skills', label: 'スキル', icon: SparkleIcon },
   ],
 }
 
