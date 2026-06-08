@@ -98,6 +98,26 @@ async function main() {
     }),
   )
 
+  // --- バックアップ（任意） ---
+  const backupRemote = check(
+    await text({
+      message: 'バックアップ先 git remote（任意・空ならローカル commit のみ）',
+      placeholder: 'https://github.com/owner/minakata-backup.git',
+      initialValue: current.get('BACKUP_GIT_REMOTE') ?? '',
+    }),
+  )
+  let backupToken = current.get('BACKUP_GIT_TOKEN') ?? ''
+  if (backupRemote) {
+    const entered = check(
+      await password({
+        message: backupToken
+          ? 'バックアップ用 GitHub トークン（空 Enter で既存を維持）'
+          : 'バックアップ用 GitHub トークン（fine-grained PAT・contents:write）',
+      }),
+    )
+    if (entered) backupToken = entered
+  }
+
   // --- 環境 ---
   const timezone = check(
     await text({
@@ -164,6 +184,8 @@ async function main() {
     OPENCODE_API_KEY: opencodeKey,
     FIRECRAWL_API_KEY: firecrawlKey,
     FIRECRAWL_BASE_URL: firecrawlBaseUrl,
+    BACKUP_GIT_REMOTE: backupRemote,
+    BACKUP_GIT_TOKEN: backupToken,
     TIMEZONE: timezone,
     COOKIE_SECURE: cookieSecure,
     HERMES_UID: uid,
@@ -196,6 +218,8 @@ async function main() {
       `${pc.dim('OPENCODE_API_KEY')} ${mask(opencodeKey)}`,
       `${pc.dim('FIRECRAWL_API_KEY')} ${mask(firecrawlKey)}`,
       `${pc.dim('FIRECRAWL_BASE_URL')} ${firecrawlBaseUrl}`,
+      `${pc.dim('BACKUP_GIT_REMOTE')} ${backupRemote || pc.dim('(未設定)')}`,
+      `${pc.dim('BACKUP_GIT_TOKEN')}  ${mask(backupToken)}`,
       `${pc.dim('TIMEZONE')}         ${timezone}`,
       `${pc.dim('COOKIE_SECURE')}    ${cookieSecure}`,
       `${pc.dim('HERMES_UID/GID')}   ${uid} / ${gid}`,

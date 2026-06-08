@@ -85,15 +85,17 @@ const PROFILES: Record<AgentName, AgentProfile> = {
   feedback_analyst: {
     key: 'feedback_analyst',
     emoji: '💗',
-    displayName: 'リカ',
+    displayName: 'リッカ',
     role: 'フィードバック分析：いいねの傾向を読み解き執筆方針を磨きます',
+    avatar: '/agents/licca.png',
     ring: 'ring-rose-400',
   },
   backup_agent: {
     key: 'backup_agent',
-    emoji: '💾',
-    displayName: 'クラ',
+    emoji: '🗄️',
+    displayName: 'クララ',
     role: 'バックアップ担当：記事とデータを安全な場所へ毎日保管します',
+    avatar: '/agents/clara.png',
     ring: 'ring-indigo-400',
   },
   hermes: {
