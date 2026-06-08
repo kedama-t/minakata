@@ -33,7 +33,19 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const body = resolveIdRefs(article.body, (id) => services.articles.read(id))
   const likeCount = services.feedback.countByArticle(article.frontmatter.id)
   const liked = services.feedback.isLikedBy(article.frontmatter.id, user.id)
-  return { article, body, comments, authorNames, related, role: user.role, likeCount, liked }
+  // アーカイブ承認待ち中なら再提案ボタンを隠し、状態を表示するために取得する
+  const archivePending = services.archives.findActive(article.frontmatter.id) !== null
+  return {
+    article,
+    body,
+    comments,
+    authorNames,
+    related,
+    role: user.role,
+    likeCount,
+    liked,
+    archivePending,
+  }
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
@@ -78,6 +90,22 @@ export async function action({ request, params }: Route.ActionArgs) {
     services.comments.resolve(String(form.get('comment_id')))
     return { ok: true }
   }
+  if (intent === 'archive') {
+    // 即時アーカイブせず承認ゲートに回す(§6)。admin が押しても同様に proposed を残す
+    const reason = String(form.get('reason') ?? '').trim()
+    const proposal = services.archives.propose({
+      article_id: article.frontmatter.id,
+      proposed_by: `user:${user.id}`,
+      ...(reason && { reason }),
+    })
+    services.audit.log({
+      actor: `user:${user.id}`,
+      tool_name: 'web.archive_article',
+      target_article_id: article.frontmatter.id,
+      metadata: { proposal_id: proposal.id, reason },
+    })
+    return { ok: true, archiveProposed: true }
+  }
   if (intent === 'unarchive') {
     await services.articles.unarchive(article.frontmatter.id, `user:${user.id}`)
     services.tasks.enqueue({
@@ -97,19 +125,37 @@ export async function action({ request, params }: Route.ActionArgs) {
 }
 
 export default function ArticlePage({ loaderData, actionData }: Route.ComponentProps) {
-  const { article, body, comments, authorNames, related, role, likeCount, liked } = loaderData
+  const { article, body, comments, authorNames, related, role, likeCount, liked, archivePending } =
+    loaderData
   const canEdit = role !== 'viewer'
+  const isArchived = article.frontmatter.status === 'archived'
   // action 後は最新のいいね状態を反映する
   const likeState = actionData?.like ?? { liked, count: likeCount }
   // コメント返信は dialogue(ミミー)が担当する
   const agentProfile = getAgentProfile('dialogue')
   return (
-    <article className="max-w-3xl mx-auto p-6">
+    <article className={`max-w-3xl mx-auto p-6 ${isArchived ? 'opacity-75' : ''}`}>
+      {isArchived && (
+        <div className="mb-4 flex items-center gap-2 rounded border border-base-300 bg-base-200 px-3 py-2 text-sm text-base-content/70">
+          <span>📦</span>
+          <span>この記事はアーカイブされています。最新性は保証されません。</span>
+        </div>
+      )}
       <h1 className="text-3xl font-bold mb-1">{article.frontmatter.title}</h1>
-      <div className="text-xs text-base-content/60 mb-6 flex items-center gap-2">
+      <div className="text-xs text-base-content/60 mb-6 flex items-center gap-2 flex-wrap">
         <span>最終更新: {article.frontmatter.updated_at}</span>
         <FreshnessBadge rank={article.frontmatter.freshness_rank} />
-        {canEdit && article.frontmatter.status === 'archived' && (
+        {isArchived && (
+          <span className="rounded-full bg-base-300 px-2 py-0.5 text-base-content/70">
+            📦 アーカイブ済み
+          </span>
+        )}
+        {!isArchived && archivePending && (
+          <span className="rounded-full bg-warning/15 px-2 py-0.5 text-warning">
+            アーカイブ承認待ち
+          </span>
+        )}
+        {canEdit && isArchived && (
           <Form method="post" className="inline">
             <input type="hidden" name="intent" value="unarchive" />
             <button type="submit" className="text-xs bg-secondary text-white px-2 py-1 rounded">
@@ -117,7 +163,24 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
             </button>
           </Form>
         )}
+        {canEdit && !isArchived && !archivePending && (
+          <Form method="post" className="inline">
+            <input type="hidden" name="intent" value="archive" />
+            <button
+              type="submit"
+              className="text-xs border border-base-300 px-2 py-1 rounded hover:border-warning hover:text-warning"
+              title="承認後にアーカイブされます(admin の承認が必要)"
+            >
+              アーカイブ化
+            </button>
+          </Form>
+        )}
       </div>
+      {actionData?.archiveProposed && (
+        <p className="mb-4 text-sm text-success">
+          アーカイブを申請しました。admin の承認後にアーカイブされます。
+        </p>
+      )}
       {article.frontmatter.summary && (
         <div className="bg-base-300 p-3 rounded mb-6 text-sm">{article.frontmatter.summary}</div>
       )}
