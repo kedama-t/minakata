@@ -66,3 +66,5 @@
 
 # --- Hermes が investigation 中に作る debug script ---
 /_check_*.py
+
+/.clean_shutdown

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { FreshnessBadge } from '../components/ui/freshness-badge.tsx'
 import { requireUser } from '../lib/auth.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/articles.ts'
@@ -15,18 +16,6 @@ export async function loader({ request }: Route.LoaderArgs) {
   const tags = services.articles.listTags({ excludeArchived: true })
   const likeCounts = services.feedback.countsFor(articles.map((a) => a.id))
   return { articles, tags, tag: tag ?? '', likeCounts }
-}
-
-function FreshnessBadge({ rank }: { rank: string }) {
-  const color =
-    rank === 'fresh'
-      ? 'bg-success/15 text-success'
-      : rank === 'aging'
-        ? 'bg-warning/15 text-warning'
-        : rank === 'stale'
-          ? 'bg-warning/20 text-warning'
-          : 'bg-error/15 text-error'
-  return <span className={`ml-2 text-xs px-2 py-0.5 rounded ${color}`}>{rank}</span>
 }
 
 function PendingBadge({ status }: { status: string }) {
@@ -122,7 +111,9 @@ export default function Articles({ loaderData }: Route.ComponentProps) {
               >
                 {a.title}
               </a>
-              <FreshnessBadge rank={a.freshness_rank} />
+              <span className="ml-2">
+                <FreshnessBadge rank={a.freshness_rank} />
+              </span>
               <PendingBadge status={a.status} />
               {(likeCounts[a.id] ?? 0) > 0 && (
                 <span className="ml-2 text-xs text-primary tabular-nums">♥ {likeCounts[a.id]}</span>
