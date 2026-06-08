@@ -19,3 +19,20 @@ export function localHour(tz: string): number {
   }).formatToParts(new Date())
   return Number(parts.find((p) => p.type === 'hour')?.value ?? '0')
 }
+
+/** ISO → { day: "YYYY/MM/DD", hour: 0-23 } in the given timezone */
+export function dayAndHour(iso: string, tz: string): { day: string; hour: number } {
+  const d = new Date(iso)
+  const parts = new Intl.DateTimeFormat('en', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: 'numeric',
+    hour12: false,
+  }).formatToParts(d)
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '00'
+  const day = `${get('year')}/${get('month')}/${get('day')}`
+  const hour = Number(get('hour'))
+  return { day, hour }
+}
