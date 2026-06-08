@@ -260,6 +260,7 @@ const TOOL_DICT: Record<string, { phrase: string; category: ToolCategory }> = {
   'minakata.snapshot_db': { phrase: 'DB をバックアップしました', category: 'system' },
   'minakata.backup': { phrase: '記事とデータをバックアップしました', category: 'system' },
 
+  'web.archive_article': { phrase: 'アーカイブを申請しました', category: 'archive' },
   'web.approve_archive': { phrase: 'アーカイブを承認しました', category: 'approve' },
   'web.reject_archive': { phrase: 'アーカイブを差し戻しました', category: 'reject' },
   'web.unarchive_article': { phrase: 'アーカイブから戻しました', category: 'archive' },
