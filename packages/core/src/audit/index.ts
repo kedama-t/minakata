@@ -172,4 +172,24 @@ export class AuditService extends EventEmitter {
       .all()
       .map((r) => r.tool_name)
   }
+
+  /**
+   * 記事の作成・更新・更新提案に対応する監査ログを返す。
+   * ダッシュボードのメンテナンスヒートマップ用。
+   */
+  maintenanceEvents(opts: { since: string }): { timestamp: string; tool_name: string }[] {
+    return this.db
+      .query<{ timestamp: string; tool_name: string }, [string, string, string, string]>(
+        `SELECT timestamp, tool_name FROM audit_log
+         WHERE timestamp >= ?
+           AND tool_name IN (?, ?, ?)
+         ORDER BY timestamp ASC`,
+      )
+      .all(
+        opts.since,
+        'minakata.create_article',
+        'minakata.update_article',
+        'minakata.propose_update',
+      )
+  }
 }

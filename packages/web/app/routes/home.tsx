@@ -1,63 +1,108 @@
 import { useRouteLoaderData } from 'react-router'
+import type { HeatmapDay, HeatmapHour } from '../components/maintenance-heatmap.tsx'
+import { MaintenanceHeatmap } from '../components/maintenance-heatmap.tsx'
 import { getAgentProfile, relativeTime } from '../lib/agent-profiles.ts'
 import { requireUser } from '../lib/auth.ts'
-import { localHour } from '../lib/date.ts'
+import { dayAndHour, localHour } from '../lib/date.ts'
 import { getServices } from '../lib/services.ts'
 import type { loader as rootLoader } from '../root.tsx'
 import type { Route } from './+types/home.ts'
 
+const HEATMAP_DAYS = 14
+
 export async function loader({ request }: Route.LoaderArgs) {
   const user = requireUser(request)
   const services = getServices()
-  const since = new Date(Date.now() - 24 * 3_600_000).toISOString()
-  const allRecent = services.articles
-    .list({ excludeArchived: true, limit: 100 })
-    .filter((a) => a.updated_at >= since)
-  const recentUpdates = allRecent.filter((a) => a.source !== 'agent_changelog')
-  const newToday = allRecent.filter((a) => a.source === 'agent_research')
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 3_600_000).toISOString()
-  const changelogs = services.articles
-    .list({ limit: 200 })
-    .filter((a) => a.source === 'agent_changelog' && a.updated_at >= sevenDaysAgo)
-  const recentActivity = services.activity.list({ limit: 8 })
+
+  // アクションサマリー用件数
+  const pendingReviews = user.role !== 'viewer' ? services.reviews.listPending().length : 0
+  const activeTasks =
+    user.role !== 'viewer'
+      ? services.tasks.listAll({ status: 'queued' }).length +
+        services.tasks.listAll({ status: 'claimed' }).length
+      : 0
+
+  const allArticles = services.articles.list({ excludeArchived: true, limit: 2000 })
+  const staleCount = allArticles.filter(
+    (a) => a.freshness_rank === 'stale' || a.freshness_rank === 'very_stale',
+  ).length
+
+  const since24h = new Date(Date.now() - 24 * 3_600_000).toISOString()
+  const recentCount = allArticles.filter(
+    (a) => a.updated_at >= since24h && a.source !== 'agent_changelog',
+  ).length
+
+  // ヒートマップ用: 過去 HEATMAP_DAYS 日の記事操作イベント(tz変換はブラウザではなくサーバーで実施)
+  const sinceHeatmap = new Date(Date.now() - HEATMAP_DAYS * 24 * 3_600_000).toISOString()
+  const maintenanceEvents = services.audit.maintenanceEvents({ since: sinceHeatmap })
+
+  // 最近の動き
+  const recentActivity = services.activity.list({ limit: 5 })
+  const recentArticles = allArticles
+    .filter((a) => a.source !== 'agent_changelog')
+    .sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))
+    .slice(0, 5)
+
   return {
-    recentUpdates,
-    newToday,
-    changelogs,
-    recentActivity,
     user,
+    pendingReviews,
+    activeTasks,
+    staleCount,
+    recentCount,
+    maintenanceEvents,
+    recentActivity,
+    recentArticles,
   }
 }
 
-function StatCard({
-  label,
-  value,
-  href,
-  sub,
-}: {
-  label: string
-  value: number | string
-  href?: string
-  sub?: string
-}) {
-  const content = (
-    <div className="bg-surface border border-border rounded-xl p-4 transition-colors hover:border-border-strong">
-      <p className="text-xs font-medium text-base-content/50 uppercase tracking-wider">{label}</p>
-      <p className="text-2xl font-semibold mt-1.5 tabular-nums">{value}</p>
-      {sub && <p className="text-xs text-base-content/40 mt-0.5">{sub}</p>}
-    </div>
-  )
-  return href ? (
-    <a href={href} className="block">
-      {content}
-    </a>
-  ) : (
-    content
-  )
+/** イベント配列をヒートマップ用の日×時間バケツに変換する */
+function buildHeatmapDays(
+  events: { timestamp: string; tool_name: string }[],
+  tz: string,
+  numDays: number,
+): HeatmapDay[] {
+  // 過去 numDays 日分の日付文字列を生成(新しい日が末尾)
+  const dayKeys: string[] = []
+  for (let i = numDays - 1; i >= 0; i--) {
+    const d = new Date(Date.now() - i * 24 * 3_600_000)
+    const { day } = dayAndHour(d.toISOString(), tz)
+    if (!dayKeys.includes(day)) dayKeys.push(day)
+  }
+
+  const map = new Map<string, HeatmapHour[]>()
+  for (const key of dayKeys) {
+    map.set(
+      key,
+      Array.from({ length: 24 }, (_, h) => ({ hour: h, total: 0, created: 0, updated: 0 })),
+    )
+  }
+
+  for (const ev of events) {
+    const { day, hour } = dayAndHour(ev.timestamp, tz)
+    const hours = map.get(day)
+    if (!hours) continue
+    const cell = hours[hour]
+    if (!cell) continue
+    cell.total++
+    if (ev.tool_name === 'minakata.create_article') cell.created++
+    else cell.updated++
+  }
+
+  return dayKeys.map((day) => ({ day, hours: map.get(day) ?? [] }))
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { recentUpdates, newToday, changelogs, recentActivity, user } = loaderData
+  const {
+    user,
+    pendingReviews,
+    activeTasks,
+    staleCount,
+    recentCount,
+    maintenanceEvents,
+    recentActivity,
+    recentArticles,
+  } = loaderData
+
   const root = useRouteLoaderData<typeof rootLoader>('root')
   const tz = root?.timezone ?? 'Asia/Tokyo'
 
@@ -70,161 +115,201 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   })()
 
   const now = new Date()
+  const heatmapDays = buildHeatmapDays(maintenanceEvents, tz, HEATMAP_DAYS)
 
   return (
     <div className="max-w-5xl mx-auto px-4 lg:px-8 py-6 lg:py-10 space-y-8">
-      <header>
-        <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">
-          {greeting}、{user.email.split('@')[0]} さん
-        </h1>
-        <p className="text-sm text-base-content/50 mt-1">直近 24 時間のナレッジ更新です</p>
+      {/* ヘッダー */}
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">
+            {greeting}、{user.email.split('@')[0]} さん
+          </h1>
+          <p className="text-sm text-base-content/50 mt-1">ナレッジベースの概況</p>
+        </div>
+        {user.role !== 'viewer' && (
+          <a href="/chat/new" className="btn btn-primary btn-sm gap-1.5 shrink-0">
+            新規チャット
+          </a>
+        )}
       </header>
 
-      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard label="昨夜の更新" value={recentUpdates.length} sub="件" />
-        <StatCard label="新規記事" value={newToday.length} sub="件" />
-        <StatCard label="ChangeLog" value={changelogs.length} sub="日報" />
-        <StatCard
-          label="エージェント活動"
-          value={recentActivity.length}
-          sub="直近"
-          href="/monitor"
-        />
-      </section>
-
-      {recentActivity.length > 0 && (
-        <section>
-          <div className="flex items-baseline justify-between mb-3">
-            <h2 className="text-base font-semibold">エージェント稼働</h2>
-            <a href="/monitor" className="text-xs text-primary hover:underline">
-              モニターを開く →
-            </a>
-          </div>
-          <div className="bg-surface border border-border rounded-xl overflow-hidden">
-            <ul className="divide-y divide-border">
-              {recentActivity.map((e) => {
-                const profile = getAgentProfile(e.agent_name ?? e.actor)
-                return (
-                  <li key={e.id} className="flex items-center gap-3 px-4 py-3">
-                    <span className="text-base shrink-0">{profile.emoji}</span>
-                    <span className="text-xs font-medium text-base-content/70 shrink-0">
-                      {profile.displayName}
-                    </span>
-                    <span className="text-xs text-base-content/50 truncate">
-                      💭 {e.phase}
-                      {e.detail ? ` · ${e.detail}` : ''}
-                    </span>
-                    <span className="text-xs text-base-content/40 ml-auto tabular-nums shrink-0">
-                      {relativeTime(e.timestamp, now, tz)}
-                    </span>
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-        </section>
+      {/* 承認待ち CTA バナー */}
+      {pendingReviews > 0 && user.role !== 'viewer' && (
+        <a
+          href="/reviews"
+          className="flex items-center justify-between gap-4 bg-warning/10 border border-warning/30 rounded-xl px-4 py-3 hover:bg-warning/15 transition-colors"
+        >
+          <span className="text-sm font-medium text-warning">
+            {pendingReviews} 件のレビューが承認を待っています
+          </span>
+          <span className="text-xs text-warning/70 shrink-0">確認する →</span>
+        </a>
       )}
 
-      {changelogs.length > 0 && (
-        <section>
-          <h2 className="text-base font-semibold mb-3">ChangeLog 日報</h2>
-          <div className="bg-surface border border-border rounded-xl overflow-hidden">
-            <ul className="divide-y divide-border">
-              {changelogs.map((c) => (
-                <li key={c.id} className="px-4 py-3 flex items-center justify-between gap-4">
-                  <a
-                    href={`/articles/${c.slug}`}
-                    className="text-sm text-primary hover:underline truncate"
-                  >
-                    {c.title}
-                  </a>
-                  <span className="text-xs text-base-content/40 shrink-0 tabular-nums">
-                    {relativeTime(c.updated_at, now, tz)}
-                  </span>
+      {/* アクションサマリー */}
+      <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {user.role !== 'viewer' && (
+          <ActionCard
+            label="承認待ちレビュー"
+            value={pendingReviews}
+            sub="件"
+            href="/reviews"
+            highlight={pendingReviews > 0}
+          />
+        )}
+        {user.role !== 'viewer' && (
+          <ActionCard label="進行中タスク" value={activeTasks} sub="件" href="/tasks" />
+        )}
+        <ActionCard
+          label="要更新の記事"
+          value={staleCount}
+          sub="件"
+          href="/articles"
+          highlight={staleCount > 0}
+        />
+        <ActionCard label="直近 24h 更新" value={recentCount} sub="件" href="/articles" />
+      </section>
+
+      {/* メンテナンスヒートマップ */}
+      <section>
+        <div className="flex items-baseline justify-between mb-3">
+          <h2 className="text-base font-semibold">メンテナンス状況</h2>
+          <span className="text-xs text-base-content/40">過去 {HEATMAP_DAYS} 日間</span>
+        </div>
+        <div className="bg-surface border border-border rounded-xl p-4">
+          <MaintenanceHeatmap days={heatmapDays} timezone={tz} />
+        </div>
+      </section>
+
+      {/* 最近の動き */}
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* エージェント稼働 */}
+        {recentActivity.length > 0 && (
+          <div>
+            <div className="flex items-baseline justify-between mb-3">
+              <h2 className="text-base font-semibold">エージェント稼働</h2>
+              <a href="/monitor" className="text-xs text-primary hover:underline">
+                モニターを開く →
+              </a>
+            </div>
+            <div className="bg-surface border border-border rounded-xl overflow-hidden">
+              <ul className="divide-y divide-border">
+                {recentActivity.map((e) => {
+                  const profile = getAgentProfile(e.agent_name ?? e.actor)
+                  return (
+                    <li key={e.id} className="flex items-center gap-3 px-4 py-3">
+                      <span className="text-base shrink-0">{profile.emoji}</span>
+                      <span className="text-xs font-medium text-base-content/70 shrink-0 truncate max-w-24">
+                        {profile.displayName}
+                      </span>
+                      <span className="text-xs text-base-content/50 truncate">
+                        {e.phase}
+                        {e.detail ? ` · ${e.detail}` : ''}
+                      </span>
+                      <span className="text-xs text-base-content/40 ml-auto tabular-nums shrink-0">
+                        {relativeTime(e.timestamp, now, tz)}
+                      </span>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          </div>
+        )}
+
+        {/* 最近更新された記事 */}
+        <div>
+          <div className="flex items-baseline justify-between mb-3">
+            <h2 className="text-base font-semibold">最近更新された記事</h2>
+            <a href="/articles" className="text-xs text-primary hover:underline">
+              すべて見る →
+            </a>
+          </div>
+          {recentArticles.length === 0 ? (
+            <p className="text-sm text-base-content/50 py-2">まだ記事がありません</p>
+          ) : (
+            <ul className="space-y-2">
+              {recentArticles.map((a) => (
+                <li
+                  key={a.id}
+                  className="bg-surface border border-border p-3 rounded-xl hover:border-border-strong transition-colors"
+                >
+                  <div className="flex items-start gap-2 flex-wrap">
+                    <a
+                      href={`/articles/${a.slug}`}
+                      className="text-sm text-primary font-medium hover:underline"
+                    >
+                      {a.title}
+                    </a>
+                    <FreshnessBadge rank={a.freshness_rank} />
+                    {a.status === 'pending_approval' && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-warning/20 text-warning font-medium">
+                        レビュー中
+                      </span>
+                    )}
+                  </div>
+                  {a.summary && (
+                    <p className="text-xs text-base-content/50 mt-1 line-clamp-1">{a.summary}</p>
+                  )}
                 </li>
               ))}
             </ul>
-          </div>
-        </section>
-      )}
-
-      <section>
-        <h2 className="text-base font-semibold mb-3">昨夜の更新</h2>
-        <ArticleList items={recentUpdates} emptyMessage="まだ更新がありません" />
-      </section>
-
-      <section>
-        <h2 className="text-base font-semibold mb-3">新規作成された記事</h2>
-        <ArticleList items={newToday} emptyMessage="まだ新規記事がありません" />
+          )}
+        </div>
       </section>
     </div>
   )
 }
 
-function ArticleList({
-  items,
-  emptyMessage,
+function ActionCard({
+  label,
+  value,
+  sub,
+  href,
+  highlight,
 }: {
-  items: {
-    id: string
-    slug: string
-    title: string
-    status: string
-    tags: string[]
-    summary: string
-    freshness_rank: string
-  }[]
-  emptyMessage: string
+  label: string
+  value: number
+  sub?: string
+  href: string
+  highlight?: boolean
 }) {
-  if (items.length === 0) return <p className="text-sm text-base-content/50 py-2">{emptyMessage}</p>
   return (
-    <ul className="space-y-2">
-      {items.map((a) => (
-        <li
-          key={a.id}
-          className="bg-surface border border-border p-4 rounded-xl transition-colors hover:border-border-strong"
+    <a href={href} className="block">
+      <div
+        className={`bg-surface border rounded-xl p-4 transition-colors hover:border-border-strong ${
+          highlight ? 'border-warning/40' : 'border-border'
+        }`}
+      >
+        <p className="text-xs font-medium text-base-content/50 uppercase tracking-wider">{label}</p>
+        <p
+          className={`text-2xl font-semibold mt-1.5 tabular-nums ${highlight ? 'text-warning' : ''}`}
         >
-          <div className="flex items-start gap-2 flex-wrap">
-            <a href={`/articles/${a.slug}`} className="text-primary font-semibold hover:underline">
-              {a.title}
-            </a>
-            <FreshnessBadge rank={a.freshness_rank} />
-            {a.status === 'pending_approval' && (
-              <span className="text-xs px-2 py-0.5 rounded-full bg-warning/20 text-warning font-medium">
-                レビュー中
-              </span>
-            )}
-          </div>
-          {a.summary && (
-            <p className="text-sm text-base-content/60 mt-1.5 line-clamp-2">{a.summary}</p>
-          )}
-          {a.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-2.5">
-              {a.tags.map((t) => (
-                <a
-                  key={t}
-                  href={`/articles?tag=${encodeURIComponent(t)}`}
-                  className="text-xs bg-base-200 hover:bg-base-300 px-2 py-0.5 rounded-full transition-colors"
-                >
-                  {t}
-                </a>
-              ))}
-            </div>
-          )}
-        </li>
-      ))}
-    </ul>
+          {value}
+        </p>
+        {sub && <p className="text-xs text-base-content/40 mt-0.5">{sub}</p>}
+      </div>
+    </a>
   )
 }
 
+const FRESHNESS_LABEL: Record<string, string> = {
+  fresh: '新鮮',
+  aging: 'やや古い',
+  stale: '要更新',
+  very_stale: '古い',
+}
+
+const FRESHNESS_COLOR: Record<string, string> = {
+  fresh: 'bg-success/15 text-success',
+  aging: 'bg-warning/15 text-warning',
+  stale: 'bg-warning/20 text-warning',
+  very_stale: 'bg-error/15 text-error',
+}
+
 function FreshnessBadge({ rank }: { rank: string }) {
-  const color =
-    rank === 'fresh'
-      ? 'bg-success/15 text-success'
-      : rank === 'aging'
-        ? 'bg-warning/15 text-warning'
-        : rank === 'stale'
-          ? 'bg-warning/20 text-warning'
-          : 'bg-error/15 text-error'
-  return <span className={`text-xs px-2 py-0.5 rounded-full ${color}`}>{rank}</span>
+  const color = FRESHNESS_COLOR[rank] ?? 'bg-base-200 text-base-content/50'
+  const label = FRESHNESS_LABEL[rank] ?? rank
+  return <span className={`text-xs px-2 py-0.5 rounded-full ${color}`}>{label}</span>
 }
