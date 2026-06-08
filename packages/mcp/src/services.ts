@@ -3,6 +3,7 @@ import type {
   ArchiveProposalService,
   ArticleService,
   AuditService,
+  BackupService,
   CommentService,
   FeedbackService,
   MaintenanceService,
@@ -27,6 +28,7 @@ export interface McpServices {
   audit: AuditService
   activity: ActivityService
   maintenance: MaintenanceService
+  backup: BackupService
   reviews: ReviewService
   policy: PolicyService
   comments: CommentService

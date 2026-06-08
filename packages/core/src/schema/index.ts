@@ -11,6 +11,7 @@ export const AgentNameSchema = z.enum([
   'gap_detector',
   'taxonomy_builder',
   'feedback_analyst',
+  'backup_agent',
   'hermes',
   'system',
 ])

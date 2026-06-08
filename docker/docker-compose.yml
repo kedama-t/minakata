@@ -12,6 +12,10 @@ services:
     volumes:
       - ../data:/app/data
       - ../models:/app/.cache/huggingface
+      # backup_agent が runtime skills を取り込むための read-only マウント。
+      # hermes/skills は HERMES_UID 所有なので、別 UID の minakata から読めない
+      # 場合は BackupService が warn-skip する(運用で UID / パーミッション調整)。
+      - ../hermes/skills:/app/runtime-skills:ro
     environment:
       MCP_TOKEN: "${MCP_TOKEN}"
       DATABASE_URL: "file:/app/data/minakata.db"
@@ -24,6 +28,11 @@ services:
       # /v1/scrape の Bearer 認証。Hermes が送る FIRECRAWL_API_KEY と同じ値で検証する
       FIRECRAWL_API_KEY: "${FIRECRAWL_API_KEY}"
       SNAPSHOT_DIR: "/app/data/snapshots"
+      # 定期バックアップ(backup_agent → minakata.backup)。BACKUP_DIR は既定で
+      # /app/data/backup(= data/backup、既存マウントで永続化)。
+      BACKUP_GIT_REMOTE: "${BACKUP_GIT_REMOTE:-}"
+      BACKUP_GIT_TOKEN: "${BACKUP_GIT_TOKEN:-}"
+      RUNTIME_SKILLS_DIR: "/app/runtime-skills"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/health"]
