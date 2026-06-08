@@ -85,18 +85,44 @@ async function main() {
       validate: (v) => (!v ? '必須です' : undefined),
     }),
   )
-  const firecrawlKey = check(
-    await password({ message: 'Firecrawl API キー（任意・未取得なら空のまま）' }),
-  )
-
-  // --- Firecrawl baseUrl ---
-  const firecrawlBaseUrl = check(
-    await text({
-      message: 'Firecrawl baseUrl',
-      placeholder: 'http://minakata:3000',
-      initialValue: current.get('FIRECRAWL_BASE_URL') ?? 'http://minakata:3000',
+  // --- Firecrawl（Minakata 互換 or クラウド） ---
+  // minakata の FIRECRAWL_API_KEY は /v1/scrape の Bearer 検証用の共有シークレット
+  // （クラウドの実キー fc-… ではない）。互換利用時はランダム自動生成で十分。
+  const MINAKATA_BASE = 'http://minakata:3000'
+  const prevBase = current.get('FIRECRAWL_BASE_URL')
+  const firecrawlMode = check(
+    await select({
+      message: 'Firecrawl（Web 抽出）の利用方法',
+      initialValue: prevBase && prevBase !== MINAKATA_BASE ? 'cloud' : 'minakata',
+      options: [
+        { value: 'minakata', label: 'Minakata の互換エンドポイントを使う（推奨）' },
+        { value: 'cloud', label: 'Firecrawl クラウド版を使う' },
+      ],
     }),
   )
+
+  let firecrawlKey: string
+  let firecrawlBaseUrl: string
+  if (firecrawlMode === 'cloud') {
+    firecrawlKey = check(
+      await password({
+        message: 'Firecrawl API キー（fc-…）',
+        validate: (v) => (!v ? '必須です' : undefined),
+      }),
+    )
+    firecrawlBaseUrl = check(
+      await text({
+        message: 'Firecrawl baseUrl',
+        placeholder: 'https://api.firecrawl.dev',
+        initialValue:
+          prevBase && prevBase !== MINAKATA_BASE ? prevBase : 'https://api.firecrawl.dev',
+      }),
+    )
+  } else {
+    // 互換利用: baseUrl は minakata 固定、API キーは共有 Bearer をランダム生成
+    firecrawlBaseUrl = MINAKATA_BASE
+    firecrawlKey = await resolveSecret('FIRECRAWL_API_KEY', current.get('FIRECRAWL_API_KEY'))
+  }
 
   // --- バックアップ（任意） ---
   const backupRemote = check(
