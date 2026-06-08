@@ -28,8 +28,10 @@ services:
       # /v1/scrape の Bearer 認証。Hermes が送る FIRECRAWL_API_KEY と同じ値で検証する
       FIRECRAWL_API_KEY: "${FIRECRAWL_API_KEY}"
       SNAPSHOT_DIR: "/app/data/snapshots"
-      # 定期バックアップ(backup_agent → minakata.backup)。BACKUP_DIR は既定で
-      # /app/data/backup(= data/backup、既存マウントで永続化)。
+      # 定期バックアップ(backup_agent → minakata.backup)。BACKUP_DIR を明示
+      # しないとコード既定の相対パス ./data/backup が cwd(/app/packages/web)
+      # 基準になり EACCES になる。マウント済みで chown された /app/data 配下を指す。
+      BACKUP_DIR: "/app/data/backup"
       BACKUP_GIT_REMOTE: "${BACKUP_GIT_REMOTE:-}"
       BACKUP_GIT_TOKEN: "${BACKUP_GIT_TOKEN:-}"
       RUNTIME_SKILLS_DIR: "/app/runtime-skills"
