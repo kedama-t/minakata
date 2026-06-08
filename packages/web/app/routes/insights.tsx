@@ -1,4 +1,5 @@
 import { Form } from 'react-router'
+import { InfoIcon } from '../components/icons.tsx'
 import { assertSameOrigin, requireEditor } from '../lib/auth.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/insights.ts'
@@ -26,42 +27,52 @@ export default function Insights({ loaderData, actionData }: Route.ComponentProp
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-8">
       <section>
-        <h1 className="text-2xl font-bold mb-2">執筆インサイト</h1>
-        <p className="text-sm text-base-content/60 mb-4">
-          いいね/コメントの傾向を分析して蓄積する執筆指針。feedback_analyst
-          が自動更新し、執筆系エージェントが system prompt
-          に挿入する。人間が手で修正することもできる。
-        </p>
-        <Form method="post" className="space-y-2">
-          <textarea
-            name="body_md"
-            defaultValue={insights.body_md}
-            rows={16}
-            className="w-full px-3 py-2 border rounded font-mono text-sm"
-            placeholder="# 執筆インサイト&#10;- いいねが付きやすい記事の傾向..."
-          />
-          <div className="flex gap-3 items-center">
-            <button type="submit" className="btn btn-primary btn-sm">
-              保存
-            </button>
-            {actionData?.ok && <span className="text-success text-sm">保存しました</span>}
-            <span className="text-xs text-base-content/60 ml-auto">
-              最終更新: {insights.updated_at}
-              {insights.updated_by && <> / {insights.updated_by}</>}
-            </span>
+        <h1 className="text-2xl font-bold mb-3">執筆インサイト</h1>
+        <div role="alert" className="alert alert-info alert-soft mb-4">
+          <InfoIcon />
+          <span className="text-sm">
+            読者のいいねやコメントの傾向を分析して蓄積する、記事執筆の指針です。feedback_analyst
+            エージェントが自動で更新し、記事を書くエージェントが執筆時に参照します。内容はここから手動でも編集できます。
+          </span>
+        </div>
+        <Form method="post">
+          <div className="card card-border bg-surface">
+            <div className="card-body gap-3">
+              <textarea
+                name="body_md"
+                defaultValue={insights.body_md}
+                rows={16}
+                className="textarea w-full font-mono text-sm"
+                placeholder="# 執筆インサイト&#10;- いいねが付きやすい記事の傾向..."
+              />
+              <div className="card-actions items-center">
+                <button type="submit" className="btn btn-primary btn-sm">
+                  保存
+                </button>
+                {actionData?.ok && <span className="text-success text-sm">保存しました</span>}
+                <span className="text-xs text-base-content/60 ml-auto">
+                  最終更新: {insights.updated_at}
+                  {insights.updated_by && <> / {insights.updated_by}</>}
+                </span>
+              </div>
+            </div>
           </div>
         </Form>
       </section>
 
       <section>
-        <h2 className="text-lg font-bold mb-2">
-          いいねランキング
-          <span className="ml-2 text-xs font-normal text-base-content/60">
-            累計いいね {signals.total_likes}
-          </span>
-        </h2>
+        <div className="stats bg-surface border border-border mb-4">
+          <div className="stat">
+            <div className="stat-title">累計いいね</div>
+            <div className="stat-value text-primary">{signals.total_likes}</div>
+            <div className="stat-desc">いいねが付いた記事のランキングを下に表示します</div>
+          </div>
+        </div>
+        <h2 className="text-lg font-bold mb-2">いいねランキング</h2>
         {signals.top_liked.length === 0 ? (
-          <p className="text-sm text-base-content/60">まだいいねの付いた記事はありません。</p>
+          <div role="alert" className="alert alert-soft">
+            <span className="text-sm">まだいいねの付いた記事はありません。</span>
+          </div>
         ) : (
           <ul className="space-y-1 text-sm">
             {signals.top_liked.map((a) => (

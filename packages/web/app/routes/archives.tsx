@@ -1,4 +1,5 @@
 import { Form } from 'react-router'
+import { InfoIcon } from '../components/icons.tsx'
 import { assertSameOrigin, requireAdmin } from '../lib/auth.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/archives.ts'
@@ -53,68 +54,85 @@ export default function Archives({ loaderData, actionData }: Route.ComponentProp
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-4">
       <h1 className="text-2xl font-bold">アーカイブ承認待ち</h1>
-      <p className="text-sm text-base-content/60">
-        エージェントが提案したアーカイブはここで admin が承認/却下する(§6
-        承認ゲート)。承認するまで記事は `archived` にならない。
-      </p>
+      <div role="alert" className="alert alert-info alert-soft">
+        <InfoIcon />
+        <span className="text-sm">
+          記事のアーカイブにはadminの承認が必要です。エージェントから提案されたアーカイブがここに並びます。内容を確認して、承認するか、理由を添えて却下(差し戻し)してください。
+        </span>
+      </div>
       {actionData?.ok && (
-        <p className="text-success text-sm">
-          {actionData.ok === 'approved' ? '承認しました' : '却下しました'}
-        </p>
+        <div role="alert" className="alert alert-success alert-soft">
+          <span className="text-sm">
+            {actionData.ok === 'approved' ? '承認しました' : '却下しました'}
+          </span>
+        </div>
       )}
-      {actionData?.error && <p className="text-error text-sm">{actionData.error}</p>}
+      {actionData?.error && (
+        <div role="alert" className="alert alert-error alert-soft">
+          <span className="text-sm">{actionData.error}</span>
+        </div>
+      )}
       {proposals.length === 0 && (
-        <p className="text-sm text-base-content/60">承認待ちのアーカイブ提案はありません。</p>
+        <div role="alert" className="alert alert-soft">
+          <span className="text-sm">承認待ちのアーカイブ提案はありません。</span>
+        </div>
       )}
       <ul className="space-y-3">
         {proposals.map((p) => (
-          <li key={p.id} className="bg-surface border rounded p-4 space-y-2">
-            <div className="flex items-center justify-between">
-              {p.article_slug ? (
-                <a
-                  href={`/articles/${p.article_slug}`}
-                  className="text-primary font-semibold hover:underline"
-                >
-                  {p.article_title}
-                </a>
-              ) : (
-                <span className="font-semibold">{p.article_title}</span>
+          <li key={p.id} className="card card-border bg-surface">
+            <div className="card-body gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  {p.article_slug ? (
+                    <a
+                      href={`/articles/${p.article_slug}`}
+                      className="text-primary font-semibold hover:underline truncate"
+                    >
+                      {p.article_title}
+                    </a>
+                  ) : (
+                    <span className="font-semibold truncate">{p.article_title}</span>
+                  )}
+                </div>
+                <span className="text-xs text-base-content/60 shrink-0">{p.created_at}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="badge badge-ghost badge-sm">提案者</span>
+                <span className="text-xs text-base-content/60">{p.proposed_by}</span>
+              </div>
+              {p.reason && (
+                <p className="text-sm text-base-content/80 bg-canvas rounded p-2">{p.reason}</p>
               )}
-              <span className="text-xs text-base-content/60">{p.created_at}</span>
-            </div>
-            <p className="text-xs text-base-content/60">提案者: {p.proposed_by}</p>
-            {p.reason && (
-              <p className="text-sm text-base-content/80 bg-canvas rounded p-2">{p.reason}</p>
-            )}
-            <div className="flex gap-2 items-start">
-              <Form method="post" className="inline">
-                <input type="hidden" name="proposal_id" value={p.id} />
-                <button
-                  type="submit"
-                  name="intent"
-                  value="approve"
-                  className="btn btn-error btn-sm"
-                >
-                  アーカイブを承認
-                </button>
-              </Form>
-              <Form method="post" className="flex gap-2 flex-1">
-                <input type="hidden" name="proposal_id" value={p.id} />
-                <input
-                  name="reason"
-                  required
-                  className="flex-1 px-2 py-1 border rounded text-sm"
-                  placeholder="却下理由(差し戻し時必須)"
-                />
-                <button
-                  type="submit"
-                  name="intent"
-                  value="reject"
-                  className="btn btn-neutral btn-sm"
-                >
-                  却下
-                </button>
-              </Form>
+              <div className="card-actions items-start">
+                <Form method="post" className="inline">
+                  <input type="hidden" name="proposal_id" value={p.id} />
+                  <button
+                    type="submit"
+                    name="intent"
+                    value="approve"
+                    className="btn btn-error btn-sm"
+                  >
+                    アーカイブを承認
+                  </button>
+                </Form>
+                <Form method="post" className="flex gap-2 flex-1">
+                  <input type="hidden" name="proposal_id" value={p.id} />
+                  <input
+                    name="reason"
+                    required
+                    className="input input-sm flex-1"
+                    placeholder="却下理由(差し戻し時必須)"
+                  />
+                  <button
+                    type="submit"
+                    name="intent"
+                    value="reject"
+                    className="btn btn-neutral btn-sm"
+                  >
+                    却下
+                  </button>
+                </Form>
+              </div>
             </div>
           </li>
         ))}
