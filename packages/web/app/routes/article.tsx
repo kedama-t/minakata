@@ -1,6 +1,7 @@
 import type { Article } from '@minakata/core'
 import { Form } from 'react-router'
 import { Avatar, UserAvatar } from '../components/ui/avatar.tsx'
+import { FreshnessBadge } from '../components/ui/freshness-badge.tsx'
 import { getAgentProfile } from '../lib/agent-profiles.ts'
 import { assertSameOrigin, requireEditor, requireUser } from '../lib/auth.ts'
 import { ArticleMarkdown } from '../lib/markdown.tsx'
@@ -106,10 +107,8 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
     <article className="max-w-3xl mx-auto p-6">
       <h1 className="text-3xl font-bold mb-1">{article.frontmatter.title}</h1>
       <div className="text-xs text-base-content/60 mb-6 flex items-center gap-2">
-        <span>
-          最終更新: {article.frontmatter.updated_at} / 鮮度: {article.frontmatter.freshness_rank} /
-          状態: {article.frontmatter.status}
-        </span>
+        <span>最終更新: {article.frontmatter.updated_at}</span>
+        <FreshnessBadge rank={article.frontmatter.freshness_rank} />
         {canEdit && article.frontmatter.status === 'archived' && (
           <Form method="post" className="inline">
             <input type="hidden" name="intent" value="unarchive" />

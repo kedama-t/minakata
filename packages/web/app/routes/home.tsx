@@ -1,6 +1,7 @@
 import { useRouteLoaderData } from 'react-router'
 import type { HeatmapDay, HeatmapHour } from '../components/maintenance-heatmap.tsx'
 import { MaintenanceHeatmap } from '../components/maintenance-heatmap.tsx'
+import { FreshnessBadge } from '../components/ui/freshness-badge.tsx'
 import { getAgentProfile, relativeTime } from '../lib/agent-profiles.ts'
 import { requireUser } from '../lib/auth.ts'
 import { dayAndHour, localHour } from '../lib/date.ts'
@@ -292,24 +293,4 @@ function ActionCard({
       </div>
     </a>
   )
-}
-
-const FRESHNESS_LABEL: Record<string, string> = {
-  fresh: '新鮮',
-  aging: 'やや古い',
-  stale: '要更新',
-  very_stale: '古い',
-}
-
-const FRESHNESS_COLOR: Record<string, string> = {
-  fresh: 'bg-success/15 text-success',
-  aging: 'bg-warning/15 text-warning',
-  stale: 'bg-warning/20 text-warning',
-  very_stale: 'bg-error/15 text-error',
-}
-
-function FreshnessBadge({ rank }: { rank: string }) {
-  const color = FRESHNESS_COLOR[rank] ?? 'bg-base-200 text-base-content/50'
-  const label = FRESHNESS_LABEL[rank] ?? rank
-  return <span className={`text-xs px-2 py-0.5 rounded-full ${color}`}>{label}</span>
 }
