@@ -97,14 +97,22 @@ const components: Components = {
     </p>
   ),
   ul: ({ node: _node, children, ...rest }) => (
-    <ul {...rest} className="list-disc list-inside my-3 space-y-1">
+    <ul {...rest} className="list-disc list-outside my-3 pl-6 space-y-1">
       {children}
     </ul>
   ),
   ol: ({ node: _node, children, ...rest }) => (
-    <ol {...rest} className="list-decimal list-inside my-3 space-y-1">
+    <ol {...rest} className="list-decimal list-outside my-3 pl-6 space-y-1">
       {children}
     </ol>
+  ),
+  // loose list は li の中身が <p> になる。list-outside と合わせて p の縦マージンを
+  // 潰し、マーカー(番号 / 中黒)と本文が同じ行に揃うようにする(番号だけ別行に
+  // 取り残される崩れの修正)。
+  li: ({ node: _node, children, ...rest }) => (
+    <li {...rest} className="leading-relaxed [&>p]:my-0">
+      {children}
+    </li>
   ),
   blockquote: ({ node: _node, children, ...rest }) => (
     <blockquote

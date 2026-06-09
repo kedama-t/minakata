@@ -33,7 +33,7 @@ describe('ArticleMarkdown', () => {
     expect(html).toContain('>TL;DR</h2>')
     expect(html).toContain('<strong>AI</strong>')
     expect(html).toContain('<ul')
-    expect(html).toContain('<li>item one</li>')
+    expect(html).toContain('>item one</li>')
     expect(html).toContain('<code')
     // Shiki ハイライトは useEffect で適用されるため SSR では言語クラスなし
     // コードブロックの内容が保持されていることを確認
@@ -53,6 +53,18 @@ describe('ArticleMarkdown', () => {
   test('外部リンクは target="_blank" + rel で開く', () => {
     expect(html).toContain('target="_blank"')
     expect(html).toContain('rel="noreferrer noopener"')
+  })
+
+  test('loose な番号付きリストでマーカーが別行に取り残されない(#217)', () => {
+    const src = '1. **項目 A** — 説明 A\n\n2. **項目 B** — 説明 B\n'
+    const out = renderToString(<ArticleMarkdown source={src} />)
+    // list-inside ではなく list-outside + 左パディングで描画される
+    expect(out).toContain('list-outside')
+    expect(out).not.toContain('list-inside')
+    // li 内の p は縦マージンを潰してマーカーと揃える(HTML 属性内なので & > は実体参照)
+    expect(out).toContain('[&amp;&gt;p]:my-0')
+    expect(out).toContain('<ol')
+    expect(out).toContain('項目 A')
   })
 
   test('言語指定なしのコードブロックがインラインコード扱いされない(#217)', () => {
