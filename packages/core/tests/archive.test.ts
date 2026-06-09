@@ -87,12 +87,19 @@ describe('ArchiveProposalService', () => {
       author: 'agent:researcher',
     })
     const p = archives.propose({ article_id: a.frontmatter.id, proposed_by: 'agent:freshness' })
-    archives.reject(p.id, admin.id, 'まだ使う')
+    await archives.reject(p.id, admin.id, 'まだ使う')
     const reread = articles.read(a.frontmatter.id)
     expect(reread?.frontmatter.status).toBe('published')
     const got = archives.get(p.id)
     expect(got?.status).toBe('rejected')
     expect(got?.decided_reason).toBe('まだ使う')
+    // reject で last_accessed_at が更新され、再提案クールダウンが効く(#221)
+    const accessed = db
+      .query<{ last_accessed_at: string | null }, [string]>(
+        'SELECT last_accessed_at FROM articles WHERE id = ?',
+      )
+      .get(a.frontmatter.id)
+    expect(accessed?.last_accessed_at).not.toBeNull()
     // 却下後は再度 propose できる
     const p2 = archives.propose({ article_id: a.frontmatter.id, proposed_by: 'agent:freshness' })
     expect(p2.id).not.toBe(p.id)

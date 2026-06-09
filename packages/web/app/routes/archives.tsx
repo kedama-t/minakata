@@ -39,7 +39,7 @@ export async function action({ request }: Route.ActionArgs) {
   if (intent === 'reject') {
     const reason = String(form.get('reason') ?? '').trim()
     if (!reason) return { error: '却下理由が必要' }
-    services.archives.reject(proposalId, admin.id, reason)
+    await services.archives.reject(proposalId, admin.id, reason)
     services.audit.log({
       actor: `user:${admin.id}`,
       tool_name: 'web.reject_archive',
