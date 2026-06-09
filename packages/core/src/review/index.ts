@@ -34,7 +34,7 @@ export interface ReviewCommentRow {
  * 30% 超変更しきい値による承認ゲート(US-6.1, 6.2)。
  * - propose_update: 変更率を計測し、しきい値超なら reviews に保留、未満は直接反映
  * - approve: 保留中の proposed_body を実反映
- * - reject: 修正タスク(`revise`)をキューに投入し、reviewer フィードバックを伝える
+ * - reject: 修正タスク(`research_followup`)をキューに投入し、reviewer フィードバックを伝える
  */
 export class ReviewService {
   static readonly DEFAULT_THRESHOLD = 0.3
@@ -136,7 +136,12 @@ export class ReviewService {
       .run(reviewer_id, now(), review_id)
   }
 
-  /** 差し戻し:status を rejected にし、修正タスクをキューに投入 */
+  /**
+   * 差し戻し:status を rejected にし、修正タスクをキューに投入する。
+   * researcher が既に消化している `research_followup` 型で投入し、reviewer の
+   * コメントを `payload.comment` に載せてフィードバックをエージェントに届ける。
+   * `original_review_id` で元レビューを辿れる。
+   */
   async reject(
     review_id: string,
     reviewer_id: string,
@@ -160,11 +165,11 @@ export class ReviewService {
       author: `user:${reviewer_id}`,
     })
     const task = this.tasks.enqueue({
-      type: 'revise',
+      type: 'research_followup',
       priority: 'interactive',
       payload: {
         article_id: review.article_id,
-        reviewer_comment: comment,
+        comment,
         original_review_id: review_id,
       },
       parent_review_id: review_id,
