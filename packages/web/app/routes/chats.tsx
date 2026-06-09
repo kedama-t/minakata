@@ -1,10 +1,8 @@
-import { useRouteLoaderData } from 'react-router'
 import { Avatar } from '../components/ui/avatar.tsx'
 import { getAgentProfile } from '../lib/agent-profiles.ts'
 import { requireEditor } from '../lib/auth.ts'
-import { formatDateTime } from '../lib/date.ts'
+import { formatDateTime, useTimezone } from '../lib/date.ts'
 import { getServices } from '../lib/services.ts'
-import type { loader as rootLoader } from '../root.tsx'
 import type { Route } from './+types/chats.ts'
 
 const PAGE_SIZE = 30
@@ -32,8 +30,7 @@ function previewOf(content: string | null): string {
 
 export default function Chats({ loaderData }: Route.ComponentProps) {
   const { sessions, nextCursor } = loaderData
-  const root = useRouteLoaderData<typeof rootLoader>('root')
-  const tz = root?.timezone ?? 'Asia/Tokyo'
+  const tz = useTimezone()
   const mimyProfile = getAgentProfile('dialogue')
   return (
     <div className="max-w-4xl mx-auto p-6">

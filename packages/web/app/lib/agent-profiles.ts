@@ -103,6 +103,7 @@ const PROFILES: Record<AgentName, AgentProfile> = {
     emoji: '🖊️',
     displayName: 'ノエル',
     role: '校訂担当：既存記事の軽微な修正を手早く仕上げます',
+    avatar: '/agents/noel.png',
     ring: 'ring-lime-400',
   },
   hermes: {

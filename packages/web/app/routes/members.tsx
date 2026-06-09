@@ -1,6 +1,7 @@
 import { AuthError, RoleSchema } from '@minakata/core'
 import { Form } from 'react-router'
 import { assertSameOrigin, requireAdmin } from '../lib/auth.ts'
+import { formatDateTime, useTimezone } from '../lib/date.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/members.ts'
 
@@ -79,6 +80,7 @@ export async function action({ request }: Route.ActionArgs) {
 }
 
 export default function Members({ loaderData, actionData }: Route.ComponentProps) {
+  const tz = useTimezone()
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <h1 className="text-2xl font-bold">メンバー管理</h1>
@@ -139,7 +141,7 @@ export default function Members({ loaderData, actionData }: Route.ComponentProps
                     {isSelf && <span className="text-xs text-base-content/40 ml-1">(自分)</span>}
                   </td>
                   <td>{m.role}</td>
-                  <td className="text-base-content/60">{m.created_at}</td>
+                  <td className="text-base-content/60">{formatDateTime(m.created_at, tz)}</td>
                   <td>
                     <Form method="post" className="flex gap-1 items-center">
                       <input type="hidden" name="intent" value="update_role" />
@@ -175,7 +177,9 @@ export default function Members({ loaderData, actionData }: Route.ComponentProps
             <li key={i.id} className="border-b py-1">
               <span className="font-semibold">{i.email}</span>
               <span className="ml-2 text-base-content/60">{i.role}</span>
-              <span className="ml-2 text-xs text-base-content/40">期限: {i.expires_at}</span>
+              <span className="ml-2 text-xs text-base-content/40">
+                期限: {formatDateTime(i.expires_at, tz)}
+              </span>
               <code className="ml-2 bg-base-300 px-1 text-xs">/invitations/{i.token}</code>
             </li>
           ))}

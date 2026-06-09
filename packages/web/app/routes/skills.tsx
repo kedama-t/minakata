@@ -1,5 +1,6 @@
 import { Form } from 'react-router'
 import { assertSameOrigin, requireAdmin } from '../lib/auth.ts'
+import { formatDateTime, useTimezone } from '../lib/date.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/skills.ts'
 
@@ -28,6 +29,7 @@ export async function action({ request }: Route.ActionArgs) {
 }
 
 export default function Skills({ loaderData, actionData }: Route.ComponentProps) {
+  const tz = useTimezone()
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <h1 className="text-2xl font-bold">スキル提案レビュー</h1>
@@ -53,7 +55,9 @@ export default function Skills({ loaderData, actionData }: Route.ComponentProps)
                   {p.status}
                 </span>
               </h2>
-              <span className="text-xs text-base-content/60">{p.created_at}</span>
+              <span className="text-xs text-base-content/60">
+                {formatDateTime(p.created_at, tz)}
+              </span>
             </div>
             <p className="text-sm text-base-content/60 mt-1">{p.description}</p>
             <details className="mt-2">

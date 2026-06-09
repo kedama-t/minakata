@@ -1,4 +1,5 @@
 import { requireEditor } from '../lib/auth.ts'
+import { formatDateTime, useTimezone } from '../lib/date.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/reviews.ts'
 
@@ -15,6 +16,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export default function Reviews({ loaderData }: Route.ComponentProps) {
+  const tz = useTimezone()
   return (
     <div className="max-w-4xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-4">承認待ちレビュー</h1>
@@ -28,7 +30,7 @@ export default function Reviews({ loaderData }: Route.ComponentProps) {
               {r.article_title}
             </a>
             <div className="text-xs text-base-content/60">
-              変更率: {(r.change_pct * 100).toFixed(1)}% / 作成: {r.created_at}
+              変更率: {(r.change_pct * 100).toFixed(1)}% / 作成: {formatDateTime(r.created_at, tz)}
             </div>
           </li>
         ))}

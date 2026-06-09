@@ -1,11 +1,34 @@
+import { useRouteLoaderData } from 'react-router'
+import type { loader as rootLoader } from '../root.tsx'
+
+/** root loader の timezone 設定(TIMEZONE env)を返すフック */
+export function useTimezone(): string {
+  const root = useRouteLoaderData<typeof rootLoader>('root')
+  return root?.timezone ?? 'Asia/Tokyo'
+}
+
 /** ISO → "YYYY/MM/DD HH:mm:ss" in the given timezone */
 export function formatDateTime(iso: string, tz: string): string {
-  return new Date(iso).toLocaleString('ja-JP', { timeZone: tz })
+  return new Date(iso).toLocaleString('ja-JP', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
 }
 
 /** ISO → "YYYY/MM/DD" in the given timezone */
 export function formatDate(iso: string, tz: string): string {
-  return new Date(iso).toLocaleDateString('ja-JP', { timeZone: tz })
+  return new Date(iso).toLocaleDateString('ja-JP', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
 }
 
 /** Current hour (0-23) in the given timezone */

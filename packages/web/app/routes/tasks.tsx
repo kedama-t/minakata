@@ -1,13 +1,11 @@
 import type { TaskPriority, TaskRow, TaskStatus } from '@minakata/core'
 import BoringAvatar from 'boring-avatars'
 import { useState } from 'react'
-import { useRouteLoaderData } from 'react-router'
 import { getAgentProfile } from '../lib/agent-profiles.ts'
 import { articleHref } from '../lib/article-link.ts'
 import { requireEditor } from '../lib/auth.ts'
-import { formatDateTime } from '../lib/date.ts'
+import { formatDateTime, useTimezone } from '../lib/date.ts'
 import { getServices } from '../lib/services.ts'
-import type { loader as rootLoader } from '../root.tsx'
 import type { Route } from './+types/tasks.ts'
 
 const PAGE_SIZE = 50
@@ -227,8 +225,7 @@ function SourceBadge({
 export default function Tasks({ loaderData }: Route.ComponentProps) {
   const { tasks, status, type, showAll, isAdmin, requesters, sessions, articles, nextCursor } =
     loaderData
-  const root = useRouteLoaderData<typeof rootLoader>('root')
-  const tz = root?.timezone ?? 'Asia/Tokyo'
+  const tz = useTimezone()
   return (
     <div className="max-w-5xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-4">タスク履歴</h1>

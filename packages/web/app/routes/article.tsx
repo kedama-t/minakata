@@ -4,6 +4,7 @@ import { FreshnessBadge } from '../components/ui/freshness-badge.tsx'
 import { getAgentProfile } from '../lib/agent-profiles.ts'
 import { articleHref, resolveIdRefs } from '../lib/article-link.ts'
 import { assertSameOrigin, requireEditor, requireUser } from '../lib/auth.ts'
+import { formatDateTime, useTimezone } from '../lib/date.ts'
 import { ArticleMarkdown } from '../lib/markdown.tsx'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/article.ts'
@@ -133,6 +134,7 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
   const likeState = actionData?.like ?? { liked, count: likeCount }
   // コメント返信は dialogue(ミミー)が担当する
   const agentProfile = getAgentProfile('dialogue')
+  const tz = useTimezone()
   return (
     <article className={`max-w-3xl mx-auto p-6 ${isArchived ? 'opacity-75' : ''}`}>
       {isArchived && (
@@ -143,7 +145,7 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
       )}
       <h1 className="text-3xl font-bold mb-1">{article.frontmatter.title}</h1>
       <div className="text-xs text-base-content/60 mb-6 flex items-center gap-2 flex-wrap">
-        <span>最終更新: {article.frontmatter.updated_at}</span>
+        <span>最終更新: {formatDateTime(article.frontmatter.updated_at, tz)}</span>
         <FreshnessBadge rank={article.frontmatter.freshness_rank} />
         {isArchived && (
           <span className="rounded-full bg-base-300 px-2 py-0.5 text-base-content/70">
@@ -213,7 +215,9 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
                 <a href={s.url} className="text-primary hover:underline">
                   {s.url}
                 </a>
-                <span className="text-base-content/60 ml-2">取得: {s.fetched_at}</span>
+                <span className="text-base-content/60 ml-2">
+                  取得: {formatDateTime(s.fetched_at, tz)}
+                </span>
               </li>
             ))}
           </ul>
@@ -254,7 +258,7 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
                   <div className="min-w-0 flex-1">
                     <div className="text-xs text-base-content/60">
                       <span className="font-medium text-base-content/80">{authorName}</span> -{' '}
-                      {c.created_at}
+                      {formatDateTime(c.created_at, tz)}
                       {c.anchor && <> / @{c.anchor}</>}
                     </div>
                     <p className="text-sm whitespace-pre-wrap">{c.body}</p>
@@ -270,7 +274,7 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
                         <span className="font-medium text-base-content/80">
                           {agentProfile.displayName}
                         </span>
-                        {c.agent_replied_at && <> - {c.agent_replied_at}</>}
+                        {c.agent_replied_at && <> - {formatDateTime(c.agent_replied_at, tz)}</>}
                       </div>
                       <p className="text-sm whitespace-pre-wrap">{c.agent_reply}</p>
                     </div>
