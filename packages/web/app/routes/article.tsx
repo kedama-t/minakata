@@ -1,8 +1,8 @@
-import type { Article } from '@minakata/core'
 import { Form } from 'react-router'
 import { Avatar, UserAvatar } from '../components/ui/avatar.tsx'
 import { FreshnessBadge } from '../components/ui/freshness-badge.tsx'
 import { getAgentProfile } from '../lib/agent-profiles.ts'
+import { articleHref, resolveIdRefs } from '../lib/article-link.ts'
 import { assertSameOrigin, requireEditor, requireUser } from '../lib/auth.ts'
 import { ArticleMarkdown } from '../lib/markdown.tsx'
 import { getServices } from '../lib/services.ts'
@@ -226,7 +226,7 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
           <ul className="space-y-1 text-sm">
             {related.map((r) => (
               <li key={r.id}>
-                <a href={`/articles/${r.slug}`} className="text-primary hover:underline">
+                <a href={articleHref(r.slug)} className="text-primary hover:underline">
                   {r.title}
                 </a>
                 {r.status === 'archived' && (
@@ -322,13 +322,4 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
       </section>
     </article>
   )
-}
-
-/** `[[id:XXXX]]` を標準 Markdown リンクに変換する */
-function resolveIdRefs(body: string, lookup: (id: string) => Article | null): string {
-  return body.replace(/\[\[id:([^\]]+)\]\]/g, (match, id: string) => {
-    const article = lookup(id.trim())
-    if (!article) return match
-    return `[${article.frontmatter.title}](/articles/${article.frontmatter.slug})`
-  })
 }

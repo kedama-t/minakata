@@ -1,4 +1,5 @@
 import { Form } from 'react-router'
+import { articleHref } from '../lib/article-link.ts'
 import { requireUser } from '../lib/auth.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/search.ts'
@@ -40,7 +41,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
       <ul className="space-y-2">
         {hits.map((h) => (
           <li key={h.id} className="bg-surface p-3 rounded border">
-            <a href={`/articles/${h.slug}`} className="text-primary font-semibold hover:underline">
+            <a href={articleHref(h.slug)} className="text-primary font-semibold hover:underline">
               {h.title}
             </a>
             {h.status === 'pending_approval' && (
