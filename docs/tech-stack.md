@@ -2,7 +2,7 @@
 title: "技術スタック仕様"
 version: "0.1.0-mvp"
 created_at: "2026-05-21"
-modified_at: "2026-05-21"
+modified_at: "2026-06-09"
 states: "approved"
 ---
 
@@ -22,7 +22,7 @@ states: "approved"
 
 | #   | 方針                                                     | 含意                                                                   |
 | --- | -------------------------------------------------------- | ---------------------------------------------------------------------- |
-| P1  | 自己ホスティング前提                                     | Docker Compose で完結                                                  |
+| P1  | 自己ホスティング前提                                     | Podman Compose(rootless)で完結                                        |
 | P2  | エージェントハーネスは差し替え可能                       | Minakata 側は MCP のみで対話。Hermes 以外の MCP クライアントでも接続可 |
 | P3  | Markdown ファイルが source of truth                      | DB はインデックス/キャッシュ。Markdown が消えても再構築可能            |
 | P4  | ドメインロジックは一箇所(`core`)                         | Web / MCP すべてが同じ `core` を呼ぶ                                   |
@@ -74,30 +74,34 @@ states: "approved"
               └─────────┬───────────┘
                         │ MCP Streamable HTTP
                         ▼
-              ┌──────────────────────────┐
-              │  Hermes Agent             │
-              │  - dialogue subagent       │
-              │  - researcher subagent     │
-              │  - freshness subagent      │
-              │  - 自然言語 cron で:        │
-              │    * メッセージ poll       │
-              │    * 調査タスク poll        │
-              │    * デイリーリサーチ起動    │
-              │    * 鮮度チェック          │
-              │  - LLM 接続:                │
-              │    OpenCode Go (OpenAI互換) │
-              │    + BYOK(任意)            │
-              │  - Web 接続:                │
-              │    search → SearXNG         │
-              │    extract → Firecrawl      │
-              └──────────────────────────┘
+              ┌──────────────────────────────┐
+              │  Hermes Agent                 │
+              │  - dialogue(対話 / poll 60s)  │
+              │  - researcher(調査キュー消化) │
+              │  - daily_research(夜間バッチ) │
+              │  - freshness_checker(鮮度)    │
+              │  - synthesizer(統合記事)      │
+              │  - taxonomy_builder(タグ整理) │
+              │  - gap_detector(欠落検出)     │
+              │  - feedback_analyst(自己改善) │
+              │  - changelog_writer(日報)     │
+              │  - backup_agent(バックアップ) │
+              │  - cron で各 poll / バッチ起動 │
+              │  - LLM 接続:                   │
+              │    OpenCode Go (OpenAI互換)    │
+              │    + BYOK(任意)               │
+              │  - Web 接続:                   │
+              │    search → SearXNG            │
+              │    extract → Minakata 自前      │
+              │             /v1/scrape         │
+              └──────────────────────────────┘
 ```
 
 **ユーザー対話の流れ(対話エージェント)**:
 
-1. ユーザーがチャットで発言 → Web が `core.PostUserMessage(session_id, text)` で SQLite に保存
+1. ユーザーがチャットで発言 → Web が `core.MessageService.post(session_id, text)` で SQLite に保存
 2. Web は SSE で `/chat/:sessionId/stream` を購読中
-3. Hermes が短周期 cron(例:30 秒ごと)で `minakata.poll_messages` MCP ツールを呼ぶ
+3. Hermes が短周期 cron(`dialogue` は 60 秒ごと)で `minakata.poll_messages` MCP ツールを呼ぶ
 4. Hermes が処理し、`minakata.post_agent_response(session_id, chunk, is_final)` を必要回数呼ぶ
 5. `core` が in-process EventEmitter で Web の SSE ハンドラに通知 → ブラウザへ転送
 
@@ -116,15 +120,19 @@ states: "approved"
 minakata/
 ├── packages/
 │   ├── core/              # ドメインロジック(共通)
-│   ├── web/               # React Router v7 アプリ
+│   ├── web/               # React Router v7 アプリ(BFF + /v1/scrape + /mcp 同居)
 │   └── mcp/               # MCP サーバー
 ├── docker/
-│   ├── Dockerfile.minakata   # web + mcp 同居
-│   ├── Dockerfile.hermes     # Hermes 用(必要なら)
-│   └── docker-compose.yml
-├── hermes/                # Hermes 設定・スキル
-│   ├── config/
-│   └── skills/
+│   ├── Dockerfile.minakata    # web + mcp 同居(Hermes は公式 image を使うので Dockerfile なし)
+│   ├── docker-compose.yml     # minakata / hermes(--profile agent)/ searxng
+│   └── docker-compose.dev.yml # 開発用オーバーライド
+├── hermes-skills/         # subagent 定義の正本(git 管理 / :ro mount で seed)
+│   └── <name>/SKILL.md
+├── hermes/                # Hermes 実行時データ(.gitignore 中心)
+│   ├── config.yaml        # canonical な最小設定(:ro override)
+│   ├── cron-bootstrap.sh  # 起動時に skill seed + cron 登録(#52 / #187)
+│   ├── main-wrapper.sh    # HERMES_HOME を /opt/data に固定する上書き
+│   └── skills/            # 実行時 skill コピー(Hermes が curator で自律編集)
 ├── searxng/               # SearXNG 設定
 │   └── settings.yml
 ├── scripts/               # メンテナンス CLI(Bun スクリプト)
@@ -188,14 +196,24 @@ minakata/
 
 **`core` が公開するサービスインターフェイス**:
 
-- `ArticleService` — read / search / list / create / update / archive
+- `ArticleService` — read / search / list / create / update / archive / freshness
 - `MessageService` — post / poll / claim / respond / subscribe
-- `TaskService` — enqueue / claim / complete / fail / cancel / dlq
+- `TaskService` — enqueue / claim / complete / fail / cancel / dlq / progress
 - `SearchService` — fulltext / similar / by_tag
 - `EmbeddingService` — embedQuery / embedPassage / warmup
 - `AuditService` — log / query
-- `GitService` — commit / diff / history / push
+- `ReviewService` — propose / approve / reject / list(大幅書き換えの承認ゲート)
+- `PolicyService` — リサーチ方針の取得・更新
+- `CommentService` — 記事コメントの投稿・解決・エージェント返信
+- `FeedbackService` — いいね集計 / 執筆インサイト(自己改善ループ)
+- `SkillService` — スキル提案の登録・承認・却下
+- `ArchiveService` — アーカイブ提案と承認反映
+- `TopicService` — 購読トピック管理
+- `ActivityService` — エージェント活動ログ(ダッシュボード / changelog 用)
+- `BackupService` — 記事 + DB + runtime skills を専用 git リポへ集約
 - `MaintenanceService` — snapshot / vacuum / reindex(Hermes が cron で呼ぶ)
+
+Git 操作(commit / diff / history / push)は記事リポジトリ用 `article/git.ts` とバックアップ用 `BackupService` が `simple-git` 経由で行う(独立した `GitService` は持たない)。
 
 **埋め込みの実装方針**:
 
@@ -243,15 +261,19 @@ minakata/
 
 | カテゴリ       | ツール例                                                                                                                      |
 | -------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| 記事           | `minakata.read_article`, `create_article`, `update_article`, `list_articles`                                                  |
-| アーカイブ承認 | `minakata.archive_article`, `unarchive_article`, `approve_archive`, `reject_archive`, `list_archive_proposals`                |
-| メッセージバス | `minakata.poll_messages`, `claim_message`, `post_agent_response`                                                              |
-| タスクキュー   | `minakata.poll_tasks`(claim 兼用), `complete_task`, `fail_task`, `enqueue_task`                                              |
+| 記事           | `minakata.read_article`, `create_article`, `update_article`, `list_articles`, `list_tags`, `expire_ephemeral_articles`        |
+| アーカイブ提案 | `minakata.archive_article`, `unarchive_article`, `list_archive_proposals`                                                     |
+| メッセージバス | `minakata.poll_messages`, `claim_message`, `post_agent_response`, `update_session_title`                                      |
+| タスクキュー   | `minakata.enqueue_task`, `poll_tasks`(claim 兼用), `get_task`, `report_progress`, `complete_task`, `fail_task`, `list_dlq`   |
 | 検索           | `minakata.fulltext_search`, `similar_articles`, `by_tag`                                                                      |
-| レビュー       | `minakata.propose_update`, `approve_review`, `reject_review`, `list_pending_reviews`, `add_review_comment`                    |
-| メンテナンス   | `minakata.snapshot_db`, `recompute_freshness`                                                                                 |
-| 方針 / コメント | `minakata.get_research_policy`, `update_research_policy`, `add_article_comment`, `list_article_comments`, `resolve_article_comment` |
-| スキル提案     | `minakata.propose_skill`, `approve_skill`, `reject_skill`, `list_skill_proposals`                                             |
+| レビュー       | `minakata.propose_update`, `list_pending_reviews`, `add_review_comment`                                                       |
+| メンテナンス   | `minakata.snapshot_db`, `recompute_freshness`, `backup`                                                                       |
+| 方針 / トピック | `minakata.get_research_policy`, `list_topics`                                                                                 |
+| コメント       | `minakata.add_article_comment`, `list_article_comments`, `poll_article_comments`, `reply_article_comment`, `resolve_article_comment` |
+| フィードバック | `minakata.get_feedback_signals`, `get_feedback_insights`, `update_feedback_insights`                                          |
+| スキル提案     | `minakata.propose_skill`, `list_skill_proposals`                                                                              |
+
+> **承認系(`approve_*` / `reject_*` / `update_research_policy` 等)は MCP ツールではない**。破壊的操作の承認は人間が WebUI から `core` を直接呼ぶ設計(セクション 6)で、エージェントには公開しない。
 
 **起動形態**:
 
@@ -263,7 +285,7 @@ minakata/
 - **トランスポート**: HTTP Streamable、`/mcp` 単一ルート、ポート 3000（`PORT` env で変更可）、Bearer Token（`MCP_TOKEN`）。SSE / stdio エンドポイントは存在しない。`uvx` / `npx` でのプロセス起動ではなく `url` ベースの HTTP 接続（`hermes/config.yaml`: `mcp_servers.minakata.url: "http://minakata:3000/mcp"`）
 - **疎通確認**: `curl -fsS http://minakata:3000/health` → `{"status":"ok"}`（認証不要）。`/mcp` 自体は Bearer 必須なので curl では叩けない
 - **DB 初期化**: 起動シーケンスで `runMigrations()` が同期実行される（`packages/web/server/index.ts`）ため、`/health` が返る時点で DB は初期化済み。手動 migrate は不要
-- **起動順保証**: Docker healthcheck（interval 15s / retries 3）と Hermes コンテナの `depends_on: minakata: condition: service_healthy` により、Hermes 起動時に Minakata は healthy 保証済み
+- **起動順保証**: compose の healthcheck（interval 15s / retries 3）と Hermes コンテナの `depends_on: minakata: condition: service_healthy` により、Hermes 起動時に Minakata は healthy 保証済み
 - **接続不能時の確認順**: ① `curl http://minakata:3000/health` で疎通 → ② `MCP_TOKEN` が `.env` と一致しているか → ③ `podman compose ps` で minakata コンテナの health 状態。**`uvx` / `npx` / PATH / プロファイル診断は Minakata には無関係なので行わない**
 
 ### 5.4 エージェントハーネス
@@ -271,19 +293,26 @@ minakata/
 | 領域                 | 選定                                                   | 備考                                    |
 | -------------------- | ------------------------------------------------------ | --------------------------------------- |
 | ハーネス             | [Hermes Agent](https://hermes-agent.nousresearch.com/) | Nous Research, Python                   |
-| 永続化バックエンド   | Docker                                                 | Hermes ネイティブ対応                   |
+| 永続化バックエンド   | コンテナボリューム(`hermes/` を bind mount)            | Hermes の `/opt/data` を host に集約     |
 | Minakata との接続    | MCP Streamable HTTP                                    | Hermes 設定で Minakata MCP を登録       |
 | 自然言語スケジューラ | Hermes ビルトイン                                      | cron 式不要、「毎晩 3 時に...」と書ける |
 | サブエージェント分離 | Hermes ビルトイン                                      | Capability 分離(後述)に利用             |
 | スキル自動生成       | Hermes ビルトイン                                      | admin 承認ゲート経由のみ許可            |
 
-**Hermes 内で定義するサブエージェント**:
+**Hermes 内で定義するサブエージェント**(正本は `hermes-skills/<name>/SKILL.md`):
 
-- `dialogue` — `minakata.poll_messages` を 30 秒周期で実行、対話処理
-- `researcher` — `minakata.poll_tasks` を 5 分周期で消化、記事更新
+- `dialogue` — `minakata.poll_messages` を 60 秒周期で実行、対話処理
+- `researcher` — `minakata.poll_tasks` を消化、Web 検索 → 抽出 → 記事化
 - `daily_research` — 毎晩 03:00 に購読トピックを順次 `enqueue_task`
-- `freshness_checker` — 6 時間ごとに鮮度しきい値超過記事を `enqueue_task`
-- `fetcher` / `synthesizer` / `writer` — Capability 分離用(セクション 8)
+- `freshness_checker` — 鮮度ランクを再計算し、しきい値超過記事を再調査投入
+- `synthesizer` — 意味的に近い記事群を統合記事化(元記事はアーカイブ提案へ)
+- `taxonomy_builder` — タグ・カテゴリ体系の表記揺れ統合・粒度調整(自動反映)
+- `gap_detector` — 記事で言及済みだが独立記事が無いトピックを調査投入
+- `feedback_analyst` — いいね/コメントを分析し執筆インサイトを更新(自己改善)
+- `changelog_writer` — 前日のエージェント活動を ChangeLog 日報化
+- `backup_agent` — 記事・DB・runtime skills を GitHub private repo へバックアップ
+
+Capability 分離(セクション 8)は subagent ごとに呼べる MCP ツールを限定する設計だが、MVP では全ツール登録のまま(Issue #208 で追跡中)。
 
 **重要な非採用事項**:
 
@@ -312,7 +341,7 @@ minakata/
 
 Hermes 側でサブエージェントごとに使うモデルを切替える方針だが、Hermes 公式 SKILL.md は `model:` frontmatter を持たない(MVP では `hermes/config.yaml` の `model.default` 1 本で起動、ロール別モデル切替は Phase 3 で cron job 作成時に指定する)。
 
-**Claude 等の商用モデルを使いたい場合(本書スコープ外)**: Go には Claude / GPT は含まれない。必要になったら `OPENAI_API_BASE` を `https://opencode.ai/zen/v1` に切替えて Zen の pay-as-you-go を併用するか、Hermes に Anthropic プロバイダを追加して BYOK する。MVP では Go 単独で完結させる。
+**Claude 等の商用モデルを使いたい場合(本書スコープ外)**: Go には Claude / GPT は含まれない。OpenCode Go provider は plugin 側で base_url を `/zen/go/v1` にハードコードし、専用 env `OPENCODE_GO_API_KEY` で auto detect する(汎用 `OPENAI_API_BASE` / `OPENAI_API_KEY` では切り替わらない)。必要になったら Hermes の `config.yaml` に Zen(pay-as-you-go)や Anthropic プロバイダを別途追加して BYOK する。MVP では Go 単独で完結させる。
 
 **埋め込みについては本セクションの対象外**(`core` 内でローカル実行、セクション 5.1 を参照)
 
@@ -322,23 +351,28 @@ Hermes 側でサブエージェントごとに使うモデルを切替える方�
 
 Hermes は `web_search` / `web_extract` / `browser_*` を組み込みツールとして提供する。バックエンド(実際に検索・抽出を行うサービス)は pluggable で、Minakata では以下の構成を採用する。
 
-| 用途                        | プロバイダ          | 提供形態             | コスト                              |
-| --------------------------- | ------------------- | -------------------- | ----------------------------------- |
-| 検索(`web_search`)          | **SearXNG**         | セルフホスト(Docker) | 無料                                |
-| 抽出(`web_extract`)         | **Firecrawl Cloud** | クラウド API         | 500 クレジット/月の無料枠、以降従量 |
-| ブラウザ自動化(`browser_*`) | (初期スコープ外)    | —                    | —                                   |
+| 用途                        | プロバイダ                      | 提供形態                     | コスト |
+| --------------------------- | ------------------------------- | ---------------------------- | ------ |
+| 検索(`web_search`)          | **SearXNG**                     | セルフホスト(Podman)         | 無料   |
+| 抽出(`web_extract`)         | **Minakata 自前 `/v1/scrape`**  | `core`/`web` プロセス内で実行 | 無料   |
+| ブラウザ自動化(`browser_*`) | (初期スコープ外)                | —                            | —      |
+
+**抽出は Firecrawl Cloud から Minakata 自前実装に置き換え済み**。`packages/web/server/scraper.ts` が Firecrawl `/v1/scrape` 互換のエンドポイント(`packages/web/server/index.ts` で `/v1/scrape` にマウント)を提供し、Hermes はこれを `FIRECRAWL_BASE_URL=http://minakata:3000` で叩く。外部 Firecrawl への送信は発生しない。`FIRECRAWL_API_KEY` は外部 API キーではなく、Hermes → Minakata の `/v1/scrape` 呼び出しを認証する共有 Bearer シークレットとして使う。
+
+**自前スクレイパの構成**:
+
+- HTML 取得 → [`linkedom`](https://github.com/WebReflection/linkedom) でパース → [`@mozilla/readability`](https://github.com/mozilla/readability) で本文抽出 → [`turndown`](https://github.com/mixmark-io/turndown) で Markdown 化
+- **SSRF 対策**: スキーム検証 + DNS 解決後の IP チェックで private / loopback / link-local / 予約 IP 宛を拒否(`scraper.ts:isPrivateIp`)
 
 **選定理由**:
 
 - **SearXNG**: OSS、自前ホストでレート制限なし、検索エンジンメタアグリゲータ。検索回数の予測がつかないリサーチ用途と相性が良い
-- **Firecrawl**: JS レンダリング・Cloudflare 等の保護に対応、API キー 1 つで導入できる。`web_extract` を Firecrawl にすると JS ヘビーなリリースノートページや製品ページも安定して読める
-- **per-capability split**: Hermes は検索と抽出で別プロバイダを使えるので、SearXNG(検索)+ Firecrawl(抽出)の組み合わせが可能
-- **ブラウザ自動化を初期から含めない**: 多くのリサーチ対象(ニュース、リリースノート、ドキュメント、ブログ)は `web_extract` でカバーできる。ログイン必須サイト・動的ダッシュボードが必要になった時点で Camofox(ローカル)や Browser Use(クラウド)を追加検討
+- **自前抽出**: 外部 API のクレジット消費・送信プライバシーを避けられる。静的 HTML が大半のリサーチ対象(ニュース、リリースノート、ドキュメント、ブログ)は Readability で十分カバーできる
+- **ブラウザ自動化を初期から含めない**: JS ヘビーなページ・ログイン必須サイト・動的ダッシュボードが必要になった時点で Firecrawl Cloud 併用や Camofox / Browser Use 追加を検討
 
-**運用上のしきい値とフォールバック**:
+**将来の拡張余地**:
 
-- Firecrawl の無料枠 500/月はあくまで試験運用想定。本稼働すると数千クレジット/月になりうるので、本格運用入りで → 有料プラン($25/月〜)へ昇格、または **Firecrawl もセルフホスト**(OSS 版が公式リポジトリで公開されている)に切替
-- SearXNG が想定どおり動かない場合の代替として、`hermes skills install official/research/searxng-search` でフォールバック用スキルが用意されている
+- JS レンダリングが必要なページが増えたら、`/v1/scrape` のバックエンドを Firecrawl Cloud / セルフホスト Firecrawl に差し替える(Hermes 側設定は変更不要、互換 API のまま)
 
 **Hermes 設定**(`hermes/config.yaml`。公式 Docker docs 通り `../hermes` を `/opt/data` 丸ごと bind mount するので、このファイルが `/opt/data/config.yaml` として読まれる):
 
@@ -402,62 +436,81 @@ server:
 
 **ポーリング周期の指針**:
 
-- `poll_messages`: 30 秒(対話のレスポンス感)
-- `poll_tasks`: 5 分(調査タスクは長時間なので頻度低くて OK)
+- `poll_messages`: 60 秒(`dialogue` subagent。対話のレスポンス感とコストの折衷)
+- `poll_tasks`: 数分間隔(調査タスクは長時間なので頻度低くて OK)
 
 ### 5.9 デプロイメント
 
-| 領域                     | 選定                                                           | 備考                   |
-| ------------------------ | -------------------------------------------------------------- | ---------------------- |
-| コンテナ                 | Docker / Docker Compose                                        | 自己ホスティング前提   |
-| ベースイメージ(minakata) | `oven/bun:1`                                                   | Bun 公式               |
-| ベースイメージ(hermes)   | Hermes 公式イメージ(なければ Python ベース)                    |                        |
-| ベースイメージ(searxng)  | `searxng/searxng:latest`                                       | 公式                   |
-| プロキシ                 | Caddy(任意)                                                    | HTTPS 自動取得         |
-| 永続ボリューム           | `./data`、`./models`、`./hermes`、`./searxng` をホストマウント |                        |
-| アーキ固定               | x86_64 推奨(`sqlite-vec` バイナリ互換性のため)                 | ARM 利用時は要動作検証 |
+| 領域                     | 選定                                                                       | 備考                                    |
+| ------------------------ | -------------------------------------------------------------------------- | --------------------------------------- |
+| コンテナ                 | **Podman / Podman Compose**(rootless)                                      | `bun run compose:up` でラップ。`docker` は使わない |
+| ベースイメージ(minakata) | `oven/bun:1`                                                               | Bun 公式                                |
+| ベースイメージ(hermes)   | `nousresearch/hermes-agent:main`                                           | 公式 image。専用 Dockerfile は持たない  |
+| ベースイメージ(searxng)  | `searxng/searxng:latest`                                                   | 公式                                    |
+| プロキシ                 | Caddy(任意)                                                                | HTTPS 自動取得                          |
+| 永続ボリューム           | `./data`、`./models`、`./hermes`、`./hermes-skills`、`./searxng` をホストマウント |                                  |
+| プロファイル             | `hermes` は `--profile agent`(`bun run compose:up:agent`)で起動           | minakata / searxng は既定で起動         |
+| アーキ固定               | x86_64 推奨(`sqlite-vec` バイナリ互換性のため)                             | ARM 利用時は要動作検証                  |
 
-**最小構成 `docker-compose.yml`**:
+**構成 `docker/docker-compose.yml`(抜粋)**。正本は同ファイルを参照(健全性チェックやコメントが付く):
 
 ```yaml
+name: minakata
 services:
   minakata:
-    build: { context: ., dockerfile: docker/Dockerfile.minakata }
-    ports: ["3000:3000"] # Web + MCP 同居
+    build: { context: .., dockerfile: docker/Dockerfile.minakata }
+    image: minakata:dev
+    ports: ["${MINAKATA_BIND:-127.0.0.1}:3000:3000"] # Web + MCP + /v1/scrape 同居
     volumes:
-      - "./data:/app/data"
-      - "./models:/app/.cache/huggingface" # 埋め込みモデルキャッシュ
+      - ../data:/app/data
+      - ../models:/app/.cache/huggingface         # 埋め込みモデルキャッシュ
+      - ../hermes/skills:/app/runtime-skills:ro    # backup_agent が runtime skills を取り込む
     environment:
       MCP_TOKEN: "${MCP_TOKEN}"
       DATABASE_URL: "file:/app/data/minakata.db"
+      ARTICLES_ROOT: "/app/data/articles"
       HF_HOME: "/app/.cache/huggingface"
+      MCP_ALLOWED_HOSTS: "${MCP_ALLOWED_HOSTS:-minakata:3000,localhost,localhost:3000}"
+      FIRECRAWL_API_KEY: "${FIRECRAWL_API_KEY}"  # /v1/scrape の Bearer 検証用
+      BACKUP_DIR: "/app/data/backup"
+      BACKUP_GIT_REMOTE: "${BACKUP_GIT_REMOTE:-}"
+      RUNTIME_SKILLS_DIR: "/app/runtime-skills"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/health"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
 
   hermes:
     image: nousresearch/hermes-agent:main
-    command: ["gateway", "run"]
+    profiles: ["agent"]            # `bun run compose:up:agent` で起動
+    command: ["gateway", "run"]    # headless 長期稼働モード(cron スケジューラ込み)
     volumes:
-      - "./hermes:/opt/data"
-      - "./hermes/cron-bootstrap.sh:/etc/cont-init.d/99-minakata-cron:ro"
+      - ../hermes:/opt/data
+      - ../hermes/config.yaml:/opt/data/config.yaml:ro
+      - ../hermes-skills:/opt/minakata-skills:ro                          # skill 正本(:ro)
+      - ../hermes/cron-bootstrap.sh:/etc/cont-init.d/99-minakata-cron:ro  # 起動時 seed + cron 登録
+      - ../hermes/main-wrapper.sh:/opt/hermes/docker/main-wrapper.sh:ro   # HERMES_HOME 固定
     environment:
-      # podman rootless 時の UID マッピング
-      HERMES_UID: "${HERMES_UID:-10000}"
+      HERMES_UID: "${HERMES_UID:-10000}"   # podman rootless の UID マッピング(#42)
       HERMES_GID: "${HERMES_GID:-10000}"
-      # OpenCode Go (base_url ハードコード)
       OPENCODE_GO_API_KEY: "${OPENCODE_API_KEY}"
-      # Web 抽出: Firecrawl
       FIRECRAWL_API_KEY: "${FIRECRAWL_API_KEY}"
-      # Minakata MCP の Bearer Token (config.yaml の headers で展開)
+      FIRECRAWL_BASE_URL: "${FIRECRAWL_BASE_URL:-http://minakata:3000}"  # 抽出を Minakata に転送
+      SEARXNG_URL: "${SEARXNG_URL:-http://searxng:8080}"
       MCP_TOKEN: "${MCP_TOKEN}"
-    depends_on: [minakata, searxng]
+    depends_on:
+      minakata: { condition: service_healthy }
+      searxng: { condition: service_started }
 
   searxng:
     image: searxng/searxng:latest
     volumes:
-      - "./searxng:/etc/searxng"
+      - ../searxng:/etc/searxng
     environment:
       INSTANCE_NAME: "minakata-search"
       SEARXNG_SECRET: "${SEARXNG_SECRET}"
-    # Hermes コンテナからのみアクセスする想定。外部公開は不要
+    expose: ["8080"]   # Hermes コンテナからのみアクセス。外部公開不要
 ```
 
 ---
@@ -481,7 +534,7 @@ services:
 | Hermes 自己改善(スキル追加) | admin 承認 + コード差分レビュー |
 | 外部 HTTP POST              | 原則禁止(限定 allowlist のみ)   |
 
-承認ゲートは MCP ツール側で実装(`minakata.archive_article` は `pending_approval` 状態で保留、Web UI から admin が承認すると初めて反映)。
+承認ゲートの「保留」は MCP ツールが作る(`minakata.archive_article` は即時アーカイブせず `pending_approval` の提案を登録)。「承認/却下」はエージェントに公開せず、admin が WebUI から `core` を直接呼んだときに初めて反映する。
 
 ---
 
@@ -489,11 +542,11 @@ services:
 
 | 種別               | 実装                                                                        |
 | ------------------ | --------------------------------------------------------------------------- |
-| アプリログ         | `pino` JSON + Docker stdout                                                 |
+| アプリログ         | `pino` JSON + コンテナ stdout                                               |
 | 監査ログ           | `core.AuditService`(SQLite `audit_log` テーブル)                            |
 | トレース           | OpenTelemetry(将来導入)                                                     |
-| LLM コスト計測     | Hermes が `complete_task` でトークン数・コスト見積を渡し、Minakata 側で集計 |
-| Web 抽出コスト計測 | Firecrawl ダッシュボードで月次クレジット消費を確認                          |
+| LLM コスト計測     | Hermes が `complete_task` でトークン数・コスト見積を渡し、Minakata 側で集計(精度改善は Issue #189) |
+| Web 抽出コスト計測 | 自前 `/v1/scrape` のため外部コストなし。リクエスト数はアプリログで把握      |
 | 埋め込みコスト     | 計測不要(ローカル実行)。CPU/メモリ消費は通常のリソース監視で                |
 | メトリクス         | `/metrics` Prometheus 形式(将来)                                            |
 
@@ -507,7 +560,7 @@ services:
 
 | パターン                        | 実装                                                                                                         |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| **Capability 分離**             | Hermes の subagent 機構で `fetcher` / `synthesizer` / `writer` を分離。各 subagent が呼べる MCP ツールを限定 |
+| **Capability 分離**             | Hermes の subagent 機構で役割(dialogue / researcher / synthesizer 等)を分離し、各 subagent が呼べる MCP ツールを限定する設計。**MVP では未実装(全ツール無条件登録、Issue #208 で追跡)** |
 | **コンテンツフェンシング**      | 外部取得テキストは `<untrusted_content>` タグで囲んで synthesizer に渡す                                     |
 | **ドメイン API による行動制限** | エージェントが触れるのは Minakata MCP ツールのみ。`shell_exec` / 任意外部 HTTP は許可しない                  |
 | **承認ゲート**                  | 破壊的操作は WebUI レビュー(セクション 6)                                                                    |
@@ -521,21 +574,21 @@ services:
 
 ### 8.2 MCP サーバー側の保護
 
-- Host header 検証(`@modelcontextprotocol/hono` 標準提供)
-- Bearer Token / OAuth 認証
-- Docker network 内で閉じる(リクエスト元 IP 制限)
+- Host header 検証(`MCP_ALLOWED_HOSTS` で許可ホストを限定し DNS rebinding を防ぐ。`packages/mcp/src/hono.ts`)
+- Bearer Token 認証(`MCP_TOKEN`)
+- コンテナネットワーク内で閉じる(searxng は `expose` のみで外部非公開)
 - Tool 入力は Zod で厳格バリデーション
 
 ### 8.3 シークレット管理
 
 - 環境変数(`.env`、git 管理外)
-- 本番: Docker Secrets / SOPS / 1Password CLI 等
-- LLM API キー(OpenCode Go/Zen / Anthropic 等)・Firecrawl API キーは **Hermes コンテナのみが保持**。Minakata 側からは見えない
+- 本番: Podman Secrets / SOPS / 1Password CLI 等
+- LLM API キー(OpenCode Go/Zen / Anthropic 等)は **Hermes コンテナのみが保持**。Minakata 側からは見えない。`FIRECRAWL_API_KEY` は外部キーではなく Hermes ↔ Minakata `/v1/scrape` の共有 Bearer シークレット(両コンテナで同値)
 
 ### 8.4 プライバシー
 
 - 埋め込み生成はローカルで完結するため、記事本文が外部 API に送信されない(P11)
-- 外部送信が発生するのは: (a) 生成系 LLM へのプロンプト(OpenCode Go/Zen)、(b) Web 検索クエリ(SearXNG 経由)、(c) Web 抽出対象 URL(Firecrawl Cloud)に限られる
+- 外部送信が発生するのは: (a) 生成系 LLM へのプロンプト(OpenCode Go/Zen)、(b) Web 検索クエリ(SearXNG 経由)、(c) Web 抽出対象 URL への直接アクセス(Minakata 自前 `/v1/scrape`。第三者の抽出 API は経由しない)に限られる
 
 ---
 
@@ -563,7 +616,7 @@ services:
 | 同時利用ユーザー             | 〜10 名(チーム単位)                             |
 | 記事数                       | 〜10,000                                        |
 | 1日あたり調査タスク          | 〜500                                           |
-| 1日あたり Web 抽出ページ数   | 〜100(Firecrawl 無料枠想定。本稼働時は要見直し) |
+| 1日あたり Web 抽出ページ数   | 〜数百(自前 `/v1/scrape`。外部クレジット枠なし) |
 | 並列調査 subagent            | 1〜10(Hermes 側で制御)                          |
 | Web UI レスポンスタイム(p95) | < 1s                                            |
 | 対話の初回応答(p95)          | < 30s(`poll_messages` 周期 + LLM 応答)          |
@@ -577,7 +630,7 @@ services:
 - 記事数 10,000 超 → ベクトル検索のインデックス再構築戦略を見直し
 - ユーザー数 30 超 → MCP を別プロセス分離、Postgres 移行を検討
 - 対話レイテンシが問題化 → `poll_messages` 周期短縮 or pub/sub 化(Redis 等)を検討
-- Web 抽出 500/月 超 → Firecrawl 有料化 or セルフホスト切替
+- JS レンダリングが必要なページが増加 → `/v1/scrape` のバックエンドを Firecrawl 等へ差し替え
 - 埋め込みスループット不足 → `multilingual-e5-small` への切替(精度トレードオフ)、または専用埋め込みサービス(TEI 等)への切り出し
 
 ---
@@ -603,7 +656,8 @@ services:
 | Pinecone / Weaviate                                                            | `sqlite-vec` で足りる                                                                  |
 | LangChain / LlamaIndex                                                         | Hermes がハーネスを担う                                                                |
 | Elasticsearch / Meilisearch                                                    | FTS5 で間に合う                                                                        |
-| Kubernetes                                                                     | Docker Compose で運用                                                                  |
+| Kubernetes                                                                     | Podman Compose で運用                                                                  |
+| **外部 Web 抽出 API(Firecrawl Cloud 等)を既定にする**                         | 自前 `/v1/scrape`(Readability)で十分。コスト・プライバシー優先。必要時のみ差し替え     |
 | 自前エージェントフレームワーク                                                 | Hermes を使う。再発明しない                                                            |
 
 ---
@@ -677,3 +731,4 @@ services:
 | 版        | 日付       | 変更 |
 | --------- | ---------- | ---- |
 | 0.1.0-mvp | 2026-05-21 | 初版 |
+| 0.1.0-mvp | 2026-06-09 | 実装に合わせ更新: コンテナランタイムを Podman に統一 / Web 抽出を Minakata 自前 `/v1/scrape`(Readability)へ置換 / subagent 一覧を hermes-skills 正本に同期 / MCP ツール表を実際の登録 41 ツールへ更新 / core サービス一覧を追補 / compose 例を実ファイルに整合 / Capability 分離の MVP 未実装(#208)を明記 |

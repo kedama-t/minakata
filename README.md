@@ -25,30 +25,36 @@ Minakata は購読トピックを毎晩自動調査し、調査結果を Markdow
    ├─ researcher              │  [ SQLite (FTS5 + sqlite-vec) ]
    ├─ daily_research          │
    ├─ freshness_checker       │
-   └─ changelog_writer        │
-        │ web_search          │
+   ├─ synthesizer             │
+   ├─ taxonomy_builder        │
+   ├─ gap_detector            │
+   ├─ feedback_analyst        │
+   ├─ changelog_writer        │
+   └─ backup_agent            │
+        │ web_search          │ web_extract
         ▼                     ▼
-   [ SearXNG ]          [ Firecrawl Cloud ]
+   [ SearXNG ]      [ Minakata /v1/scrape ]
 ```
 
 - **`@minakata/core`** : ドメインロジック共有ライブラリ。Web / MCP の両方が呼ぶ。
-- **`@minakata/web`** : React Router v7 framework mode + `react-router-hono-server`(Bun)。BFF を兼ねる。
+- **`@minakata/web`** : React Router v7 framework mode + `react-router-hono-server`(Bun)。BFF を兼ね、Firecrawl 互換の `/v1/scrape`(自前抽出)も提供。
 - **`@minakata/mcp`** : MCP サーバー。Web プロセスの `/mcp` にマウント。Hermes が接続する唯一の口。
-- **Hermes** : Docker で独立稼働するエージェントハーネス。Minakata MCP 経由でしか Minakata 側に書き込めない。
-- **SearXNG / Firecrawl** : Hermes が Web 検索 / 抽出に使う。
+- **Hermes** : Podman で独立稼働するエージェントハーネス。Minakata MCP 経由でしか Minakata 側に書き込めない。
+- **SearXNG** : Hermes が `web_search` に使う検索バックエンド。
+- **Web 抽出** : `web_extract` は Minakata 自前の `/v1/scrape`(Readability + linkedom + turndown)が処理。外部 Firecrawl には送らない。
 
 詳細は `docs/grand-design.md`(P1〜P11)と `docs/tech-stack.md` を参照。
 
 ## 前提
 
-| ツール             | バージョン | 用途                                                   |
-| ------------------ | ---------- | ------------------------------------------------------ |
-| **Bun**            | 1.x        | 全パッケージのランタイム / パッケージマネージャ        |
-| **Docker**         | 24+        | docker compose で minakata / hermes / searxng を起動   |
-| **Git**            | 2.x        | `data/articles` の履歴管理(`@minakata/core` が初期化) |
-| **macOS / Linux**  | x86_64 推奨 | `sqlite-vec` のバイナリ互換性のため。ARM は要動作検証 |
+| ツール            | バージョン  | 用途                                                             |
+| ----------------- | ----------- | ---------------------------------------------------------------- |
+| **Bun**           | 1.x         | 全パッケージのランタイム / パッケージマネージャ                  |
+| **Podman**        | 4+          | `podman compose` で minakata / hermes / searxng を起動(rootless) |
+| **Git**           | 2.x         | `data/articles` の履歴管理(`@minakata/core` が初期化)            |
+| **macOS / Linux** | x86_64 推奨 | `sqlite-vec` のバイナリ互換性のため。ARM は要動作検証            |
 
-> Node.js / pnpm / npm は使いません(P8)。`bun` で統一してください。
+> Node.js / pnpm / npm は使いません(P8)。`bun` で統一してください。コンテナは `docker` ではなく **`podman`**(rootless 運用のため `.env` に `HERMES_UID` / `HERMES_GID` が必須)。
 
 ### sqlite-vec の動作要件
 
@@ -58,11 +64,11 @@ Minakata は購読トピックを毎晩自動調査し、調査結果を Markdow
 2. macOS Homebrew (`/opt/homebrew/opt/sqlite/lib/libsqlite3.dylib`)
 3. Linux 標準パス (`/usr/lib/x86_64-linux-gnu/libsqlite3.so.0` ほか)
 
-ローカルで動かない場合は Homebrew で `brew install sqlite` を入れるか、`SQLITE_CUSTOM_LIB` を指定してください。Docker イメージ(`oven/bun:1` ベース)は Debian Bookworm の `libsqlite3-0` を導入済みのため、特別な設定不要です。
+ローカルで動かない場合は Homebrew で `brew install sqlite` を入れるか、`SQLITE_CUSTOM_LIB` を指定してください。コンテナイメージ(`oven/bun:1` ベース)は Debian Bookworm の `libsqlite3-0` を導入済みのため、特別な設定不要です。
 
-## クイックスタート(Docker Compose)
+## クイックスタート(Podman Compose)
 
-最も簡単な起動手順。`User Story US-1.1` の受け入れ条件を満たすパスです。
+最も簡単な起動手順。`User Story US-1.1` の受け入れ条件を満たすパスです。`bun run compose:*` は `podman compose -f docker/docker-compose.yml --env-file .env ...` をラップしています。
 
 ```bash
 # 1) クローンして移動
@@ -77,27 +83,28 @@ bun run setup
 # 手動で済ませる場合: cp .env.example .env して MCP_TOKEN / SEARXNG_SECRET
 # を埋める(生成例: openssl rand -hex 32)。
 
-# 3) Minakata 本体(web + MCP)だけ先に起動
-docker compose -f docker/docker-compose.yml --env-file .env up -d minakata
+# 3) Minakata 本体(web + MCP)+ searxng を起動(agent プロファイルなし)
+bun run compose:up         # フォアグラウンド。-d 相当で回したいなら下記 raw コマンド参照
 
 # 4) ブラウザで http://localhost:3000 を開く
 #    初回アクセスで /setup に飛ぶので、管理者メール+パスワード(8 文字以上)を登録
 
-# 5) Hermes(エージェント)を起動する場合は profile を指定
+# 5) Hermes(エージェント)込みで起動する場合(--profile agent 相当)
 #    OPENCODE_API_KEY / FIRECRAWL_API_KEY を .env に入れたうえで
-docker compose -f docker/docker-compose.yml --env-file .env --profile agent up -d
+bun run compose:up:agent
 ```
 
-- `minakata` コンテナ: ポート 3000 で `web` + `mcp` を同居。`./data` と `./models` をホストマウント。
-- `hermes` コンテナ: `--profile agent` を付けたときだけ起動。LLM API キーは Hermes 側のみが保持(Minakata からは見えない設計)。
-- `searxng` コンテナ: Hermes が `web_search` に使う。ポートは外部公開しない(Docker network 内で完結)。
+- `minakata` コンテナ: ポート 3000 で `web` + `mcp` + `/v1/scrape` を同居。`./data` と `./models` をホストマウント。
+- `hermes` コンテナ: `--profile agent`(`compose:up:agent`)を付けたときだけ起動。LLM API キーは Hermes 側のみが保持(Minakata からは見えない設計)。
+- `searxng` コンテナ: Hermes が `web_search` に使う。ポートは外部公開しない(コンテナネットワーク内で完結)。
 
 ### 停止 / 再起動 / ログ
 
 ```bash
-docker compose -f docker/docker-compose.yml --env-file .env logs -f minakata
-docker compose -f docker/docker-compose.yml --env-file .env restart minakata
-docker compose -f docker/docker-compose.yml --env-file .env down
+# raw podman compose で叩く場合(-d やログ tail はこちら)
+podman compose -f docker/docker-compose.yml --env-file .env logs -f minakata
+podman compose -f docker/docker-compose.yml --env-file .env restart minakata
+bun run compose:down   # = podman compose ... down
 ```
 
 ### コンテナのままフロント変更を素早く反映する(イメージ再ビルド回避)
@@ -171,22 +178,22 @@ curl -X POST http://localhost:3000/mcp \
 
 `.env.example` に全項目があります。重要なものだけ抜粋:
 
-| 変数                  | 用途                                                                  | 必須              |
-| --------------------- | --------------------------------------------------------------------- | ----------------- |
-| `MCP_TOKEN`           | MCP の Bearer Token。Hermes と共有                                    | 必須(空は危険)   |
-| `MCP_ALLOWED_HOSTS`   | MCP の Host ヘッダ allowlist(DNS rebinding 対策)。カンマ区切り        | 推奨              |
-| `DATABASE_URL`        | SQLite のパス(`file:` プレフィックス)。例: `file:/app/data/minakata.db` | 必須              |
-| `ARTICLES_ROOT`       | Markdown 記事ルート。例: `/app/data/articles`                          | 必須              |
-| `HF_HOME`             | Transformers.js モデルキャッシュ。例: `/app/.cache/huggingface`        | 必須              |
-| `SKILLS_DIR`          | スキル承認時に書き出す正本ディレクトリ。既定 `./hermes-skills`(git 管理)   | 任意              |
-| `OPENCODE_API_KEY`    | OpenCode (Go / Zen 共通) の API キー。Hermes コンテナのみが保持        | Hermes 起動時に必要 |
-| `HERMES_UID` / `HERMES_GID` | Hermes コンテナ内 hermes user の UID/GID。podman rootless 時はホストの `$(id -u)` / `$(id -g)` を渡す | Hermes 起動時に必要 |
-| `FIRECRAWL_API_KEY`   | Firecrawl Cloud の API キー。Hermes コンテナのみ                      | Hermes 起動時に必要 |
-| `SEARXNG_SECRET`      | SearXNG セッションシークレット                                        | SearXNG 起動時に必要 |
-| `SQLITE_CUSTOM_LIB`   | sqlite-vec 用の拡張対応 SQLite 共有ライブラリパス                     | 任意(自動検出)   |
-| `PORT`                | Web サーバーのポート(デフォルト 3000)                                 | 任意              |
+| 変数                        | 用途                                                                                                  | 必須                 |
+| --------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------- |
+| `MCP_TOKEN`                 | MCP の Bearer Token。Hermes と共有                                                                    | 必須(空は危険)       |
+| `MCP_ALLOWED_HOSTS`         | MCP の Host ヘッダ allowlist(DNS rebinding 対策)。カンマ区切り                                        | 推奨                 |
+| `DATABASE_URL`              | SQLite のパス(`file:` プレフィックス)。例: `file:/app/data/minakata.db`                               | 必須                 |
+| `ARTICLES_ROOT`             | Markdown 記事ルート。例: `/app/data/articles`                                                         | 必須                 |
+| `HF_HOME`                   | Transformers.js モデルキャッシュ。例: `/app/.cache/huggingface`                                       | 必須                 |
+| `SKILLS_DIR`                | スキル承認時に書き出す正本ディレクトリ。既定 `./hermes-skills`(git 管理)                              | 任意                 |
+| `OPENCODE_API_KEY`          | OpenCode (Go / Zen 共通) の API キー。Hermes コンテナのみが保持                                       | Hermes 起動時に必要  |
+| `HERMES_UID` / `HERMES_GID` | Hermes コンテナ内 hermes user の UID/GID。podman rootless 時はホストの `$(id -u)` / `$(id -g)` を渡す | Hermes 起動時に必要  |
+| `FIRECRAWL_API_KEY`         | 自前 `/v1/scrape` の共有 Bearer。Hermes(送信)と minakata(検証)の両方に同値で渡す                      | Hermes 起動時に必要  |
+| `SEARXNG_SECRET`            | SearXNG セッションシークレット                                                                        | SearXNG 起動時に必要 |
+| `SQLITE_CUSTOM_LIB`         | sqlite-vec 用の拡張対応 SQLite 共有ライブラリパス                                                     | 任意(自動検出)       |
+| `PORT`                      | Web サーバーのポート(デフォルト 3000)                                                                 | 任意                 |
 
-> `OPENCODE_API_KEY` / `FIRECRAWL_API_KEY` は **Hermes コンテナのみ** が保持する設計です(P7、tech-stack.md §8.3)。`minakata` コンテナの環境には流れません。
+> `OPENCODE_API_KEY`(LLM API キー)は **Hermes コンテナのみ** が保持する設計です(P7、tech-stack.md §8.3)。`minakata` コンテナの環境には流れません。`FIRECRAWL_API_KEY` は外部 API キーではなく自前 `/v1/scrape` の共有 Bearer なので、Hermes と minakata の両方に同値で渡します。
 
 ## 主要ディレクトリ
 
@@ -198,16 +205,22 @@ minakata/
 │   │   └── tests/             # bun test スイート(in-memory SQLite)
 │   ├── web/                   # React Router v7 framework mode(BFF 兼用)
 │   │   ├── app/routes/        # loader/action の集合
-│   │   └── server/index.ts    # createHonoServer + mountMcp
+│   │   └── server/
+│   │       ├── index.ts       # createHonoServer + mountMcp + /v1/scrape
+│   │       └── scraper.ts     # Firecrawl 互換の自前抽出(Readability/linkedom/turndown, SSRF 対策)
 │   └── mcp/                   # MCP ツール定義 + Streamable HTTP マウント
 ├── docker/
-│   ├── Dockerfile.minakata
-│   └── docker-compose.yml
-├── hermes/                    # `/opt/data` (HERMES_HOME) に bind mount される
-│   ├── .gitignore             # runtime state (sessions / logs / cron / memories ...) を ignore
+│   ├── Dockerfile.minakata    # Hermes は公式 image を使うので Dockerfile なし
+│   ├── docker-compose.yml
+│   └── docker-compose.dev.yml # dev オーバーレイ(build/ をマウント)
+├── hermes-skills/             # subagent 定義の正本(git 管理 / :ro mount で seed)
+│   └── <name>/SKILL.md        # dialogue / researcher / daily_research / freshness_checker / synthesizer / ...
+├── hermes/                    # `/opt/data` (HERMES_HOME) に bind mount される実行時データ
+│   ├── .gitignore             # runtime state (sessions / logs / cron / memories / skills ...) を ignore
 │   ├── config.yaml            # Hermes 設定 (model / mcp_servers)
-│   ├── cron-bootstrap.sh      # /etc/cont-init.d/ に mount され起動時に cron 登録
-│   └── skills/                # dialogue / researcher / daily_research / freshness_checker / changelog_writer
+│   ├── cron-bootstrap.sh      # /etc/cont-init.d/ に mount され起動時に skill seed + cron 登録
+│   ├── main-wrapper.sh        # HERMES_HOME を /opt/data に固定する上書き
+│   └── skills/                # 実行時 skill コピー(Hermes が curator で自律編集 / gitignore)
 ├── searxng/settings.yml       # SearXNG の設定(JSON formats 有効、limiter off)
 ├── docs/                      # 仕様書(設計フェーズの source of truth)
 ├── data/                      # 実行時データ(.gitignore)
@@ -219,15 +232,15 @@ minakata/
 
 ## 開発フロー
 
-| コマンド             | 説明                                                          |
-| -------------------- | ------------------------------------------------------------- |
-| `bun install`        | Bun workspaces で全パッケージの依存解決                       |
-| `bun run dev`        | Vite + Hono で web を起動(`localhost:3000`)                    |
-| `bun test`           | 全パッケージのテスト(`bun test` Vitest 互換 API)              |
-| `bun run typecheck`  | `react-router typegen` 後に `tsc --noEmit` を全パッケージで   |
-| `bun run lint`       | Biome の lint + format チェック                               |
-| `bun run lint:fix`   | Biome の自動修正                                              |
-| `bun run build`      | 全パッケージのビルド(web は React Router build)               |
+| コマンド            | 説明                                                        |
+| ------------------- | ----------------------------------------------------------- |
+| `bun install`       | Bun workspaces で全パッケージの依存解決                     |
+| `bun run dev`       | Vite + Hono で web を起動(`localhost:3000`)                 |
+| `bun test`          | 全パッケージのテスト(`bun test` Vitest 互換 API)            |
+| `bun run typecheck` | `react-router typegen` 後に `tsc --noEmit` を全パッケージで |
+| `bun run lint`      | Biome の lint + format チェック                             |
+| `bun run lint:fix`  | Biome の自動修正                                            |
+| `bun run build`     | 全パッケージのビルド(web は React Router build)             |
 
 `lefthook.yml` に pre-commit(Biome + typecheck)、pre-push(`bun test`)が設定されています。`bun install` 時に自動で hook が登録されます。
 
@@ -258,8 +271,8 @@ minakata/
 ## トラブルシューティング
 
 - **`Database.setCustomSQLite` で何も見つからない**: macOS なら `brew install sqlite`、Linux なら `apt-get install -y libsqlite3-0`。または `SQLITE_CUSTOM_LIB=/path/to/libsqlite3.dylib` を `.env` に追加。
-- **Transformers.js のモデルダウンロードが遅い**: 初回起動時に約 200MB のダウンロード(`HF_HOME` にキャッシュ)。`docker compose` ではボリュームを永続化済み(`./models`)。
-- **MCP `/mcp` が 401**: `Authorization: Bearer <MCP_TOKEN>` が一致していない。`.env` を再ロード(`docker compose down && up -d`)。
+- **Transformers.js のモデルダウンロードが遅い**: 初回起動時に約 200MB のダウンロード(`HF_HOME` にキャッシュ)。compose ではボリュームを永続化済み(`./models`)。
+- **MCP `/mcp` が 401**: `Authorization: Bearer <MCP_TOKEN>` が一致していない。`.env` を再ロード(`bun run compose:down && bun run compose:up`)。
 - **`/mcp` が 403 `forbidden_host`**: `MCP_ALLOWED_HOSTS` にアクセス元 Host(ポート含む)を追加。
 - **`bun run dev` で `.react-router/types/...` が見つからない**: `bunx react-router typegen` を先に走らせる(`bun run typecheck` が内部で実行)。
 - **Hermes が起動しない**: `OPENCODE_API_KEY` / `HERMES_UID` / `HERMES_GID` のいずれかが `.env` に無い可能性。`podman exec -it minakata-hermes-1 hermes doctor` で原因を絞り込む。
@@ -268,4 +281,6 @@ minakata/
 
 ## ライセンス
 
-未定(リポジトリオーナーに確認)。
+[Apache License 2.0](LICENSE) で公開しています。商用利用を含め自由に利用できますが、著作権表記の保持が必要です(詳細は `LICENSE` を参照)。
+
+なお、当面の間本リポジトリは原則として外部からの Pull Request を受け付けていません。不具合報告や提案は Issue にてお願いします。

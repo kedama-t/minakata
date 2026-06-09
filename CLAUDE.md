@@ -8,11 +8,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 主要エントリ:
 
-- `packages/web/server/index.ts` — Hono サーバー兼 MCP マウント
+- `packages/web/server/index.ts` — Hono サーバー兼 MCP マウント + Firecrawl 互換 `/v1/scrape`(自前抽出は `server/scraper.ts`)
 - `packages/web/app/routes/` — React Router v7 のルート(SSR + loader/action)
 - `packages/mcp/src/tools.ts` — 全 MCP ツールの登録
-- `packages/core/src/` — ドメインサービス (`article` / `auth` / `audit` / `message` / `task` / `search` / `review` / `policy` / `comment` / `feedback` / `skill` / `maintenance` / `embedding`)
-- `hermes-skills/<name>/SKILL.md` — Hermes subagent 定義の正本(git 管理) (`dialogue` / `researcher` / `daily_research` / `freshness_checker` / `changelog_writer` / `feedback_analyst` 他)。起動時に実行時 `hermes/skills/`(gitignore)へ seed される(#187)
+- `packages/core/src/` — ドメインサービス (`article` / `auth` / `audit` / `message` / `task` / `search` / `review` / `policy` / `comment` / `feedback` / `skill` / `archive` / `topic` / `activity` / `backup` / `maintenance` / `embedding`)
+- `hermes-skills/<name>/SKILL.md` — Hermes subagent 定義の正本(git 管理) (`dialogue` / `researcher` / `daily_research` / `freshness_checker` / `synthesizer` / `taxonomy_builder` / `gap_detector` / `feedback_analyst` / `changelog_writer` / `backup_agent`)。起動時に実行時 `hermes/skills/`(gitignore)へ seed される(#187)
 
 実装を変更する前に、必読の仕様書と既存 Issue(`gh issue list`) を確認すること。
 
@@ -34,7 +34,7 @@ Minakata は「エージェントハーネスによる自動情報収集シス�
 - **Web ↔ Agent は MCP メッセージバス経由**(P10): WebSocket やプロセス直結ではなく、SQLite のメッセージテーブル + EventEmitter + SSE で繋ぐ
 - **Hermes が cron とキュー消化を担当**(P9): Minakata 側にスケジューラやワーカープロセスを作らない(`@minakata/worker` は不要)
 - **埋め込み生成はローカル**(P11): Transformers.js + `multilingual-e5-base` を `core` プロセス内で実行。外部 API には送らない
-- **生成系 LLM は OpenCode Go 経由**(P7): Hermes コンテナのみが API キーを保持。Minakata 側からは見えない(Zen `/zen/v1` も同じキーで併用可能だが既定は Go)
+- **生成系 LLM は OpenCode Go 経由**(P7): Hermes コンテナのみが API キーを保持。Minakata 側からは見えない。base_url は plugin で `/zen/go/v1` にハードコード、専用 env `OPENCODE_GO_API_KEY` で auto detect(汎用 `OPENAI_API_BASE` では切り替わらない)。Zen/Anthropic 併用は `config.yaml` に別プロバイダ追加で対応
 
 ### パッケージ構成(現状)
 
@@ -45,19 +45,19 @@ packages/
 └── mcp/    # MCP サーバー(web と同一プロセスで /mcp にマウント済み)
 ```
 
-`web` と `mcp` は両方とも `core` に依存する。`core` は他に依存しない。`web` プロセスが起動時に `packages/web/server/index.ts:24` で `mountMcp` を呼び、Streamable HTTP の `/mcp` を立ち上げる。
+`web` と `mcp` は両方とも `core` に依存する。`core` は他に依存しない。`web` プロセスが起動時に `packages/web/server/index.ts:79` で `mountMcp` を呼び、Streamable HTTP の `/mcp` を立ち上げる(同時に `/v1/scrape` も `mountScraper` でマウント)。
 
 ### データフロー(対話)
 
 1. ユーザー発言 → `web` が `core.MessageService.post()` で SQLite 保存
-2. Hermes が `minakata.poll_messages` MCP ツールを 30 秒周期で呼ぶ
+2. Hermes の `dialogue` subagent が `minakata.poll_messages` MCP ツールを 60 秒周期で呼ぶ
 3. Hermes が応答を `minakata.post_agent_response` で書き戻す
 4. `core` の EventEmitter が `web` の SSE ハンドラに通知 → ブラウザへ転送
 
 ### データフロー(調査)
 
 1. 対話エージェントが `minakata.enqueue_task` でキュー投入
-2. Hermes の `researcher` subagent が `minakata.poll_tasks` で 5 分周期消化 → 記事更新
+2. Hermes の `researcher` subagent が `minakata.poll_tasks` で数分周期消化 → 記事更新
 
 ## 技術スタック(必ず守ること)
 
@@ -76,7 +76,7 @@ packages/
 
 仕様の中核。実装時に絶対に外してはいけない:
 
-- **Capability 分離**: Hermes の subagent ごとに呼べる MCP ツールを限定する
+- **Capability 分離**: Hermes の subagent ごとに呼べる MCP ツールを限定する設計(**MVP では未実装・全ツール無条件登録。Issue #208 で追跡中**)
 - **コンテンツフェンシング**: 外部取得テキストは `<untrusted_content>` タグで囲んで synthesizer に渡す
 - **行動制限**: エージェントが触れるのは Minakata MCP ツールのみ。任意の外部 HTTP / `shell_exec` は許可しない
 - **承認ゲート**: アーカイブ・削除・大幅書き換え・スキル追加は WebUI 経由で human-in-the-loop
@@ -93,8 +93,9 @@ packages/
 ## 開発時の注意事項(プロジェクト固有)
 
 - コミット前に lint & test を実行
-- 外部 API キー(`OPENCODE_API_KEY` / `FIRECRAWL_API_KEY` / `MCP_TOKEN` / `SEARXNG_SECRET`)は `.env` に書き、コードにハードコードしない
-- LLM API キー類は **Hermes コンテナのみ**が保持する設計(Minakata 側から見えてはいけない)
+- シークレット(`OPENCODE_API_KEY` / `FIRECRAWL_API_KEY` / `MCP_TOKEN` / `SEARXNG_SECRET`)は `.env` に書き、コードにハードコードしない
+- LLM API キー(`OPENCODE_API_KEY`)は **Hermes コンテナのみ**が保持する設計(Minakata 側から見えてはいけない)。一方 `FIRECRAWL_API_KEY` は外部キーではなく自前 `/v1/scrape` の共有 Bearer で、Hermes と minakata の両方に同値で渡す
+- Web 抽出(`web_extract`)は外部 Firecrawl ではなく Minakata 自前の `/v1/scrape`(`server/scraper.ts`、Readability + SSRF 対策)で処理する
 - アーキ依存: `sqlite-vec` のバイナリ互換性のため x86_64 推奨。ARM で開発する場合は動作検証が必要
 
 ## 作業フロー(Issue → ブランチ → PR)
