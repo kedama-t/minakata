@@ -57,7 +57,7 @@ export class ArchiveProposalService {
       .run(reviewer_id, now(), id)
   }
 
-  reject(id: string, reviewer_id: string, reason: string): void {
+  async reject(id: string, reviewer_id: string, reason: string): Promise<void> {
     const row = this.get(id)
     if (!row) throw new Error(`archive proposal not found: ${id}`)
     if (row.status !== 'proposed')
@@ -69,6 +69,9 @@ export class ArchiveProposalService {
          WHERE id = ?`,
       )
       .run(reviewer_id, reason, now(), id)
+    // reject = admin が「残す」と判断。last_accessed_at を更新して freshness_checker の
+    // 30 日アーカイブ提案条件をリセットし、再提案ループを止める(#221)
+    await this.articles.touchAccessed(row.article_id)
   }
 
   get(id: string): ArchiveProposalRow | null {

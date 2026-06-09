@@ -26,6 +26,7 @@ metadata:
 7. 全件処理後に **`minakata.report_progress({ agent_name: "freshness_checker", phase: "チェック完了", detail: "リフレッシュN件・アーカイブ提案M件" })`** で締める(実際の件数を代入。失敗しても無視してよい)
    - **注意**: archive は §6 承認ゲートを通る。この MCP ツールは `archive_proposals` に `proposed` 行を残すだけで、即時 archive は行わない。admin が WebUI `/admin/archives` で承認したときに初めて `articles.status='archived'` へ反映される
    - 既に proposed が出ている記事に再度呼んでも UNIQUE 制約で既存提案 ID を返すだけ(冪等)
+   - admin が差し戻した記事は `last_accessed_at` が更新されるため、以後 30 日間は手順 6 の条件に合致せず再提案されない(差し戻し判断の反映 / #221)
 
 ## しきい値の根拠
 
