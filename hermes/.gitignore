@@ -68,3 +68,5 @@
 /_check_*.py
 
 /.clean_shutdown
+
+/*.bak-*
