@@ -54,4 +54,14 @@ describe('ArticleMarkdown', () => {
     expect(html).toContain('target="_blank"')
     expect(html).toContain('rel="noreferrer noopener"')
   })
+
+  test('言語指定なしのコードブロックがインラインコード扱いされない(#217)', () => {
+    const src = '```\n図 A\n  ↓\n図 B\n```\n'
+    const out = renderToString(<ArticleMarkdown source={src} />)
+    // pre 配下の code に渡らず HighlightedCode の fallback pre で描画される
+    expect(out).toContain('図 A')
+    expect(out).toContain('<pre')
+    // インラインコードの背景クラスがブロックに漏れていないこと
+    expect(out).not.toContain('bg-base-300')
+  })
 })

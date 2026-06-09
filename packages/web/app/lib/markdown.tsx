@@ -131,15 +131,17 @@ const components: Components = {
     )
   },
   pre: ({ node: _node, children }) => {
-    // フェンス付きコードブロックは children が単一の <code language-xxx> 要素
+    // pre 配下の code はすべてブロック。言語指定の有無に関わらず Shiki に回し、
+    // 言語なし(```のみ)のときに code がインラインコード扱いされてスタイルが
+    // 崩れるのを防ぐ(#217)。言語不明時は text として暗いテーマで描画する。
     if (isValidElement(children)) {
       const props = (children as React.ReactElement<{ className?: string; children?: unknown }>)
         .props
-      if (typeof props.className === 'string' && props.className.includes('language-')) {
-        const lang = props.className.match(/language-(\S+)/)?.[1] ?? 'text'
-        const code = String(props.children ?? '').replace(/\n$/, '')
-        return <HighlightedCode code={code} lang={lang} />
-      }
+      const lang =
+        (typeof props.className === 'string' && props.className.match(/language-(\S+)/)?.[1]) ||
+        'text'
+      const code = String(props.children ?? '').replace(/\n$/, '')
+      return <HighlightedCode code={code} lang={lang} />
     }
     return (
       <pre className="bg-neutral text-neutral-content p-4 rounded my-3 overflow-x-auto text-sm leading-relaxed">
