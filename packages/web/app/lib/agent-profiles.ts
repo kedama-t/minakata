@@ -98,6 +98,13 @@ const PROFILES: Record<AgentName, AgentProfile> = {
     avatar: '/agents/clara.png',
     ring: 'ring-indigo-400',
   },
+  reviser: {
+    key: 'reviser',
+    emoji: '🖊️',
+    displayName: 'ノエル',
+    role: '校訂担当：既存記事の軽微な修正を手早く仕上げます',
+    ring: 'ring-lime-400',
+  },
   hermes: {
     key: 'hermes',
     emoji: '🛰️',

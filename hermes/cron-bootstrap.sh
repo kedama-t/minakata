@@ -106,7 +106,7 @@ fi
 GATEWAY_SKILLS_DIR="${HERMES_HOME:-/opt/data}/.hermes/skills"
 mkdir -p "$GATEWAY_SKILLS_DIR"
 chown hermes:hermes "$GATEWAY_SKILLS_DIR" 2>/dev/null || true
-for skill in dialogue researcher daily_research freshness_checker changelog_writer synthesizer gap_detector taxonomy_builder feedback_analyst; do
+for skill in dialogue researcher reviser daily_research freshness_checker changelog_writer synthesizer gap_detector taxonomy_builder feedback_analyst; do
     dest="$GATEWAY_SKILLS_DIR/$skill"
     if [ ! -e "$dest" ]; then
         ln -sfn "../../skills/$skill" "$dest"
@@ -169,6 +169,9 @@ ensure_cron "minakata-dialogue" "every 1m" "dialogue" \
 
 ensure_cron "minakata-researcher" "every 5m" "researcher" \
     "Poll Minakata's research task queue and process one pending task. Follow the researcher skill's rules."
+
+ensure_cron "minakata-reviser" "every 2m" "reviser" \
+    "Poll Minakata's edit task queue and apply light fixes to existing articles without external research. Follow the reviser skill's rules."
 
 ensure_cron "minakata-daily-research" "$(local_cron_to_utc '0 3 * * *')" "daily_research" \
     "Enqueue research tasks for all active subscription topics. Follow the daily_research skill's rules."

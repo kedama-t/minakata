@@ -6,14 +6,23 @@ import type { McpServices } from './services.ts'
 
 /** タイミング攻撃を防ぐ定数時間 Bearer トークン比較 */
 function safeCompareBearer(auth: string, token: string): boolean {
+  if (!token) return false
   const expected = `Bearer ${token}`
   if (auth.length !== expected.length) return false
   return timingSafeEqual(Buffer.from(auth), Buffer.from(expected))
 }
 
 export interface McpMountOptions {
-  /** Bearer Token。Hermes 側にも同じ値を共有する */
+  /**
+   * レガシー共有 Bearer Token。一致したリクエストは agent 未指定 = 全ツール許可
+   * として扱う(後方互換)。空文字なら無効。
+   */
   token: string
+  /**
+   * subagent ごとの Bearer Token → agent 名のマップ(#208 capability 分離)。
+   * 一致したリクエストは該当 agent の allowlist に絞られる。
+   */
+  agentTokens?: Record<string, string>
   /** マウントパス。デフォルトは /mcp */
   path?: string
   /**
@@ -36,9 +45,21 @@ export function mountMcp(app: Hono, options: McpMountOptions): void {
   const path = options.path ?? '/mcp'
 
   const handle = async (req: Request): Promise<Response> => {
-    // 認証(定数時間比較でタイミング攻撃を防ぐ)
+    // 認証(定数時間比較でタイミング攻撃を防ぐ)。
+    // まずレガシー共有トークン(全許可)、次に per-agent トークンを順に照合する。
     const auth = req.headers.get('authorization') ?? ''
-    if (!safeCompareBearer(auth, options.token)) {
+    let agent: string | undefined
+    let authed = safeCompareBearer(auth, options.token)
+    if (!authed && options.agentTokens) {
+      for (const [tok, name] of Object.entries(options.agentTokens)) {
+        if (safeCompareBearer(auth, tok)) {
+          authed = true
+          agent = name
+          break
+        }
+      }
+    }
+    if (!authed) {
       return new Response(JSON.stringify({ error: 'unauthorized' }), {
         status: 401,
         headers: { 'content-type': 'application/json' },
@@ -62,7 +83,7 @@ export function mountMcp(app: Hono, options: McpMountOptions): void {
     const transport = new WebStandardStreamableHTTPServerTransport({
       enableJsonResponse: true,
     })
-    const server = createMinakataMcpServer(options.services)
+    const server = createMinakataMcpServer(options.services, agent ? { agent } : {})
     await server.connect(transport)
     try {
       return await transport.handleRequest(req)

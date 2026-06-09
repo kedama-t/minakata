@@ -28,6 +28,7 @@ metadata:
         - **専用記事あり**: 要約 + 引用 URL + 記事リンク `[[id:01...]]` 付きで応答
         - **部分一致のみ**（キーワードがタグ・スニペットに出現するが主題の記事はない）: 見つかった関連文脈を紹介した上で専用記事がないことを伝える。ユーザーが「今の状況」や最新動向を尋ねているなど、新規調査が必要と判断したら調査依頼へエスカレーションする
         - **完全にマッチなし**: 「ナレッジベースには見当たりません」と素直に答える。ただし、ユーザーが「X についてまとめて/調べて/教えて/比較して」など新規情報の要求をしていると判断できる場合は、「見当たりませんでした。調査タスクを追加しましたので少々お待ちください」のように伝え、**調査依頼**として research タスクを enqueue する（「まとめて」は情報収集要求であり、KB 不在なら調査依頼にエスカレーションするのが適切）
+      - **軽微修正の依頼**: 既存記事に対する**外部情報を必要としない**修正依頼(誤字・表現・書式・壊れたリンク・既存内容の範囲での言い換え等。例「あの記事の誤字直して」「見出しを整えて」)→ `minakata.fulltext_search` で対象記事を特定し、`reviser` に委譲するため `minakata.enqueue_task(type="edit", priority="interactive", session_id, payload={ article_id, instruction: <修正内容>, comment_id?: <コメント由来なら> })`。最新情報・新事実・出典追加が要ると判断したら **軽微修正ではなく調査依頼**として扱う。対象記事が特定できなければ素直にその旨を返す
       - **調査依頼**: 新規調査が必要 → **`report_progress({ agent_name: "dialogue", phase: "調査依頼受付", detail: <goal 概要> })`** を呼んでから `researcher` に委譲するため `minakata.enqueue_task(type="research", priority="urgent", payload={...})`
         enqueue_task の引数:
         - `session_id` (string, 必須): **payload ではなくトップレベルの `session_id` フィールドで渡す**。依頼元チャットセッション ID。researcher が完了時にここへ通知を返す
@@ -51,7 +52,8 @@ metadata:
 各コメントに対して以下の判断を行う:
 
 - **ナレッジ内から回答可能**: `minakata.fulltext_search` で関連記事を検索し、要約 + 引用元 `[[id:...]]` を含む返信本文を作成 → `minakata.reply_article_comment(id, body)` で記録する
-- **追加調査が必要**: 既存ナレッジで回答できない or 鮮度が問題の場合 → `minakata.enqueue_task(type="research_followup", priority="interactive", payload={article_id, comment: <コメント本文>, anchor: <anchor>})` でタスクを投入し、`minakata.reply_article_comment(id, "調査中です。完了後に追記します。")` で仮返信する
+- **軽微修正の依頼**: 既存記事への**外部情報を必要としない**修正依頼(誤字・表現・書式・リンク整理など)→ `minakata.enqueue_task(type="edit", priority="interactive", payload={article_id, instruction: <コメント本文>, comment_id: <このコメント ID>, anchor: <anchor>})` で `reviser` に委譲し、`minakata.reply_article_comment(id, "修正します。少々お待ちください。")` で仮返信する
+- **追加調査が必要**: 既存ナレッジで回答できない or 鮮度が問題 or 新規の外部情報が要る場合 → `minakata.enqueue_task(type="research_followup", priority="interactive", payload={article_id, comment: <コメント本文>, anchor: <anchor>})` でタスクを投入し、`minakata.reply_article_comment(id, "調査中です。完了後に追記します。")` で仮返信する
 - **雑談・単純な感謝など**: そのまま返信する
 
 コメント対応完了後に **`report_progress({ agent_name: "dialogue", phase: "コメント応答完了", detail: <処理件数> })`** を呼ぶ(失敗しても無視してよい)。

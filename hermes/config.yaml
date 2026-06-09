@@ -27,6 +27,14 @@ agent:
 mcp_servers:
   # Minakata MCP サーバー(Streamable HTTP, Bearer 認証)。
   # ${MCP_TOKEN} は hermes コンテナの environment 経由で展開される。
+  #
+  # Capability 分離(#208)の現状: このエントリは Hermes インスタンス全体で
+  # 単一で、全 subagent が同じ ${MCP_TOKEN} を共有する = MCP 側では未制限
+  # (全ツール許可)。Minakata 側には per-agent token(MCP_TOKEN_<AGENT>)で
+  # allowlist を効かせる受け口を実装済み(packages/mcp/src/tools.ts の
+  # CAPABILITIES)。これを実際に効かせるには subagent ごとに別トークンを
+  # 送る必要があり、OpenCode が per-agent の mcp_servers 設定をサポートする
+  # か、subagent 別エントリ + tool 制限が必要。対応を確認の上で段階導入する。
   minakata:
     url: "http://minakata:3000/mcp"
     headers:
