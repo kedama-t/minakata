@@ -1,13 +1,11 @@
-import { useRouteLoaderData } from 'react-router'
 import type { HeatmapDay, HeatmapHour } from '../components/maintenance-heatmap.tsx'
 import { MaintenanceHeatmap } from '../components/maintenance-heatmap.tsx'
 import { FreshnessBadge } from '../components/ui/freshness-badge.tsx'
 import { getAgentProfile, relativeTime } from '../lib/agent-profiles.ts'
 import { articleHref } from '../lib/article-link.ts'
 import { requireUser } from '../lib/auth.ts'
-import { dayAndHour, localHour } from '../lib/date.ts'
+import { dayAndHour, localHour, useTimezone } from '../lib/date.ts'
 import { getServices } from '../lib/services.ts'
-import type { loader as rootLoader } from '../root.tsx'
 import type { Route } from './+types/home.ts'
 
 const HEATMAP_DAYS = 14
@@ -105,8 +103,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     recentArticles,
   } = loaderData
 
-  const root = useRouteLoaderData<typeof rootLoader>('root')
-  const tz = root?.timezone ?? 'Asia/Tokyo'
+  const tz = useTimezone()
 
   const greeting = (() => {
     const h = localHour(tz)

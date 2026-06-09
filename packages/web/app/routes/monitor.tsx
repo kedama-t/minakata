@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react'
-import { useRevalidator, useRouteLoaderData, useSearchParams } from 'react-router'
+import { useRevalidator, useSearchParams } from 'react-router'
 import { Avatar } from '../components/ui/avatar'
 import {
   type AgentProfile,
@@ -10,9 +10,8 @@ import {
   relativeTime,
 } from '../lib/agent-profiles.ts'
 import { requireUser } from '../lib/auth.ts'
-import { formatDateTime } from '../lib/date.ts'
+import { formatDateTime, useTimezone } from '../lib/date.ts'
 import { getServices } from '../lib/services.ts'
-import type { loader as rootLoader } from '../root.tsx'
 import type { Route } from './+types/monitor.ts'
 
 const PAGE_SIZE = 100
@@ -311,8 +310,7 @@ function ActivityRow({
 
 export default function Monitor({ loaderData }: Route.ComponentProps) {
   const { timeline, latestActivityEntries } = loaderData
-  const root = useRouteLoaderData<typeof rootLoader>('root')
-  const tz = root?.timezone ?? 'Asia/Tokyo'
+  const tz = useTimezone()
   const revalidator = useRevalidator()
   const [searchParams] = useSearchParams()
   const activeAgent = searchParams.get('agent')

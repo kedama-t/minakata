@@ -2,6 +2,7 @@ import { Form } from 'react-router'
 import { InfoIcon } from '../components/icons.tsx'
 import { articleHref } from '../lib/article-link.ts'
 import { assertSameOrigin, requireAdmin } from '../lib/auth.ts'
+import { formatDateTime, useTimezone } from '../lib/date.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/archives.ts'
 
@@ -52,6 +53,7 @@ export async function action({ request }: Route.ActionArgs) {
 
 export default function Archives({ loaderData, actionData }: Route.ComponentProps) {
   const { proposals } = loaderData
+  const tz = useTimezone()
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-4">
       <h1 className="text-2xl font-bold">アーカイブ承認待ち</h1>
@@ -95,7 +97,9 @@ export default function Archives({ loaderData, actionData }: Route.ComponentProp
                     <span className="font-semibold truncate">{p.article_title}</span>
                   )}
                 </div>
-                <span className="text-xs text-base-content/60 shrink-0">{p.created_at}</span>
+                <span className="text-xs text-base-content/60 shrink-0">
+                  {formatDateTime(p.created_at, tz)}
+                </span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="badge badge-ghost badge-sm">提案者</span>

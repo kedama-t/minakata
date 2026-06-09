@@ -2,6 +2,7 @@ import { Form } from 'react-router'
 import { InfoIcon } from '../components/icons.tsx'
 import { articleHref } from '../lib/article-link.ts'
 import { assertSameOrigin, requireEditor } from '../lib/auth.ts'
+import { formatDateTime, useTimezone } from '../lib/date.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/insights.ts'
 
@@ -25,6 +26,7 @@ export async function action({ request }: Route.ActionArgs) {
 
 export default function Insights({ loaderData, actionData }: Route.ComponentProps) {
   const { insights, signals } = loaderData
+  const tz = useTimezone()
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-8">
       <section>
@@ -52,7 +54,7 @@ export default function Insights({ loaderData, actionData }: Route.ComponentProp
                 </button>
                 {actionData?.ok && <span className="text-success text-sm">保存しました</span>}
                 <span className="text-xs text-base-content/60 ml-auto">
-                  最終更新: {insights.updated_at}
+                  最終更新: {formatDateTime(insights.updated_at, tz)}
                   {insights.updated_by && <> / {insights.updated_by}</>}
                 </span>
               </div>

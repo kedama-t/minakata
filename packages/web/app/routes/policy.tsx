@@ -1,6 +1,7 @@
 import { Form } from 'react-router'
 import { InfoIcon } from '../components/icons.tsx'
 import { assertSameOrigin, requireAdmin } from '../lib/auth.ts'
+import { formatDateTime, useTimezone } from '../lib/date.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/policy.ts'
 
@@ -19,6 +20,7 @@ export async function action({ request }: Route.ActionArgs) {
 }
 
 export default function Policy({ loaderData, actionData }: Route.ComponentProps) {
+  const tz = useTimezone()
   return (
     <div className="max-w-3xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-3">リサーチ方針</h1>
@@ -45,7 +47,7 @@ export default function Policy({ loaderData, actionData }: Route.ComponentProps)
               </button>
               {actionData?.ok && <span className="text-success text-sm">保存しました</span>}
               <span className="text-xs text-base-content/60 ml-auto">
-                最終更新: {loaderData.policy.updated_at}
+                最終更新: {formatDateTime(loaderData.policy.updated_at, tz)}
               </span>
             </div>
           </div>

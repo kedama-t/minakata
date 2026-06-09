@@ -1,6 +1,7 @@
 import { diffLines } from 'diff'
 import { Form, redirect } from 'react-router'
 import { assertSameOrigin, requireEditor } from '../lib/auth.ts'
+import { formatDateTime, useTimezone } from '../lib/date.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/review.ts'
 
@@ -40,6 +41,7 @@ export async function action({ request, params }: Route.ActionArgs) {
 
 export default function ReviewPage({ loaderData, actionData }: Route.ComponentProps) {
   const { review, article_title, diff, comments } = loaderData
+  const tz = useTimezone()
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <header>
@@ -103,7 +105,7 @@ export default function ReviewPage({ loaderData, actionData }: Route.ComponentPr
           {comments.map((c) => (
             <li key={c.id} className="border-b pb-1">
               <span className="text-base-content/60 text-xs">
-                {c.author_id} - {c.created_at}
+                {c.author_id} - {formatDateTime(c.created_at, tz)}
               </span>
               <p>{c.body}</p>
             </li>
