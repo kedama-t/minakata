@@ -118,7 +118,7 @@ describe('ReviewService.proposeUpdate', () => {
     cleanup()
   })
 
-  test('reject で revise タスクが投入される', async () => {
+  test('reject で researcher が消化できる research_followup タスクが投入される', async () => {
     const { articles, tasks, reviews, reviewer, cleanup, db } = await setup()
     const a = await articles.create({
       title: 'T',
@@ -134,8 +134,17 @@ describe('ReviewService.proposeUpdate', () => {
     if (r.kind !== 'pending') throw new Error('expected pending')
     const { task_id } = await reviews.reject(r.review_id, reviewer.id, 'もっと出典を増やして')
     const task = tasks.get(task_id)
-    expect(task?.type).toBe('revise')
+    // researcher が poll する type で投入され、reviewer コメントが payload に届くこと
+    expect(task?.type).toBe('research_followup')
     expect(task?.parent_review_id).toBe(r.review_id)
+    expect(task?.payload.article_id).toBe(a.frontmatter.id)
+    expect(task?.payload.comment).toBe('もっと出典を増やして')
+    expect(task?.payload.original_review_id).toBe(r.review_id)
+    // researcher が実際に claim できることを確認(孤立 type だと claim できない)
+    const claimed = tasks.claim('researcher', {
+      types: ['research', 'daily_research', 'refresh', 'research_followup'],
+    })
+    expect(claimed.map((t) => t.id)).toContain(task_id)
     const after = articles.read(a.frontmatter.id)
     expect(after?.frontmatter.status).toBe('published')
     db.close()
