@@ -97,14 +97,22 @@ const components: Components = {
     </p>
   ),
   ul: ({ node: _node, children, ...rest }) => (
-    <ul {...rest} className="list-disc list-inside my-3 space-y-1">
+    <ul {...rest} className="list-disc list-outside my-3 pl-6 space-y-1">
       {children}
     </ul>
   ),
   ol: ({ node: _node, children, ...rest }) => (
-    <ol {...rest} className="list-decimal list-inside my-3 space-y-1">
+    <ol {...rest} className="list-decimal list-outside my-3 pl-6 space-y-1">
       {children}
     </ol>
+  ),
+  // loose list は li の中身が <p> になる。list-outside と合わせて p の縦マージンを
+  // 潰し、マーカー(番号 / 中黒)と本文が同じ行に揃うようにする(番号だけ別行に
+  // 取り残される崩れの修正)。
+  li: ({ node: _node, children, ...rest }) => (
+    <li {...rest} className="leading-relaxed [&>p]:my-0">
+      {children}
+    </li>
   ),
   blockquote: ({ node: _node, children, ...rest }) => (
     <blockquote
@@ -131,15 +139,17 @@ const components: Components = {
     )
   },
   pre: ({ node: _node, children }) => {
-    // フェンス付きコードブロックは children が単一の <code language-xxx> 要素
+    // pre 配下の code はすべてブロック。言語指定の有無に関わらず Shiki に回し、
+    // 言語なし(```のみ)のときに code がインラインコード扱いされてスタイルが
+    // 崩れるのを防ぐ(#217)。言語不明時は text として暗いテーマで描画する。
     if (isValidElement(children)) {
       const props = (children as React.ReactElement<{ className?: string; children?: unknown }>)
         .props
-      if (typeof props.className === 'string' && props.className.includes('language-')) {
-        const lang = props.className.match(/language-(\S+)/)?.[1] ?? 'text'
-        const code = String(props.children ?? '').replace(/\n$/, '')
-        return <HighlightedCode code={code} lang={lang} />
-      }
+      const lang =
+        (typeof props.className === 'string' && props.className.match(/language-(\S+)/)?.[1]) ||
+        'text'
+      const code = String(props.children ?? '').replace(/\n$/, '')
+      return <HighlightedCode code={code} lang={lang} />
     }
     return (
       <pre className="bg-neutral text-neutral-content p-4 rounded my-3 overflow-x-auto text-sm leading-relaxed">
