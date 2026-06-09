@@ -9,6 +9,21 @@ import { scrapeUrl } from './scraper.ts'
 const MCP_TOKEN = process.env.MCP_TOKEN ?? ''
 const SCRAPER_TOKEN = process.env.FIRECRAWL_API_KEY ?? ''
 
+/**
+ * `MCP_TOKEN_<AGENT>` 形式の env から per-agent Bearer Token マップを構築する(#208)。
+ * 例: `MCP_TOKEN_REVISER=xxx` → { xxx: "reviser" }。値が空の変数は無視する。
+ * これらのトークンで来たリクエストは該当 agent の capability allowlist に絞られる。
+ */
+function buildAgentTokens(): Record<string, string> {
+  const map: Record<string, string> = {}
+  for (const [key, value] of Object.entries(process.env)) {
+    if (!key.startsWith('MCP_TOKEN_') || !value) continue
+    const agent = key.slice('MCP_TOKEN_'.length).toLowerCase()
+    if (agent) map[value] = agent
+  }
+  return map
+}
+
 const scrapeBodySchema = z.object({
   url: z.string().url(),
   formats: z.array(z.string()).optional(),
@@ -78,6 +93,7 @@ export default createHonoServer({
     mountScraper(app)
     mountMcp(app, {
       token: MCP_TOKEN,
+      agentTokens: buildAgentTokens(),
       services: {
         articles: services.articles,
         search: services.search,

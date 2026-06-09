@@ -12,6 +12,7 @@ export const AgentNameSchema = z.enum([
   'taxonomy_builder',
   'feedback_analyst',
   'backup_agent',
+  'reviser',
   'hermes',
   'system',
 ])
@@ -37,7 +38,13 @@ export type FreshnessRank = z.infer<typeof FreshnessRankSchema>
 export const TaskPrioritySchema = z.enum(['urgent', 'interactive', 'scheduled', 'maintenance'])
 export type TaskPriority = z.infer<typeof TaskPrioritySchema>
 
-export const TaskTypeSchema = z.enum(['research', 'refresh', 'daily_research', 'research_followup'])
+export const TaskTypeSchema = z.enum([
+  'research',
+  'refresh',
+  'daily_research',
+  'research_followup',
+  'edit',
+])
 export type TaskType = z.infer<typeof TaskTypeSchema>
 
 export const TaskStatusSchema = z.enum(['queued', 'claimed', 'done', 'failed'])

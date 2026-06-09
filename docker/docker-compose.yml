@@ -18,6 +18,10 @@ services:
       - ../hermes/skills:/app/runtime-skills:ro
     environment:
       MCP_TOKEN: "${MCP_TOKEN}"
+      # per-agent token による Capability 分離(#208)。設定すると reviser
+      # トークンで来た MCP リクエストが reviser の allowlist に絞られる。
+      # 未設定なら全 subagent が MCP_TOKEN 共有(未制限)。詳細は .env.example。
+      MCP_TOKEN_REVISER: "${MCP_TOKEN_REVISER:-}"
       DATABASE_URL: "file:/app/data/minakata.db"
       ARTICLES_ROOT: "/app/data/articles"
       HF_HOME: "/app/.cache/huggingface"

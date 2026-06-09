@@ -1,4 +1,5 @@
 import {
+  type AgentName,
   AgentNameSchema,
   ArticleSourceKindSchema,
   ArticleStatusSchema,
@@ -22,6 +23,101 @@ const ok = (data: unknown) => ({
   content: [{ type: 'text' as const, text: JSON.stringify(data) }],
   structuredContent: data as Record<string, unknown>,
 })
+
+// ─── Capability 分離 (#208) ──────────────────────────────────────────────
+// subagent ごとに呼べる MCP ツールを限定する。tech-stack.md §8.1。
+// 読み取り専用ツールは injection リスクが低いため全 subagent 共通許可とし、
+// 書き込み・タスク・破壊的操作だけを agent ごとの allowlist で絞る。
+
+/** 全 subagent に常時許可する読み取り専用 + テレメトリツール */
+const ALWAYS_TOOLS: ReadonlySet<string> = new Set([
+  'minakata.read_article',
+  'minakata.list_articles',
+  'minakata.fulltext_search',
+  'minakata.by_tag',
+  'minakata.similar_articles',
+  'minakata.list_tags',
+  'minakata.list_topics',
+  'minakata.list_article_comments',
+  'minakata.list_archive_proposals',
+  'minakata.list_pending_reviews',
+  'minakata.list_skill_proposals',
+  'minakata.list_dlq',
+  'minakata.get_research_policy',
+  'minakata.get_task',
+  'minakata.get_feedback_signals',
+  'minakata.get_feedback_insights',
+  'minakata.report_progress',
+])
+
+/**
+ * subagent → 追加で許可する書き込み・タスク・破壊的ツールの集合。
+ * エントリがある agent は `ALWAYS_TOOLS` + 該当集合のみに制限される。
+ * エントリが無い agent / agent 未指定(レガシー単一 MCP_TOKEN)は全ツール許可(後方互換)。
+ * #208: dialogue / researcher / reviser を初回適用。残りの subagent は
+ * per-agent token 配線とあわせて段階的に絞り込む。
+ */
+const CAPABILITIES: Partial<Record<AgentName, ReadonlySet<string>>> = {
+  dialogue: new Set([
+    'minakata.poll_messages',
+    'minakata.claim_message',
+    'minakata.post_agent_response',
+    'minakata.update_session_title',
+    'minakata.poll_article_comments',
+    'minakata.reply_article_comment',
+    'minakata.enqueue_task',
+    'minakata.poll_tasks',
+    'minakata.complete_task',
+  ]),
+  researcher: new Set([
+    'minakata.create_article',
+    'minakata.update_article',
+    'minakata.enqueue_task',
+    'minakata.poll_tasks',
+    'minakata.complete_task',
+    'minakata.fail_task',
+  ]),
+  // reviser は既存本文だけで完結する軽微修正のみ。create_article / archive /
+  // skill / maintenance / feedback は不可。外部情報が要る場合は researcher へ
+  // enqueue_task で引き渡す。
+  reviser: new Set([
+    'minakata.update_article',
+    'minakata.reply_article_comment',
+    'minakata.resolve_article_comment',
+    'minakata.poll_article_comments',
+    'minakata.enqueue_task',
+    'minakata.poll_tasks',
+    'minakata.complete_task',
+    'minakata.fail_task',
+  ]),
+}
+
+/** agent が toolName を呼べるか。未登録 agent / agent 未指定は全許可(後方互換) */
+export function isToolAllowed(agent: string | undefined, toolName: string): boolean {
+  if (!agent) return true
+  const grants = CAPABILITIES[agent as AgentName]
+  if (!grants) return true
+  return ALWAYS_TOOLS.has(toolName) || grants.has(toolName)
+}
+
+/**
+ * `registerTool` を allowlist で gate する McpServer プロキシ。
+ * 許可外ツールの登録呼び出しは黙って捨て、その agent には公開されない。
+ */
+function gatedServer(server: McpServer, agent: string): McpServer {
+  return new Proxy(server, {
+    get(target, prop, receiver) {
+      if (prop === 'registerTool') {
+        return (name: string, ...rest: unknown[]): unknown => {
+          if (!isToolAllowed(agent, name)) return undefined
+          return (target.registerTool as (...a: unknown[]) => unknown)(name, ...rest)
+        }
+      }
+      const value = Reflect.get(target, prop, receiver)
+      return typeof value === 'function' ? value.bind(target) : value
+    },
+  })
+}
 
 export function registerArticleTools(
   server: McpServer,
@@ -883,15 +979,17 @@ export function registerAllTools(
   services: McpServices,
   ctx: CallContext = {},
 ): void {
-  registerArticleTools(server, services, ctx)
-  registerSearchTools(server, services)
-  registerMessageTools(server, services, ctx)
-  registerTaskTools(server, services, ctx)
-  registerMaintenanceTools(server, services, ctx)
-  registerReviewTools(server, services, ctx)
-  registerPolicyTools(server, services)
-  registerCommentTools(server, services)
-  registerSkillTools(server, services, ctx)
-  registerFeedbackTools(server, services, ctx)
-  registerTopicTools(server, services)
+  // agent 指定時は capability allowlist で登録を gate する(#208)
+  const s = ctx.agent ? gatedServer(server, ctx.agent) : server
+  registerArticleTools(s, services, ctx)
+  registerSearchTools(s, services)
+  registerMessageTools(s, services, ctx)
+  registerTaskTools(s, services, ctx)
+  registerMaintenanceTools(s, services, ctx)
+  registerReviewTools(s, services, ctx)
+  registerPolicyTools(s, services)
+  registerCommentTools(s, services)
+  registerSkillTools(s, services, ctx)
+  registerFeedbackTools(s, services, ctx)
+  registerTopicTools(s, services)
 }
