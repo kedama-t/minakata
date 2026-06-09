@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { FreshnessBadge } from '../components/ui/freshness-badge.tsx'
+import { articleHref } from '../lib/article-link.ts'
 import { requireUser } from '../lib/auth.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/articles.ts'
@@ -105,10 +106,7 @@ export default function Articles({ loaderData }: Route.ComponentProps) {
               key={a.id}
               className="bg-surface border border-border p-4 rounded-lg transition-colors hover:border-border-strong"
             >
-              <a
-                href={`/articles/${a.slug}`}
-                className="text-primary font-semibold hover:underline"
-              >
+              <a href={articleHref(a.slug)} className="text-primary font-semibold hover:underline">
                 {a.title}
               </a>
               <span className="ml-2">

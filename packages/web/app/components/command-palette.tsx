@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useFetcher, useNavigate } from 'react-router'
+import { articleHref } from '../lib/article-link.ts'
 
 type ActionItem = {
   kind: 'action'
@@ -112,7 +113,7 @@ export function CommandPalette() {
       id: h.id,
       label: h.title,
       hint: h.status,
-      href: `/articles/${h.slug}`,
+      href: articleHref(h.slug),
     }))
   }, [fetcher.data])
 

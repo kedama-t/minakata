@@ -3,6 +3,7 @@ import type { HeatmapDay, HeatmapHour } from '../components/maintenance-heatmap.
 import { MaintenanceHeatmap } from '../components/maintenance-heatmap.tsx'
 import { FreshnessBadge } from '../components/ui/freshness-badge.tsx'
 import { getAgentProfile, relativeTime } from '../lib/agent-profiles.ts'
+import { articleHref } from '../lib/article-link.ts'
 import { requireUser } from '../lib/auth.ts'
 import { dayAndHour, localHour } from '../lib/date.ts'
 import { getServices } from '../lib/services.ts'
@@ -238,7 +239,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 >
                   <div className="flex items-start gap-2 flex-wrap">
                     <a
-                      href={`/articles/${a.slug}`}
+                      href={articleHref(a.slug)}
                       className="text-sm text-primary font-medium hover:underline"
                     >
                       {a.title}

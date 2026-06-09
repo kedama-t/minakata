@@ -3,6 +3,7 @@ import BoringAvatar from 'boring-avatars'
 import { useState } from 'react'
 import { useRouteLoaderData } from 'react-router'
 import { getAgentProfile } from '../lib/agent-profiles.ts'
+import { articleHref } from '../lib/article-link.ts'
 import { requireEditor } from '../lib/auth.ts'
 import { formatDateTime } from '../lib/date.ts'
 import { getServices } from '../lib/services.ts'
@@ -207,7 +208,7 @@ function SourceBadge({
   if (article) {
     return (
       <a
-        href={`/articles/${article.slug}`}
+        href={articleHref(article.slug)}
         className="inline-flex items-center gap-1 text-primary hover:underline max-w-[20rem] truncate"
       >
         <span>📄</span>
@@ -330,7 +331,7 @@ export default function Tasks({ loaderData }: Route.ComponentProps) {
                     )}
                     {article && (
                       <a
-                        href={`/articles/${article.slug}`}
+                        href={articleHref(article.slug)}
                         className="ml-auto text-primary hover:underline"
                       >
                         記事を開く →

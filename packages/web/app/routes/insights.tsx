@@ -1,5 +1,6 @@
 import { Form } from 'react-router'
 import { InfoIcon } from '../components/icons.tsx'
+import { articleHref } from '../lib/article-link.ts'
 import { assertSameOrigin, requireEditor } from '../lib/auth.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/insights.ts'
@@ -78,7 +79,7 @@ export default function Insights({ loaderData, actionData }: Route.ComponentProp
             {signals.top_liked.map((a) => (
               <li key={a.id} className="flex items-center gap-2">
                 <span className="text-primary tabular-nums w-10">♥ {a.like_count}</span>
-                <a href={`/articles/${a.slug}`} className="text-primary hover:underline truncate">
+                <a href={articleHref(a.slug)} className="text-primary hover:underline truncate">
                   {a.title}
                 </a>
                 {a.comment_count > 0 && (

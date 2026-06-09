@@ -1,5 +1,6 @@
 import { Form } from 'react-router'
 import { InfoIcon } from '../components/icons.tsx'
+import { articleHref } from '../lib/article-link.ts'
 import { assertSameOrigin, requireAdmin } from '../lib/auth.ts'
 import { getServices } from '../lib/services.ts'
 import type { Route } from './+types/archives.ts'
@@ -85,7 +86,7 @@ export default function Archives({ loaderData, actionData }: Route.ComponentProp
                 <div className="flex items-center gap-2 min-w-0">
                   {p.article_slug ? (
                     <a
-                      href={`/articles/${p.article_slug}`}
+                      href={articleHref(p.article_slug)}
                       className="text-primary font-semibold hover:underline truncate"
                     >
                       {p.article_title}
