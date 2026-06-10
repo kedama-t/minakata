@@ -69,3 +69,50 @@ export function checkProvider(yaml: string, expected = 'opencode-go'): boolean {
   }
   return false
 }
+
+// --- SKILL.md frontmatter の per-skill model 編集 ---
+// synthesizer など metadata.hermes.config.model を持つスキルの model 行を
+// 書き換える。yaml 依存を足さず frontmatter 限定の行置換でコメントを壊さない。
+
+/** frontmatter（先頭 --- 〜 次の ---）の行範囲 [start, end) を返す。無ければ null。 */
+function findFrontmatter(lines: string[]): { start: number; end: number } | null {
+  if (lines[0]?.trim() !== '---') return null
+  for (let i = 1; i < lines.length; i++) {
+    if (lines[i]?.trim() === '---') return { start: 1, end: i }
+  }
+  return null
+}
+
+/**
+ * frontmatter 内の model 行を書き換える。インデントを保持する。
+ * model 行が見つからなければ throw（黙って追記しない）。
+ */
+export function patchSkillModel(md: string, model: string): string {
+  if (model.includes('"')) {
+    throw new Error('モデル名にダブルクォートは使用できません')
+  }
+  const lines = md.split('\n')
+  const fm = findFrontmatter(lines)
+  if (!fm) throw new Error('SKILL.md に frontmatter が見つかりません')
+
+  for (let i = fm.start; i < fm.end; i++) {
+    const m = lines[i]?.match(/^(\s+)model:\s*.*$/)
+    if (m) {
+      lines[i] = `${m[1]}model: "${model}"`
+      return lines.join('\n')
+    }
+  }
+  throw new Error('SKILL.md の frontmatter に model 行が見つかりません')
+}
+
+/** frontmatter 内の現在の model 値を返す。 */
+export function readSkillModel(md: string): string | null {
+  const lines = md.split('\n')
+  const fm = findFrontmatter(lines)
+  if (!fm) return null
+  for (let i = fm.start; i < fm.end; i++) {
+    const m = lines[i]?.match(/^\s+model:\s*"?([^"]*)"?\s*$/)
+    if (m) return (m[1] ?? '').trim()
+  }
+  return null
+}

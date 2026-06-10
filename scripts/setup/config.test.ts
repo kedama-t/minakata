@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'bun:test'
-import { checkProvider, patchModelDefault, readModelDefault } from './config'
+import {
+  checkProvider,
+  patchModelDefault,
+  patchSkillModel,
+  readModelDefault,
+  readSkillModel,
+} from './config'
 
 const YAML = `# 先頭コメント
 model:
@@ -51,5 +57,54 @@ describe('checkProvider', () => {
   test('provider 一致を検証する', () => {
     expect(checkProvider(YAML)).toBe(true)
     expect(checkProvider(YAML, 'other')).toBe(false)
+  })
+})
+
+const SKILL = `---
+name: synthesizer
+metadata:
+  hermes:
+    tags: [minakata, synthesis]
+    config:
+      model: "deepseek-v4-pro"
+---
+
+# synthesizer
+
+本文に model: が出てきても触らない。
+`
+
+describe('patchSkillModel', () => {
+  test('frontmatter 内の model を置換しインデントを保持する', () => {
+    const out = patchSkillModel(SKILL, 'glm-5')
+    expect(out).toContain('      model: "glm-5"')
+    expect(out).not.toContain('deepseek-v4-pro')
+  })
+
+  test('本文の model: は書き換えない', () => {
+    const out = patchSkillModel(SKILL, 'glm-5')
+    expect(out).toContain('本文に model: が出てきても触らない。')
+  })
+
+  test('frontmatter が無ければ throw する', () => {
+    expect(() => patchSkillModel('# no frontmatter\n', 'm')).toThrow()
+  })
+
+  test('frontmatter に model 行が無ければ throw する', () => {
+    expect(() => patchSkillModel('---\nname: x\n---\n', 'm')).toThrow()
+  })
+
+  test('ダブルクォートを含むモデル名は拒否する', () => {
+    expect(() => patchSkillModel(SKILL, 'a"b')).toThrow()
+  })
+})
+
+describe('readSkillModel', () => {
+  test('現在の model を返す', () => {
+    expect(readSkillModel(SKILL)).toBe('deepseek-v4-pro')
+  })
+
+  test('frontmatter が無ければ null', () => {
+    expect(readSkillModel('# x\n')).toBeNull()
   })
 })
