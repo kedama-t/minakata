@@ -39,6 +39,7 @@ export const en: Dict = {
     dashboard: 'Dashboard',
     search: 'Search',
     articles: 'Articles',
+    liked: 'Liked Articles',
     topics: 'Topics',
     chats: 'Chat History',
     monitor: 'Monitor',
@@ -119,6 +120,12 @@ export const en: Dict = {
     empty: 'No articles yet',
     collapse: 'Collapse',
     moreTags: (n: number) => `+${n} more`,
+  },
+
+  liked: {
+    title: 'Liked Articles',
+    count: (n: number) => `${n} liked article${n === 1 ? '' : 's'}`,
+    empty: 'No liked articles yet',
   },
 
   article: {

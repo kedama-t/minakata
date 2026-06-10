@@ -135,6 +135,18 @@ export class ArticleService {
     return rows.map(toListItem)
   }
 
+  /** 指定 ID の記事をまとめて取得(いいね一覧などで使う)。並び順は呼び出し側で制御する */
+  listByIds(ids: string[], opts: { excludeArchived?: boolean } = {}): ArticleListItem[] {
+    if (ids.length === 0) return []
+    const placeholders = ids.map(() => '?').join(',')
+    const archivedClause = opts.excludeArchived ? " AND status != 'archived'" : ''
+    const sql = `SELECT ${LIST_COLS} FROM articles WHERE id IN (${placeholders})${archivedClause}`
+    return this.db
+      .query<RawListRow, string[]>(sql)
+      .all(...ids)
+      .map(toListItem)
+  }
+
   /** タグごとの記事件数を集計して降順で返す(記事一覧のタグ絞り込み UI 用) */
   listTags(
     opts: { status?: ArticleStatus | undefined; excludeArchived?: boolean | undefined } = {},
