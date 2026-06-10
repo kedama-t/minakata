@@ -1,4 +1,5 @@
 import { Form } from 'react-router'
+import { detectLocale, getDict, useDict } from '../i18n/index.ts'
 import { assertSameOrigin, requireAdmin } from '../lib/auth.ts'
 import { formatDateTime, useTimezone } from '../lib/date.ts'
 import { getServices } from '../lib/services.ts'
@@ -25,18 +26,19 @@ export async function action({ request }: Route.ActionArgs) {
     services.skills.reject(id, admin.id)
     return { rejected: id }
   }
-  return { error: 'unknown intent' }
+  return { error: getDict(detectLocale(request)).common.unknownIntent }
 }
 
 export default function Skills({ loaderData, actionData }: Route.ComponentProps) {
+  const t = useDict()
   const tz = useTimezone()
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
-      <h1 className="text-2xl font-bold">スキル提案レビュー</h1>
+      <h1 className="text-2xl font-bold">{t.skills.title}</h1>
       {actionData?.approved && (
-        <p className="text-sm text-success">承認しました(書き込み先: {actionData.approved})</p>
+        <p className="text-sm text-success">{t.skills.approved(actionData.approved)}</p>
       )}
-      {actionData?.rejected && <p className="text-sm text-warning">却下しました</p>}
+      {actionData?.rejected && <p className="text-sm text-warning">{t.skills.rejected}</p>}
       <ul className="space-y-3">
         {loaderData.proposals.map((p) => (
           <li key={p.id} className="bg-surface p-4 rounded border">
@@ -61,7 +63,7 @@ export default function Skills({ loaderData, actionData }: Route.ComponentProps)
             </div>
             <p className="text-sm text-base-content/60 mt-1">{p.description}</p>
             <details className="mt-2">
-              <summary className="text-xs text-primary cursor-pointer">コードを表示</summary>
+              <summary className="text-xs text-primary cursor-pointer">{t.skills.showCode}</summary>
               <pre className="text-xs bg-canvas p-2 rounded mt-1 whitespace-pre-wrap">{p.code}</pre>
             </details>
             {p.status === 'proposed' && (
@@ -74,7 +76,7 @@ export default function Skills({ loaderData, actionData }: Route.ComponentProps)
                     value="approve"
                     className="btn btn-success btn-sm"
                   >
-                    承認して書き出し
+                    {t.skills.approveAndWrite}
                   </button>
                 </Form>
                 <Form method="post" className="inline">
@@ -85,7 +87,7 @@ export default function Skills({ loaderData, actionData }: Route.ComponentProps)
                     value="reject"
                     className="btn btn-neutral btn-sm"
                   >
-                    却下
+                    {t.archives.reject}
                   </button>
                 </Form>
               </div>
@@ -93,7 +95,7 @@ export default function Skills({ loaderData, actionData }: Route.ComponentProps)
           </li>
         ))}
         {loaderData.proposals.length === 0 && (
-          <p className="text-sm text-base-content/60">スキル提案はまだありません。</p>
+          <p className="text-sm text-base-content/60">{t.skills.empty}</p>
         )}
       </ul>
     </div>

@@ -1,5 +1,6 @@
 import type { ActivityLogRow } from '@minakata/core'
 import { useEffect, useState } from 'react'
+import { useDict } from '../i18n/index.ts'
 import { getAgentProfile } from '../lib/agent-profiles.ts'
 
 type ToastItem = {
@@ -13,6 +14,7 @@ type ToastItem = {
 
 /** エージェントの report_progress を SSE で受け取ってトースト表示するグローバルコンテナ */
 export function Toaster() {
+  const t = useDict()
   const [toasts, setToasts] = useState<ToastItem[]>([])
 
   useEffect(() => {
@@ -22,7 +24,7 @@ export function Toaster() {
       const data = JSON.parse(e.data) as { kind: string; row: ActivityLogRow }
       if (data.kind !== 'activity') return
       const row = data.row
-      const profile = getAgentProfile(row.agent_name ?? row.actor)
+      const profile = getAgentProfile(row.agent_name ?? row.actor, t)
       const toast: ToastItem = {
         id: row.id,
         avatar: profile.avatar ?? '',
@@ -42,7 +44,7 @@ export function Toaster() {
       es.removeEventListener('activity', handleActivity)
       es.close()
     }
-  }, [])
+  }, [t])
 
   if (toasts.length === 0) return null
 

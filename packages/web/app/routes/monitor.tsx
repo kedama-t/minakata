@@ -1,11 +1,13 @@
 import { useEffect, useMemo } from 'react'
 import { useRevalidator, useSearchParams } from 'react-router'
 import { Avatar } from '../components/ui/avatar'
+import { type Dict, useDict } from '../i18n/index.ts'
 import {
   type AgentProfile,
-  SYSTEM_PROFILE,
+  SYSTEM_KEY,
   describeTool,
   getAgentProfile,
+  getSystemProfile,
   isPhaseTerminal,
   relativeTime,
 } from '../lib/agent-profiles.ts'
@@ -39,9 +41,9 @@ export async function loader({ request }: Route.LoaderArgs) {
 
   const services = getServices()
   const auditRows =
-    !agent || agent === SYSTEM_PROFILE.key ? services.audit.list({ limit: PAGE_SIZE, since }) : []
+    !agent || agent === SYSTEM_KEY ? services.audit.list({ limit: PAGE_SIZE, since }) : []
   const activityRows =
-    agent === SYSTEM_PROFILE.key
+    agent === SYSTEM_KEY
       ? []
       : services.activity.list({ limit: PAGE_SIZE, since, ...(agent ? { actor: agent } : {}) })
   const latestActivityEntries = [...services.activity.latestByActor().entries()].map(
@@ -95,6 +97,7 @@ function buildAgentStats(
   latestActivityEntries: ReadonlyArray<
     readonly [string, { phase: string; detail: string | null; timestamp: string }]
   >,
+  t: Dict,
 ): AgentStat[] {
   const map = new Map<string, AgentStat>()
 
@@ -106,7 +109,7 @@ function buildAgentStats(
   for (const item of timeline) {
     if (item.kind === 'audit') {
       const e = item.data
-      const key = SYSTEM_PROFILE.key
+      const key = SYSTEM_KEY
       const existing = map.get(key)
       if (existing) {
         existing.count += 1
@@ -114,7 +117,7 @@ function buildAgentStats(
         existing.toolCounts.set(e.tool_name, (existing.toolCounts.get(e.tool_name) ?? 0) + 1)
       } else {
         map.set(key, {
-          profile: SYSTEM_PROFILE,
+          profile: getSystemProfile(t),
           count: 1,
           lastAt: item.timestamp,
           toolCounts: new Map([[e.tool_name, 1]]),
@@ -126,7 +129,7 @@ function buildAgentStats(
       const key = e.agent_name || e.actor
       if (!map.has(key)) {
         map.set(key, {
-          profile: e.agent_name ? getAgentProfile(e.agent_name) : getAgentProfile(e.actor),
+          profile: e.agent_name ? getAgentProfile(e.agent_name, t) : getAgentProfile(e.actor, t),
           count: 1,
           lastAt: item.timestamp,
           toolCounts: new Map(),
@@ -145,7 +148,7 @@ function buildAgentStats(
   for (const [actor, phase] of latestPhaseMap) {
     if (!map.has(actor)) {
       map.set(actor, {
-        profile: getAgentProfile(actor),
+        profile: getAgentProfile(actor, t),
         count: 0,
         lastAt: phase.at,
         toolCounts: new Map(),
@@ -158,9 +161,10 @@ function buildAgentStats(
 }
 
 function AgentCard({ stat, tz }: { stat: AgentStat; tz: string }) {
+  const t = useDict()
   const active = isAgentActive(stat)
   const favoriteTool = [...stat.toolCounts.entries()].sort((a, b) => b[1] - a[1])[0]
-  const favoriteAction = favoriteTool ? describeTool(favoriteTool[0]) : null
+  const favoriteAction = favoriteTool ? describeTool(favoriteTool[0], t) : null
   return (
     <a
       href={`/monitor?agent=${encodeURIComponent(stat.profile.key)}`}
@@ -174,11 +178,11 @@ function AgentCard({ stat, tz }: { stat: AgentStat; tz: string }) {
             {active ? (
               <span className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-success/15 text-success shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-                稼働中
+                {t.monitor.active}
               </span>
             ) : (
               <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-base-200 text-base-content/50 shrink-0">
-                待機
+                {t.monitor.idle}
               </span>
             )}
           </div>
@@ -188,14 +192,18 @@ function AgentCard({ stat, tz }: { stat: AgentStat; tz: string }) {
 
       <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-border text-xs">
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-base-content/40">最終活動</p>
+          <p className="text-[10px] uppercase tracking-wider text-base-content/40">
+            {t.monitor.lastActivity}
+          </p>
           <p className="font-medium tabular-nums mt-0.5">
-            {relativeTime(stat.lastAt, new Date(), tz)}
+            {relativeTime(stat.lastAt, t, new Date(), tz)}
           </p>
         </div>
         <div>
-          <p className="text-[10px] uppercase tracking-wider text-base-content/40">件数</p>
-          <p className="font-medium tabular-nums mt-0.5">{stat.count} 件</p>
+          <p className="text-[10px] uppercase tracking-wider text-base-content/40">
+            {t.monitor.eventCount}
+          </p>
+          <p className="font-medium tabular-nums mt-0.5">{t.common.count(stat.count)}</p>
         </div>
       </div>
 
@@ -227,8 +235,9 @@ function AuditRow({
   tz: string
 }) {
   const e = event.data
-  const profile = SYSTEM_PROFILE
-  const action = describeTool(e.tool_name)
+  const t = useDict()
+  const profile = getSystemProfile(t)
+  const action = describeTool(e.tool_name, t)
   const meta = e.metadata ? JSON.stringify(e.metadata, null, 2) : ''
   return (
     <li className="flex gap-3 group py-3 border-b border-border last:border-0">
@@ -245,12 +254,14 @@ function AuditRow({
             className="text-xs text-base-content/40 tabular-nums ml-auto"
             title={formatDateTime(e.timestamp, tz)}
           >
-            {relativeTime(e.timestamp, now, tz)}
+            {relativeTime(e.timestamp, t, now, tz)}
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2 mt-0.5 text-xs text-base-content/40">
           {e.target_article_id && (
-            <span className="font-mono">記事 …{e.target_article_id.slice(-8)}</span>
+            <span className="font-mono">
+              {t.monitor.articleRef} …{e.target_article_id.slice(-8)}
+            </span>
           )}
           <span className="font-mono">{e.tool_name}</span>
           {e.cost_usd > 0 && <span className="tabular-nums ml-auto">${e.cost_usd.toFixed(4)}</span>}
@@ -258,7 +269,7 @@ function AuditRow({
         {meta && (
           <details className="text-xs mt-1.5">
             <summary className="cursor-pointer text-base-content/40 hover:text-base-content/70 select-none">
-              詳細
+              {t.monitor.details}
             </summary>
             <pre className="mt-1.5 p-2 bg-base-200 border border-border rounded text-[11px] overflow-x-auto">
               {meta}
@@ -280,7 +291,8 @@ function ActivityRow({
   tz: string
 }) {
   const e = item.data
-  const profile = e.agent_name ? getAgentProfile(e.agent_name) : getAgentProfile(e.actor)
+  const t = useDict()
+  const profile = e.agent_name ? getAgentProfile(e.agent_name, t) : getAgentProfile(e.actor, t)
   return (
     <li className="flex gap-3 group py-3 border-b border-border last:border-0">
       <Avatar profile={profile} size="sm" />
@@ -294,13 +306,13 @@ function ActivityRow({
             className="text-xs text-base-content/40 tabular-nums ml-auto"
             title={formatDateTime(e.timestamp, tz)}
           >
-            {relativeTime(e.timestamp, now, tz)}
+            {relativeTime(e.timestamp, t, now, tz)}
           </span>
         </div>
         {e.detail && <p className="mt-0.5 text-xs text-base-content/50 truncate">{e.detail}</p>}
         {e.target_article_id && (
           <p className="mt-0.5 text-xs text-base-content/40 font-mono">
-            記事 …{e.target_article_id.slice(-8)}
+            {t.monitor.articleRef} …{e.target_article_id.slice(-8)}
           </p>
         )}
       </div>
@@ -309,6 +321,7 @@ function ActivityRow({
 }
 
 export default function Monitor({ loaderData }: Route.ComponentProps) {
+  const t = useDict()
   const { timeline, latestActivityEntries } = loaderData
   const tz = useTimezone()
   const revalidator = useRevalidator()
@@ -322,8 +335,8 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
   }, [revalidator])
 
   const stats = useMemo(
-    () => buildAgentStats(timeline, latestActivityEntries),
-    [timeline, latestActivityEntries],
+    () => buildAgentStats(timeline, latestActivityEntries, t),
+    [timeline, latestActivityEntries, t],
   )
   const now = useMemo(() => new Date(), [])
   const activeCount = stats.filter(isAgentActive).length
@@ -337,20 +350,20 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
               href="/monitor"
               className="inline-flex items-center gap-1 text-sm text-base-content/50 hover:text-base-content mb-2"
             >
-              ← 全エージェント
+              {t.monitor.backToAll}
             </a>
           )}
-          <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">エージェントの様子</h1>
+          <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">{t.monitor.title}</h1>
           <p className="text-sm text-base-content/50 mt-1 flex items-center gap-2 flex-wrap">
-            <span>直近 24 時間 · {timeline.length} 件</span>
+            <span>{t.monitor.summary(timeline.length)}</span>
             {activeCount > 0 && (
               <span className="inline-flex items-center gap-1 text-success">
                 <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
-                {activeCount} 名稼働中
+                {t.monitor.activeCount(activeCount)}
               </span>
             )}
             <span className="text-base-content/30">
-              {revalidator.state === 'idle' ? '自動更新中' : '更新中…'}
+              {revalidator.state === 'idle' ? t.monitor.autoRefreshing : t.monitor.refreshing}
             </span>
           </p>
         </div>
@@ -366,13 +379,11 @@ export default function Monitor({ loaderData }: Route.ComponentProps) {
 
       {/* タイムライン */}
       <section>
-        <h2 className="text-base font-semibold mb-3">タイムライン</h2>
+        <h2 className="text-base font-semibold mb-3">{t.monitor.timeline}</h2>
         {timeline.length === 0 ? (
           <div className="bg-surface border border-border rounded-xl p-10 text-center">
             <p className="text-3xl mb-3">😴</p>
-            <p className="text-sm text-base-content/50">
-              この期間にエージェントの活動はありませんでした
-            </p>
+            <p className="text-sm text-base-content/50">{t.monitor.timelineEmpty}</p>
           </div>
         ) : (
           <div className="bg-surface border border-border rounded-xl px-4">

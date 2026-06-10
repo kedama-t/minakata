@@ -98,6 +98,27 @@ packages/
 - Web 抽出(`web_extract`)は外部 Firecrawl ではなく Minakata 自前の `/v1/scrape`(`server/scraper.ts`、Readability + SSRF 対策)で処理する
 - アーキ依存: `sqlite-vec` のバイナリ互換性のため x86_64 推奨。ARM で開発する場合は動作検証が必要
 
+## WebUI の多言語対応(i18n)
+
+WebUI(`packages/web`)は辞書ベースの自前 i18n で日本語(`ja`)/英語(`en`)に対応する。**外部ライブラリ(i18next 等)は導入しない**(`docs/tech-stack.md` の依存最小化方針に整合)。エージェントの使用言語(記事本文・チャット応答・`activity` の phase 文字列)は対象外で、UI クロームのみを辞書化する。
+
+### 仕組み
+
+- 辞書本体: `packages/web/app/i18n/locales/<code>.ts`。**`ja.ts` が全言語の正**で、`export type Dict = typeof ja` を他言語が満たす(キーの欠落・過剰は `bun run typecheck` で落ちる)
+- レジストリ: `packages/web/app/i18n/index.ts` の `dictionaries`。言語スイッチャー・locale 解決・型チェックはすべてここから導出される
+- locale 解決: cookie(`minakata_locale`)→ `Accept-Language` → `ja` の順(`detectLocale`)。`root.tsx` の loader が解決して `<html lang>` とコンテキストに流す。切替は `/locale` への POST(`routes/locale.ts`、theme と同じ cookie パターン)
+- 取得方法:
+  - コンポーネント内 → `const t = useDict()`(現在 locale の辞書)
+  - loader / action 内(エラーメッセージ等)→ `getDict(detectLocale(request))`
+
+### UI 改修時のルール(厳守)
+
+1. **UI 文字列をハードコードしない**。新規・改修で文言を足すときは必ず `ja.ts` にキーを追加し、`t.xxx` で参照する
+2. **`ja.ts` にキーを足したら `en.ts` にも必ず足す**(忘れると typecheck で落ちる)。可変部分は関数で表現する(例: `count: (n: number) => ...`)
+3. キーは**画面・コンポーネント単位の名前空間**に置く(`home` / `article` / `tasks` / `common` …)。複数画面で共通の語は `common` に集約する
+4. エージェント人格名・役割は `agents.profiles`、監査ツール名の自然文は `tools.phrases` に置く。`agent-profiles.ts` は**見た目情報(絵文字・アイコン・色)のみ**を持ち、表示文言は辞書から引く
+5. **言語を追加するとき**は `locales/<code>.ts` を新規作成して `index.ts` の `dictionaries` に登録するだけ(他の改修は不要)。`langName` に自国語表記を入れるとスイッチャーに出る
+
 ## 作業フロー(Issue → ブランチ → PR)
 
 仕様不整合・バグ・機能改善はすべて GitHub Issue として登録し、Issue 単位でブランチ・PR を回す。手順は固定:

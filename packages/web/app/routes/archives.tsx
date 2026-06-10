@@ -1,5 +1,6 @@
 import { Form } from 'react-router'
 import { InfoIcon } from '../components/icons.tsx'
+import { detectLocale, getDict, useDict } from '../i18n/index.ts'
 import { articleHref } from '../lib/article-link.ts'
 import { assertSameOrigin, requireAdmin } from '../lib/auth.ts'
 import { formatDateTime, useTimezone } from '../lib/date.ts'
@@ -8,12 +9,13 @@ import type { Route } from './+types/archives.ts'
 
 export async function loader({ request }: Route.LoaderArgs) {
   requireAdmin(request)
+  const t = getDict(detectLocale(request))
   const services = getServices()
   const proposals = services.archives.list('proposed').map((p) => {
     const a = services.articles.read(p.article_id)
     return {
       ...p,
-      article_title: a?.frontmatter.title ?? '(削除済み)',
+      article_title: a?.frontmatter.title ?? t.common.deleted,
       article_slug: a?.frontmatter.slug ?? null,
     }
   })
@@ -23,11 +25,12 @@ export async function loader({ request }: Route.LoaderArgs) {
 export async function action({ request }: Route.ActionArgs) {
   assertSameOrigin(request)
   const admin = requireAdmin(request)
+  const t = getDict(detectLocale(request))
   const services = getServices()
   const form = await request.formData()
   const intent = String(form.get('intent') ?? '')
   const proposalId = String(form.get('proposal_id') ?? '')
-  if (!proposalId) return { error: 'proposal_id が無い' }
+  if (!proposalId) return { error: t.archives.errorProposalIdRequired }
   if (intent === 'approve') {
     await services.archives.approve(proposalId, admin.id)
     services.audit.log({
@@ -39,7 +42,7 @@ export async function action({ request }: Route.ActionArgs) {
   }
   if (intent === 'reject') {
     const reason = String(form.get('reason') ?? '').trim()
-    if (!reason) return { error: '却下理由が必要' }
+    if (!reason) return { error: t.archives.errorReasonRequired }
     await services.archives.reject(proposalId, admin.id, reason)
     services.audit.log({
       actor: `user:${admin.id}`,
@@ -48,25 +51,24 @@ export async function action({ request }: Route.ActionArgs) {
     })
     return { ok: 'rejected' }
   }
-  return { error: 'unknown intent' }
+  return { error: t.common.unknownIntent }
 }
 
 export default function Archives({ loaderData, actionData }: Route.ComponentProps) {
+  const t = useDict()
   const { proposals } = loaderData
   const tz = useTimezone()
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-4">
-      <h1 className="text-2xl font-bold">アーカイブ承認待ち</h1>
+      <h1 className="text-2xl font-bold">{t.archives.title}</h1>
       <div role="alert" className="alert alert-info alert-soft">
         <InfoIcon />
-        <span className="text-sm">
-          記事のアーカイブにはadminの承認が必要です。エージェントから提案されたアーカイブがここに並びます。内容を確認して、承認するか、理由を添えて却下(差し戻し)してください。
-        </span>
+        <span className="text-sm">{t.archives.description}</span>
       </div>
       {actionData?.ok && (
         <div role="alert" className="alert alert-success alert-soft">
           <span className="text-sm">
-            {actionData.ok === 'approved' ? '承認しました' : '却下しました'}
+            {actionData.ok === 'approved' ? t.archives.approved : t.archives.rejected}
           </span>
         </div>
       )}
@@ -77,7 +79,7 @@ export default function Archives({ loaderData, actionData }: Route.ComponentProp
       )}
       {proposals.length === 0 && (
         <div role="alert" className="alert alert-soft">
-          <span className="text-sm">承認待ちのアーカイブ提案はありません。</span>
+          <span className="text-sm">{t.archives.empty}</span>
         </div>
       )}
       <ul className="space-y-3">
@@ -102,7 +104,7 @@ export default function Archives({ loaderData, actionData }: Route.ComponentProp
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="badge badge-ghost badge-sm">提案者</span>
+                <span className="badge badge-ghost badge-sm">{t.archives.proposedBy}</span>
                 <span className="text-xs text-base-content/60">{p.proposed_by}</span>
               </div>
               {p.reason && (
@@ -117,7 +119,7 @@ export default function Archives({ loaderData, actionData }: Route.ComponentProp
                     value="approve"
                     className="btn btn-error btn-sm"
                   >
-                    アーカイブを承認
+                    {t.archives.approveArchive}
                   </button>
                 </Form>
                 <Form method="post" className="flex gap-2 flex-1">
@@ -126,7 +128,7 @@ export default function Archives({ loaderData, actionData }: Route.ComponentProp
                     name="reason"
                     required
                     className="input input-sm flex-1"
-                    placeholder="却下理由(差し戻し時必須)"
+                    placeholder={t.archives.rejectPlaceholder}
                   />
                   <button
                     type="submit"
@@ -134,7 +136,7 @@ export default function Archives({ loaderData, actionData }: Route.ComponentProp
                     value="reject"
                     className="btn btn-neutral btn-sm"
                   >
-                    却下
+                    {t.archives.reject}
                   </button>
                 </Form>
               </div>

@@ -3,6 +3,7 @@ import ReactMarkdown, { type Components } from 'react-markdown'
 import { redirect, useFetcher, useRevalidator } from 'react-router'
 import remarkGfm from 'remark-gfm'
 import { Avatar, UserAvatar } from '../components/ui/avatar.tsx'
+import { detectLocale, getDict, useDict } from '../i18n/index.ts'
 import { getAgentProfile } from '../lib/agent-profiles.ts'
 import { assertSameOrigin, requireEditor } from '../lib/auth.ts'
 import { HighlightedCode } from '../lib/markdown.tsx'
@@ -38,7 +39,7 @@ export async function action({ request, params }: Route.ActionArgs) {
   const user = requireEditor(request)
   const form = await request.formData()
   const content = String(form.get('content') ?? '').trim()
-  if (!content) return { error: '空のメッセージは送信できません' }
+  if (!content) return { error: getDict(detectLocale(request)).chat.errorEmpty }
   const services = getServices()
   if (params.sessionId === 'new') {
     const created = services.messages.createSession({ user_id: user.id })
@@ -189,6 +190,7 @@ function ChatMarkdown({ source }: { source: string }) {
 }
 
 export default function Chat({ loaderData }: Route.ComponentProps) {
+  const t = useDict()
   const { session, messages: initialMessages, userEmail } = loaderData
   const sessionId = session?.id ?? null
   const fetcher = useFetcher<typeof action>()
@@ -301,7 +303,7 @@ export default function Chat({ loaderData }: Route.ComponentProps) {
     }
   }
 
-  const mimyProfile = getAgentProfile('dialogue')
+  const mimyProfile = getAgentProfile('dialogue', t)
 
   return (
     <div className="max-w-3xl mx-auto p-4 flex flex-col h-[calc(100vh-80px)]">
@@ -310,12 +312,14 @@ export default function Chat({ loaderData }: Route.ComponentProps) {
         <Avatar profile={mimyProfile} size="sm" />
         <div className="min-w-0 flex-1">
           <div className="font-semibold text-sm truncate">
-            {session?.title || 'ミミーが承ります‼️'}
+            {session?.title || t.chat.defaultTitle}
           </div>
-          {session?.title && <div className="text-xs text-base-content/40">ミミーが承ります‼️</div>}
+          {session?.title && (
+            <div className="text-xs text-base-content/40">{t.chat.defaultTitle}</div>
+          )}
         </div>
         <span className="text-xs text-base-content/40 shrink-0">
-          {session ? `#${session.id.slice(-8)}` : '新規'}
+          {session ? `#${session.id.slice(-8)}` : t.chat.newSession}
         </span>
       </div>
 
@@ -324,7 +328,7 @@ export default function Chat({ loaderData }: Route.ComponentProps) {
         {merged.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full gap-3 text-base-content/50">
             <Avatar profile={mimyProfile} size="lg" />
-            <p className="text-sm text-center">こんにちは！何でも聞いてください。</p>
+            <p className="text-sm text-center">{t.chat.welcome}</p>
           </div>
         )}
         {merged.map((m) =>
@@ -333,7 +337,9 @@ export default function Chat({ loaderData }: Route.ComponentProps) {
               <div className="chat-image">
                 <Avatar profile={mimyProfile} size="sm" />
               </div>
-              <div className="chat-header text-xs text-base-content/50 mb-0.5">ミミー</div>
+              <div className="chat-header text-xs text-base-content/50 mb-0.5">
+                {mimyProfile.displayName}
+              </div>
               <div className="chat-bubble chat-bubble-neutral max-w-[85%] text-sm">
                 {m.is_final ? (
                   <ChatMarkdown source={m.content} />
@@ -373,7 +379,7 @@ export default function Chat({ loaderData }: Route.ComponentProps) {
           required
           rows={1}
           className="textarea textarea-bordered flex-1 resize-none text-sm leading-relaxed"
-          placeholder="依頼や質問を入力…（Shift+Enter で送信、Enter で改行）"
+          placeholder={t.chat.inputPlaceholder}
           disabled={fetcher.state !== 'idle'}
           onKeyDown={handleKeyDown}
           onInput={(e) => {
@@ -390,7 +396,7 @@ export default function Chat({ loaderData }: Route.ComponentProps) {
           {fetcher.state !== 'idle' ? (
             <span className="loading loading-spinner loading-xs" />
           ) : (
-            '送信'
+            t.chat.send
           )}
         </button>
       </fetcher.Form>

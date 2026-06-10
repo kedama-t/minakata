@@ -1,4 +1,5 @@
 import { Form } from 'react-router'
+import { useDict } from '../i18n/index.ts'
 import { articleHref } from '../lib/article-link.ts'
 import { requireUser } from '../lib/auth.ts'
 import { getServices } from '../lib/services.ts'
@@ -18,26 +19,27 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export default function Search({ loaderData }: Route.ComponentProps) {
+  const t = useDict()
   const { q, tag, hits, excludeArchived } = loaderData
   return (
     <div className="max-w-4xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-4">検索</h1>
+      <h1 className="text-2xl font-bold mb-4">{t.search.title}</h1>
       <Form method="get" className="flex gap-2 mb-4">
         <input
           name="q"
           defaultValue={q}
           className="flex-1 px-3 py-2 border rounded"
-          placeholder="キーワードを入力"
+          placeholder={t.search.placeholder}
         />
         <label className="flex items-center gap-1 text-sm">
           <input type="checkbox" name="archived" value="true" defaultChecked={!excludeArchived} />
-          アーカイブも含める
+          {t.search.includeArchived}
         </label>
         <button type="submit" className="btn btn-primary btn-sm">
-          検索
+          {t.search.submit}
         </button>
       </Form>
-      {tag && <p className="text-sm text-base-content/60 mb-2">タグ「{tag}」</p>}
+      {tag && <p className="text-sm text-base-content/60 mb-2">{t.search.tagLabel(tag)}</p>}
       <ul className="space-y-2">
         {hits.map((h) => (
           <li key={h.id} className="bg-surface p-3 rounded border">
@@ -46,7 +48,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
             </a>
             {h.status === 'pending_approval' && (
               <span className="ml-2 text-xs px-2 py-0.5 rounded bg-warning/20 text-warning font-medium">
-                レビュー中
+                {t.common.inReview}
               </span>
             )}
             {h.snippet.length > 0 && (
@@ -66,7 +68,7 @@ export default function Search({ loaderData }: Route.ComponentProps) {
             )}
           </li>
         ))}
-        {hits.length === 0 && <p className="text-sm text-base-content/60">結果がありません</p>}
+        {hits.length === 0 && <p className="text-sm text-base-content/60">{t.search.empty}</p>}
       </ul>
     </div>
   )
