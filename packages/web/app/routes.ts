@@ -7,6 +7,7 @@ export default [
   route('setup', 'routes/setup.tsx'),
   route('invitations/:token', 'routes/invitation.tsx'),
   route('articles', 'routes/articles.tsx'),
+  route('liked', 'routes/liked.tsx'),
   route('articles/*', 'routes/article.tsx'),
   route('search', 'routes/search.tsx'),
   route('topics', 'routes/topics.tsx'),

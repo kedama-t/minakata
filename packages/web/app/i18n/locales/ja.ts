@@ -40,6 +40,7 @@ export const ja = {
     dashboard: 'ダッシュボード',
     search: '検索',
     articles: '記事一覧',
+    liked: 'いいねした記事',
     topics: '購読トピック',
     chats: 'チャット履歴',
     monitor: 'モニター',
@@ -119,6 +120,12 @@ export const ja = {
     empty: 'まだ記事がありません',
     collapse: '閉じる',
     moreTags: (n: number) => `+${n}件`,
+  },
+
+  liked: {
+    title: 'いいねした記事',
+    count: (n: number) => `いいねした記事 ${n} 件`,
+    empty: 'まだいいねした記事はありません',
   },
 
   article: {

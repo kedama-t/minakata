@@ -84,6 +84,16 @@ export class FeedbackService {
     return { liked: true, count: this.countByArticle(article_id) }
   }
 
+  /** ユーザーがいいねした記事 ID を、いいねした順(新しい順)で返す */
+  likedArticleIds(user_id: string): string[] {
+    return this.db
+      .query<{ article_id: string }, [string]>(
+        'SELECT article_id FROM article_likes WHERE user_id = ? ORDER BY created_at DESC',
+      )
+      .all(user_id)
+      .map((r) => r.article_id)
+  }
+
   countByArticle(article_id: string): number {
     return (
       this.db
