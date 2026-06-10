@@ -1,4 +1,5 @@
 import { Avatar } from '../components/ui/avatar.tsx'
+import { useDict } from '../i18n/index.ts'
 import { getAgentProfile } from '../lib/agent-profiles.ts'
 import { requireEditor } from '../lib/auth.ts'
 import { formatDateTime, useTimezone } from '../lib/date.ts'
@@ -29,17 +30,18 @@ function previewOf(content: string | null): string {
 }
 
 export default function Chats({ loaderData }: Route.ComponentProps) {
+  const t = useDict()
   const { sessions, nextCursor } = loaderData
   const tz = useTimezone()
-  const mimyProfile = getAgentProfile('dialogue')
+  const mimyProfile = getAgentProfile('dialogue', t)
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="flex items-center gap-3 mb-5">
         <Avatar profile={mimyProfile} size="sm" />
-        <h1 className="text-2xl font-bold">チャット履歴</h1>
+        <h1 className="text-2xl font-bold">{t.chats.title}</h1>
         <div className="ml-auto">
           <a className="btn btn-primary btn-sm" href="/chat/new">
-            + 新規チャット
+            {t.chats.newChat}
           </a>
         </div>
       </div>
@@ -57,16 +59,20 @@ export default function Chats({ loaderData }: Route.ComponentProps) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1 mb-0.5">
                   <span className="text-sm font-medium text-base-content/80 truncate flex-1">
-                    {s.title || <span className="text-base-content/40 italic">タイトルなし</span>}
+                    {s.title || (
+                      <span className="text-base-content/40 italic">{t.chats.untitled}</span>
+                    )}
                   </span>
                   <span className="text-xs text-base-content/40 shrink-0">
                     {formatDateTime(s.updated_at, tz)}
                   </span>
                 </div>
                 <p className="text-xs text-base-content/50 truncate">
-                  {s.last_message_role === 'user' && <span className="mr-1">あなた:</span>}
-                  {s.last_message_role === 'agent' && <span className="mr-1">ミミー:</span>}
-                  {previewOf(s.last_message) || <span className="italic">メッセージなし</span>}
+                  {s.last_message_role === 'user' && <span className="mr-1">{t.chats.you}</span>}
+                  {s.last_message_role === 'agent' && (
+                    <span className="mr-1">{mimyProfile.displayName}:</span>
+                  )}
+                  {previewOf(s.last_message) || <span className="italic">{t.chats.noMessage}</span>}
                 </p>
               </div>
             </a>
@@ -77,7 +83,7 @@ export default function Chats({ loaderData }: Route.ComponentProps) {
             <div className="opacity-50">
               <Avatar profile={mimyProfile} size="lg" />
             </div>
-            <p className="text-sm">まだチャット履歴がありません</p>
+            <p className="text-sm">{t.chats.empty}</p>
           </li>
         )}
       </ul>
@@ -88,7 +94,7 @@ export default function Chats({ loaderData }: Route.ComponentProps) {
             href={`/chats?before=${encodeURIComponent(nextCursor)}`}
             className="btn btn-ghost btn-sm"
           >
-            さらに読み込む
+            {t.common.loadMore}
           </a>
         </div>
       )}

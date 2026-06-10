@@ -1,5 +1,7 @@
 /** 日×時間帯(0-23h)のメンテナンスヒートマップ */
 
+import { useDict } from '../i18n/index.ts'
+
 export interface HeatmapDay {
   day: string
   hours: HeatmapHour[]
@@ -27,8 +29,9 @@ export function MaintenanceHeatmap({
   days: HeatmapDay[]
   timezone: string
 }) {
+  const t = useDict()
   if (days.length === 0) {
-    return <p className="text-sm text-base-content/50 py-2">まだ記録がありません</p>
+    return <p className="text-sm text-base-content/50 py-2">{t.heatmap.empty}</p>
   }
 
   const hours = Array.from({ length: 24 }, (_, i) => i)
@@ -55,10 +58,11 @@ export function MaintenanceHeatmap({
               </div>
               {hours.map((h) => {
                 const cell = d.hours[h] ?? { hour: h, total: 0, created: 0, updated: 0 }
+                const hourLabel = String(h).padStart(2, '0')
                 const tip =
                   cell.total === 0
-                    ? `${d.day} ${String(h).padStart(2, '0')}時 — 更新なし`
-                    : `${d.day} ${String(h).padStart(2, '0')}時 — 新規 ${cell.created} 件 / 更新 ${cell.updated} 件`
+                    ? t.heatmap.tipIdle(d.day, hourLabel)
+                    : t.heatmap.tipBusy(d.day, hourLabel, cell.created, cell.updated)
                 return (
                   <div
                     key={h}
@@ -73,11 +77,11 @@ export function MaintenanceHeatmap({
 
         {/* 凡例 */}
         <div className="flex items-center gap-2 mt-3">
-          <span className="text-[10px] text-base-content/40">少</span>
+          <span className="text-[10px] text-base-content/40">{t.heatmap.legendLow}</span>
           {[0, 1, 3, 5, 7].map((v) => (
             <div key={v} className={`w-4 h-4 rounded-[2px] ${cellColor(v)}`} />
           ))}
-          <span className="text-[10px] text-base-content/40">多</span>
+          <span className="text-[10px] text-base-content/40">{t.heatmap.legendHigh}</span>
           <span className="text-[10px] text-base-content/30 ml-1">({timezone})</span>
         </div>
       </div>

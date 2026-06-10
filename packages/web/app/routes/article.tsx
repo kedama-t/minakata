@@ -1,6 +1,7 @@
 import { Form } from 'react-router'
 import { Avatar, UserAvatar } from '../components/ui/avatar.tsx'
 import { FreshnessBadge } from '../components/ui/freshness-badge.tsx'
+import { detectLocale, getDict, useDict } from '../i18n/index.ts'
 import { getAgentProfile } from '../lib/agent-profiles.ts'
 import { articleHref, resolveIdRefs } from '../lib/article-link.ts'
 import { assertSameOrigin, requireEditor, requireUser } from '../lib/auth.ts'
@@ -58,6 +59,7 @@ export async function action({ request, params }: Route.ActionArgs) {
   if (!slug) throw new Response('Bad Request', { status: 400 })
   const article = services.articles.read(slug)
   if (!article) throw new Response('Not Found', { status: 404 })
+  const t = getDict(detectLocale(request))
   const form = await request.formData()
   const intent = String(form.get('intent') ?? '')
   if (intent === 'toggle_like') {
@@ -69,7 +71,7 @@ export async function action({ request, params }: Route.ActionArgs) {
   if (intent === 'add_comment') {
     const body = String(form.get('body') ?? '').trim()
     const anchor = String(form.get('anchor') ?? '').trim() || null
-    if (!body) return { error: 'コメント本文が空' }
+    if (!body) return { error: t.article.errorEmptyComment }
     services.comments.add({
       article_id: article.frontmatter.id,
       author_id: user.id,
@@ -122,10 +124,11 @@ export async function action({ request, params }: Route.ActionArgs) {
     })
     return { ok: true }
   }
-  return { error: 'unknown intent' }
+  return { error: t.common.unknownIntent }
 }
 
 export default function ArticlePage({ loaderData, actionData }: Route.ComponentProps) {
+  const t = useDict()
   const { article, body, comments, authorNames, related, role, likeCount, liked, archivePending } =
     loaderData
   const canEdit = role !== 'viewer'
@@ -133,35 +136,37 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
   // action 後は最新のいいね状態を反映する
   const likeState = actionData?.like ?? { liked, count: likeCount }
   // コメント返信は dialogue(ミミー)が担当する
-  const agentProfile = getAgentProfile('dialogue')
+  const agentProfile = getAgentProfile('dialogue', t)
   const tz = useTimezone()
   return (
     <article className={`max-w-3xl mx-auto p-6 ${isArchived ? 'opacity-75' : ''}`}>
       {isArchived && (
         <div className="mb-4 flex items-center gap-2 rounded border border-base-300 bg-base-200 px-3 py-2 text-sm text-base-content/70">
           <span>📦</span>
-          <span>この記事はアーカイブされています。最新性は保証されません。</span>
+          <span>{t.article.archivedNotice}</span>
         </div>
       )}
       <h1 className="text-3xl font-bold mb-1">{article.frontmatter.title}</h1>
       <div className="text-xs text-base-content/60 mb-6 flex items-center gap-2 flex-wrap">
-        <span>最終更新: {formatDateTime(article.frontmatter.updated_at, tz)}</span>
+        <span>
+          {t.common.lastUpdated}: {formatDateTime(article.frontmatter.updated_at, tz)}
+        </span>
         <FreshnessBadge rank={article.frontmatter.freshness_rank} />
         {isArchived && (
           <span className="rounded-full bg-base-300 px-2 py-0.5 text-base-content/70">
-            📦 アーカイブ済み
+            {t.article.archivedBadge}
           </span>
         )}
         {!isArchived && archivePending && (
           <span className="rounded-full bg-warning/15 px-2 py-0.5 text-warning">
-            アーカイブ承認待ち
+            {t.article.archivePendingBadge}
           </span>
         )}
         {canEdit && isArchived && (
           <Form method="post" className="inline">
             <input type="hidden" name="intent" value="unarchive" />
             <button type="submit" className="text-xs bg-secondary text-white px-2 py-1 rounded">
-              アーカイブ解除
+              {t.article.unarchive}
             </button>
           </Form>
         )}
@@ -171,17 +176,15 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
             <button
               type="submit"
               className="text-xs border border-base-300 px-2 py-1 rounded hover:border-warning hover:text-warning"
-              title="承認後にアーカイブされます(admin の承認が必要)"
+              title={t.article.archiveHint}
             >
-              アーカイブ化
+              {t.article.archive}
             </button>
           </Form>
         )}
       </div>
       {actionData?.archiveProposed && (
-        <p className="mb-4 text-sm text-success">
-          アーカイブを申請しました。admin の承認後にアーカイブされます。
-        </p>
+        <p className="mb-4 text-sm text-success">{t.article.archiveProposed}</p>
       )}
       {article.frontmatter.summary && (
         <div className="bg-base-300 p-3 rounded mb-6 text-sm">{article.frontmatter.summary}</div>
@@ -197,10 +200,10 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
                 ? 'bg-primary/10 border-primary text-primary'
                 : 'border-base-300 text-base-content/70 hover:border-primary/50'
             }`}
-            title="この記事が役に立ったらいいねを送ろう"
+            title={t.article.likeHint}
           >
             <span>{likeState.liked ? '♥' : '♡'}</span>
-            <span>いいね</span>
+            <span>{t.article.like}</span>
             <span className="font-medium">{likeState.count}</span>
           </button>
         </Form>
@@ -208,7 +211,7 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
       <ArticleMarkdown source={body} />
       {article.frontmatter.sources.length > 0 && (
         <section className="mt-8 border-t pt-4">
-          <h2 className="text-lg font-bold mb-2">出典</h2>
+          <h2 className="text-lg font-bold mb-2">{t.article.sources}</h2>
           <ul className="space-y-1 text-sm">
             {article.frontmatter.sources.map((s) => (
               <li key={s.url}>
@@ -216,7 +219,7 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
                   {s.url}
                 </a>
                 <span className="text-base-content/60 ml-2">
-                  取得: {formatDateTime(s.fetched_at, tz)}
+                  {t.article.fetchedAt}: {formatDateTime(s.fetched_at, tz)}
                 </span>
               </li>
             ))}
@@ -226,7 +229,7 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
 
       {related.length > 0 && (
         <section className="mt-8 border-t pt-4">
-          <h2 className="text-lg font-bold mb-2">関連記事</h2>
+          <h2 className="text-lg font-bold mb-2">{t.article.related}</h2>
           <ul className="space-y-1 text-sm">
             {related.map((r) => (
               <li key={r.id}>
@@ -234,7 +237,9 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
                   {r.title}
                 </a>
                 {r.status === 'archived' && (
-                  <span className="ml-2 text-xs text-base-content/60">(archived)</span>
+                  <span className="ml-2 text-xs text-base-content/60">
+                    {t.article.relatedArchived}
+                  </span>
                 )}
               </li>
             ))}
@@ -243,7 +248,7 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
       )}
 
       <section className="mt-8 border-t pt-4">
-        <h2 className="text-lg font-bold mb-2">コメント</h2>
+        <h2 className="text-lg font-bold mb-2">{t.article.comments}</h2>
         <ul className="space-y-4">
           {comments.map((c) => {
             const authorName = authorNames[c.author_id] ?? c.author_id
@@ -286,7 +291,7 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
                     <input type="hidden" name="intent" value="resolve" />
                     <input type="hidden" name="comment_id" value={c.id} />
                     <button type="submit" className="text-xs text-primary hover:underline mt-2">
-                      解決済みにする
+                      {t.article.resolveComment}
                     </button>
                   </Form>
                 )}
@@ -294,7 +299,7 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
             )
           })}
           {comments.length === 0 && (
-            <p className="text-xs text-base-content/60">コメントはまだありません。</p>
+            <p className="text-xs text-base-content/60">{t.article.commentEmpty}</p>
           )}
         </ul>
         {canEdit && (
@@ -303,23 +308,23 @@ export default function ArticlePage({ loaderData, actionData }: Route.ComponentP
             <input
               name="anchor"
               className="w-full px-2 py-1 border rounded text-xs"
-              placeholder="セクション/行アンカー(任意)"
+              placeholder={t.article.anchorPlaceholder}
             />
             <textarea
               name="body"
               required
               rows={3}
               className="w-full px-3 py-2 border rounded text-sm"
-              placeholder="この部分のセキュリティ的な懸念について調べてほしい..."
+              placeholder={t.article.commentPlaceholder}
             />
             <label className="flex items-center gap-1 text-xs text-base-content/60">
               <input type="checkbox" name="request_research" />
-              追加調査タスクとしてキューに投入する
+              {t.article.requestResearch}
             </label>
             {actionData?.error && <p className="text-error text-xs">{actionData.error}</p>}
-            {actionData?.ok && <p className="text-success text-xs">登録しました</p>}
+            {actionData?.ok && <p className="text-success text-xs">{t.article.commentPosted}</p>}
             <button type="submit" className="btn btn-primary btn-sm">
-              コメントを追加
+              {t.article.addComment}
             </button>
           </Form>
         )}

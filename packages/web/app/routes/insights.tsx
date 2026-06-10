@@ -1,5 +1,6 @@
 import { Form } from 'react-router'
 import { InfoIcon } from '../components/icons.tsx'
+import { useDict } from '../i18n/index.ts'
 import { articleHref } from '../lib/article-link.ts'
 import { assertSameOrigin, requireEditor } from '../lib/auth.ts'
 import { formatDateTime, useTimezone } from '../lib/date.ts'
@@ -25,18 +26,16 @@ export async function action({ request }: Route.ActionArgs) {
 }
 
 export default function Insights({ loaderData, actionData }: Route.ComponentProps) {
+  const t = useDict()
   const { insights, signals } = loaderData
   const tz = useTimezone()
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-8">
       <section>
-        <h1 className="text-2xl font-bold mb-3">執筆インサイト</h1>
+        <h1 className="text-2xl font-bold mb-3">{t.insights.title}</h1>
         <div role="alert" className="alert alert-info alert-soft mb-4">
           <InfoIcon />
-          <span className="text-sm">
-            読者のいいねやコメントの傾向を分析して蓄積する、記事執筆の指針です。feedback_analyst
-            エージェントが自動で更新し、記事を書くエージェントが執筆時に参照します。内容はここから手動でも編集できます。
-          </span>
+          <span className="text-sm">{t.insights.description}</span>
         </div>
         <Form method="post">
           <div className="card card-border bg-surface">
@@ -46,15 +45,15 @@ export default function Insights({ loaderData, actionData }: Route.ComponentProp
                 defaultValue={insights.body_md}
                 rows={16}
                 className="textarea w-full font-mono text-sm"
-                placeholder="# 執筆インサイト&#10;- いいねが付きやすい記事の傾向..."
+                placeholder={t.insights.placeholder}
               />
               <div className="card-actions items-center">
                 <button type="submit" className="btn btn-primary btn-sm">
-                  保存
+                  {t.common.save}
                 </button>
-                {actionData?.ok && <span className="text-success text-sm">保存しました</span>}
+                {actionData?.ok && <span className="text-success text-sm">{t.common.saved}</span>}
                 <span className="text-xs text-base-content/60 ml-auto">
-                  最終更新: {formatDateTime(insights.updated_at, tz)}
+                  {t.common.lastUpdated}: {formatDateTime(insights.updated_at, tz)}
                   {insights.updated_by && <> / {insights.updated_by}</>}
                 </span>
               </div>
@@ -66,15 +65,15 @@ export default function Insights({ loaderData, actionData }: Route.ComponentProp
       <section>
         <div className="stats bg-surface border border-border mb-4">
           <div className="stat">
-            <div className="stat-title">累計いいね</div>
+            <div className="stat-title">{t.insights.totalLikes}</div>
             <div className="stat-value text-primary">{signals.total_likes}</div>
-            <div className="stat-desc">いいねが付いた記事のランキングを下に表示します</div>
+            <div className="stat-desc">{t.insights.totalLikesDesc}</div>
           </div>
         </div>
-        <h2 className="text-lg font-bold mb-2">いいねランキング</h2>
+        <h2 className="text-lg font-bold mb-2">{t.insights.rankingTitle}</h2>
         {signals.top_liked.length === 0 ? (
           <div role="alert" className="alert alert-soft">
-            <span className="text-sm">まだいいねの付いた記事はありません。</span>
+            <span className="text-sm">{t.insights.rankingEmpty}</span>
           </div>
         ) : (
           <ul className="space-y-1 text-sm">

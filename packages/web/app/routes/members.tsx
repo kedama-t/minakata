@@ -1,5 +1,6 @@
 import { AuthError, RoleSchema } from '@minakata/core'
 import { Form } from 'react-router'
+import { detectLocale, getDict, useDict } from '../i18n/index.ts'
 import { assertSameOrigin, requireAdmin } from '../lib/auth.ts'
 import { formatDateTime, useTimezone } from '../lib/date.ts'
 import { getServices } from '../lib/services.ts'
@@ -38,6 +39,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 export async function action({ request }: Route.ActionArgs) {
   assertSameOrigin(request)
   const admin = requireAdmin(request)
+  const t = getDict(detectLocale(request))
   const services = getServices()
   const form = await request.formData()
   const intent = String(form.get('intent') ?? 'invite')
@@ -45,7 +47,7 @@ export async function action({ request }: Route.ActionArgs) {
   if (intent === 'update_role') {
     const userId = String(form.get('user_id') ?? '')
     const role = RoleSchema.parse(String(form.get('role') ?? ''))
-    if (!userId) return { error: 'user_id が必要' }
+    if (!userId) return { error: t.members.errorUserIdRequired }
     try {
       const updated = services.auth.updateRole({
         user_id: userId,
@@ -61,9 +63,9 @@ export async function action({ request }: Route.ActionArgs) {
     } catch (err) {
       if (err instanceof AuthError) {
         const map: Record<string, string> = {
-          self_demote: '自分自身の admin を降格することはできません',
-          last_admin: '最後の admin を降格することはできません',
-          not_found: 'ユーザーが見つかりません',
+          self_demote: t.members.errorSelfDemote,
+          last_admin: t.members.errorLastAdmin,
+          not_found: t.members.errorUserNotFound,
         }
         return { error: map[err.code] ?? err.message }
       }
@@ -74,19 +76,20 @@ export async function action({ request }: Route.ActionArgs) {
   // 既定: 招待発行
   const email = String(form.get('email') ?? '').trim()
   const role = RoleSchema.parse(String(form.get('role') ?? 'editor'))
-  if (!email) return { error: 'メールアドレスが必要' }
+  if (!email) return { error: t.members.errorEmailRequired }
   const inv = services.auth.createInvitation({ email, role, invited_by: admin.id })
   return { invitation: inv }
 }
 
 export default function Members({ loaderData, actionData }: Route.ComponentProps) {
+  const t = useDict()
   const tz = useTimezone()
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
-      <h1 className="text-2xl font-bold">メンバー管理</h1>
+      <h1 className="text-2xl font-bold">{t.members.title}</h1>
 
       <section className="bg-surface p-4 rounded border">
-        <h2 className="text-lg font-bold mb-2">招待を発行</h2>
+        <h2 className="text-lg font-bold mb-2">{t.members.inviteTitle}</h2>
         <Form method="post" className="flex gap-2 items-end">
           <input
             name="email"
@@ -101,13 +104,13 @@ export default function Members({ loaderData, actionData }: Route.ComponentProps
             <option value="admin">admin</option>
           </select>
           <button type="submit" className="btn btn-primary btn-sm">
-            招待
+            {t.members.invite}
           </button>
         </Form>
         {actionData?.error && <p className="text-error text-sm mt-2">{actionData.error}</p>}
         {actionData?.invitation && (
           <p className="text-sm text-success mt-2">
-            招待リンク:
+            {t.members.inviteLink}
             <code className="ml-1 bg-base-300 px-1">
               /invitations/{actionData.invitation.token}
             </code>
@@ -116,10 +119,10 @@ export default function Members({ loaderData, actionData }: Route.ComponentProps
       </section>
 
       <section>
-        <h2 className="text-lg font-bold mb-2">メンバー一覧</h2>
+        <h2 className="text-lg font-bold mb-2">{t.members.listTitle}</h2>
         {actionData?.roleUpdated && (
           <p className="text-success text-sm mb-2">
-            ロールを {actionData.roleUpdated.role} に変更しました
+            {t.members.roleUpdated(actionData.roleUpdated.role)}
           </p>
         )}
         <table className="w-full text-sm">
@@ -128,7 +131,7 @@ export default function Members({ loaderData, actionData }: Route.ComponentProps
               <th className="py-1">email</th>
               <th>role</th>
               <th>created</th>
-              <th>操作</th>
+              <th>{t.members.colActions}</th>
             </tr>
           </thead>
           <tbody>
@@ -138,7 +141,9 @@ export default function Members({ loaderData, actionData }: Route.ComponentProps
                 <tr key={m.id} className="border-t">
                   <td className="py-1">
                     {m.email}
-                    {isSelf && <span className="text-xs text-base-content/40 ml-1">(自分)</span>}
+                    {isSelf && (
+                      <span className="text-xs text-base-content/40 ml-1">{t.members.self}</span>
+                    )}
                   </td>
                   <td>{m.role}</td>
                   <td className="text-base-content/60">{formatDateTime(m.created_at, tz)}</td>
@@ -156,7 +161,7 @@ export default function Members({ loaderData, actionData }: Route.ComponentProps
                         <option value="admin">admin</option>
                       </select>
                       <button type="submit" className="btn btn-neutral btn-xs">
-                        変更
+                        {t.members.change}
                       </button>
                     </Form>
                   </td>
@@ -168,9 +173,9 @@ export default function Members({ loaderData, actionData }: Route.ComponentProps
       </section>
 
       <section>
-        <h2 className="text-lg font-bold mb-2">未受諾の招待</h2>
+        <h2 className="text-lg font-bold mb-2">{t.members.invitationsTitle}</h2>
         {loaderData.invitations.length === 0 && (
-          <p className="text-sm text-base-content/60">未受諾の招待はありません</p>
+          <p className="text-sm text-base-content/60">{t.members.invitationsEmpty}</p>
         )}
         <ul className="space-y-1 text-sm">
           {loaderData.invitations.map((i) => (
@@ -178,7 +183,7 @@ export default function Members({ loaderData, actionData }: Route.ComponentProps
               <span className="font-semibold">{i.email}</span>
               <span className="ml-2 text-base-content/60">{i.role}</span>
               <span className="ml-2 text-xs text-base-content/40">
-                期限: {formatDateTime(i.expires_at, tz)}
+                {t.members.expires}: {formatDateTime(i.expires_at, tz)}
               </span>
               <code className="ml-2 bg-base-300 px-1 text-xs">/invitations/{i.token}</code>
             </li>

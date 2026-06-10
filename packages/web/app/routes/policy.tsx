@@ -1,5 +1,6 @@
 import { Form } from 'react-router'
 import { InfoIcon } from '../components/icons.tsx'
+import { useDict } from '../i18n/index.ts'
 import { assertSameOrigin, requireAdmin } from '../lib/auth.ts'
 import { formatDateTime, useTimezone } from '../lib/date.ts'
 import { getServices } from '../lib/services.ts'
@@ -20,16 +21,14 @@ export async function action({ request }: Route.ActionArgs) {
 }
 
 export default function Policy({ loaderData, actionData }: Route.ComponentProps) {
+  const t = useDict()
   const tz = useTimezone()
   return (
     <div className="max-w-3xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-3">リサーチ方針</h1>
+      <h1 className="text-2xl font-bold mb-3">{t.policy.title}</h1>
       <div role="alert" className="alert alert-info alert-soft mb-4">
         <InfoIcon />
-        <span className="text-sm">
-          調査エージェントが記事を書くときに従う方針です。優先して参照するソース、調査の粒度、記事に必ず含める項目(出典・TL;DR
-          など)を Markdown で記述してください。
-        </span>
+        <span className="text-sm">{t.policy.description}</span>
       </div>
       <Form method="post">
         <div className="card card-border bg-surface">
@@ -39,15 +38,15 @@ export default function Policy({ loaderData, actionData }: Route.ComponentProps)
               defaultValue={loaderData.policy.body_md}
               rows={18}
               className="textarea w-full font-mono text-sm"
-              placeholder="# リサーチ方針&#10;..."
+              placeholder={t.policy.placeholder}
             />
             <div className="card-actions items-center">
               <button type="submit" className="btn btn-primary btn-sm">
-                保存
+                {t.common.save}
               </button>
-              {actionData?.ok && <span className="text-success text-sm">保存しました</span>}
+              {actionData?.ok && <span className="text-success text-sm">{t.common.saved}</span>}
               <span className="text-xs text-base-content/60 ml-auto">
-                最終更新: {formatDateTime(loaderData.policy.updated_at, tz)}
+                {t.common.lastUpdated}: {formatDateTime(loaderData.policy.updated_at, tz)}
               </span>
             </div>
           </div>

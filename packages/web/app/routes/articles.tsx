@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { FreshnessBadge } from '../components/ui/freshness-badge.tsx'
+import { useDict } from '../i18n/index.ts'
 import { articleHref } from '../lib/article-link.ts'
 import { requireUser } from '../lib/auth.ts'
 import { getServices } from '../lib/services.ts'
@@ -20,10 +21,11 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 function PendingBadge({ status }: { status: string }) {
+  const t = useDict()
   if (status !== 'pending_approval') return null
   return (
     <span className="ml-2 text-xs px-2 py-0.5 rounded bg-warning/20 text-warning font-medium">
-      レビュー中
+      {t.common.inReview}
     </span>
   )
 }
@@ -34,6 +36,7 @@ function TagCloud({
   tags,
   currentTag,
 }: { tags: { tag: string; count: number }[]; currentTag: string }) {
+  const t = useDict()
   const [expanded, setExpanded] = useState(false)
   const hasMore = tags.length > TAG_LIMIT
   const visibleTags = expanded ? tags : tags.slice(0, TAG_LIMIT)
@@ -47,7 +50,7 @@ function TagCloud({
             : 'bg-base-200 text-base-content/70 hover:bg-base-300'
         }`}
       >
-        すべて
+        {t.common.all}
       </a>
       {visibleTags.map((t) => (
         <a
@@ -69,7 +72,7 @@ function TagCloud({
           onClick={() => setExpanded((v) => !v)}
           className="text-xs px-2.5 py-1 rounded-full bg-base-200 text-base-content/50 hover:bg-base-300 transition-colors"
         >
-          {expanded ? '閉じる' : `+${tags.length - TAG_LIMIT}件`}
+          {expanded ? t.articles.collapse : t.articles.moreTags(tags.length - TAG_LIMIT)}
         </button>
       )}
     </section>
@@ -77,19 +80,14 @@ function TagCloud({
 }
 
 export default function Articles({ loaderData }: Route.ComponentProps) {
+  const t = useDict()
   const { articles, tags, tag, likeCounts } = loaderData
   return (
     <div className="max-w-6xl mx-auto px-4 lg:px-8 py-6 lg:py-10 space-y-6">
       <header>
-        <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">記事一覧</h1>
+        <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">{t.articles.title}</h1>
         <p className="text-sm text-base-content/60 mt-1">
-          {tag ? (
-            <>
-              タグ「{tag}」の記事 {articles.length} 件
-            </>
-          ) : (
-            <>記事 {articles.length} 件（アーカイブを除く）</>
-          )}
+          {tag ? t.articles.countByTag(tag, articles.length) : t.articles.countAll(articles.length)}
         </p>
       </header>
 
@@ -97,7 +95,7 @@ export default function Articles({ loaderData }: Route.ComponentProps) {
 
       {articles.length === 0 ? (
         <p className="text-sm text-base-content/60">
-          {tag ? 'このタグの記事はありません' : 'まだ記事がありません'}
+          {tag ? t.articles.emptyByTag : t.articles.empty}
         </p>
       ) : (
         <ul className="space-y-2">

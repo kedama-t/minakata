@@ -1,9 +1,4 @@
-const LABELS: Record<string, string> = {
-  fresh: '新着',
-  aging: 'やや古い',
-  stale: '要更新',
-  very_stale: '長期未更新',
-}
+import { useDict } from '../../i18n/index.ts'
 
 const COLORS: Record<string, string> = {
   fresh: 'bg-success/15 text-success',
@@ -14,7 +9,8 @@ const COLORS: Record<string, string> = {
 
 /** 記事の鮮度ランクを表示するバッジ */
 export function FreshnessBadge({ rank }: { rank: string }) {
+  const t = useDict()
   const color = COLORS[rank] ?? 'bg-base-200 text-base-content/50'
-  const label = LABELS[rank] ?? rank
+  const label = (t.freshness as Record<string, string>)[rank] ?? rank
   return <span className={`text-xs px-2 py-0.5 rounded-full ${color}`}>{label}</span>
 }

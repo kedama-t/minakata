@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Form, useLocation } from 'react-router'
+import { type Dict, type Locale, dictionaries, locales, useDict, useLocale } from '../i18n/index.ts'
 import type { Theme } from '../lib/theme.ts'
 import {
   ActivityIcon,
@@ -41,66 +42,71 @@ type NavGroup = {
 /** サイドバー「承認依頼」のバッジ件数 */
 export type Approvals = { reviews: number; archives: number }
 
-const MAIN_GROUPS: NavGroup[] = [
-  {
-    heading: 'メイン',
-    items: [
-      { to: '/', label: 'ダッシュボード', icon: HomeIcon, matchPrefixes: ['/'] },
-      { to: '/search', label: '検索', icon: SearchIcon, matchPrefixes: ['/search'] },
-    ],
-  },
-  {
-    heading: 'ナレッジ',
-    items: [
-      {
-        to: '/articles',
-        label: '記事一覧',
-        icon: FileTextIcon,
-        matchPrefixes: ['/articles'],
-      },
-      { to: '/topics', label: '購読トピック', icon: BookmarkIcon },
-    ],
-  },
-  {
-    heading: '対話',
-    items: [
-      { to: '/chats', label: 'チャット履歴', icon: ChatIcon, matchPrefixes: ['/chats', '/chat/'] },
-    ],
-  },
-  {
-    heading: 'エージェント',
-    items: [
-      { to: '/monitor', label: 'モニター', icon: ActivityIcon },
-      { to: '/tasks', label: 'タスク', icon: ListIcon },
-    ],
-  },
-]
-
-/** editor 以上に見せる項目。執筆インサイトはエージェントの自己改善メモリ */
-const EDITOR_GROUP: NavGroup = {
-  heading: 'フィードバック',
-  items: [{ to: '/settings/insights', label: '執筆インサイト', icon: SparkleIcon }],
+function buildMainGroups(t: Dict): NavGroup[] {
+  return [
+    {
+      heading: t.nav.groupMain,
+      items: [
+        { to: '/', label: t.nav.dashboard, icon: HomeIcon, matchPrefixes: ['/'] },
+        { to: '/search', label: t.nav.search, icon: SearchIcon, matchPrefixes: ['/search'] },
+      ],
+    },
+    {
+      heading: t.nav.groupKnowledge,
+      items: [
+        {
+          to: '/articles',
+          label: t.nav.articles,
+          icon: FileTextIcon,
+          matchPrefixes: ['/articles'],
+        },
+        { to: '/topics', label: t.nav.topics, icon: BookmarkIcon },
+      ],
+    },
+    {
+      heading: t.nav.groupDialogue,
+      items: [
+        { to: '/chats', label: t.nav.chats, icon: ChatIcon, matchPrefixes: ['/chats', '/chat/'] },
+      ],
+    },
+    {
+      heading: t.nav.groupAgents,
+      items: [
+        { to: '/monitor', label: t.nav.monitor, icon: ActivityIcon },
+        { to: '/tasks', label: t.nav.tasks, icon: ListIcon },
+      ],
+    },
+  ]
 }
 
-const ADMIN_GROUP: NavGroup = {
-  heading: '管理',
-  items: [
-    { to: '/settings/members', label: 'メンバー', icon: UsersIcon },
-    { to: '/settings/policy', label: 'リサーチ方針', icon: SettingsIcon },
-    //{ to: '/admin/skills', label: 'スキル', icon: SparkleIcon },
-  ],
+/** editor 以上に見せる項目。執筆インサイトはエージェントの自己改善メモリ */
+function buildEditorGroup(t: Dict): NavGroup {
+  return {
+    heading: t.nav.groupFeedback,
+    items: [{ to: '/settings/insights', label: t.nav.insights, icon: SparkleIcon }],
+  }
+}
+
+function buildAdminGroup(t: Dict): NavGroup {
+  return {
+    heading: t.nav.groupAdmin,
+    items: [
+      { to: '/settings/members', label: t.nav.members, icon: UsersIcon },
+      { to: '/settings/policy', label: t.nav.policy, icon: SettingsIcon },
+    ],
+  }
 }
 
 /**
  * 「承認依頼」グループをロールと承認待ち件数から構築する。
  * レビューは editor 以上、アーカイブ承認は admin のみが対象。
  */
-function buildApprovalGroup(role: string, approvals: Approvals): NavGroup | null {
+function buildApprovalGroup(role: string, approvals: Approvals, t: Dict): NavGroup | null {
   const items: NavItem[] = []
   if (role !== 'viewer') {
     items.push({
       to: '/reviews',
-      label: 'レビュー',
+      label: t.nav.reviews,
       icon: CheckCircleIcon,
       badge: approvals.reviews,
     })
@@ -108,13 +114,13 @@ function buildApprovalGroup(role: string, approvals: Approvals): NavGroup | null
   if (role === 'admin') {
     items.push({
       to: '/admin/archives',
-      label: 'アーカイブ承認',
+      label: t.nav.archives,
       icon: ArchiveIcon,
       badge: approvals.archives,
     })
   }
   if (items.length === 0) return null
-  return { heading: '承認依頼', items }
+  return { heading: t.nav.groupApprovals, items }
 }
 
 function isActive(currentPath: string, item: NavItem): boolean {
@@ -192,6 +198,31 @@ function ThemeToggle({ current }: { current: Theme }) {
   )
 }
 
+/** 言語スイッチャー。対応言語はレジストリ(locales)から自動的に列挙される */
+function LocaleToggle({ current }: { current: Locale }) {
+  return (
+    <Form method="post" action="/locale" className="flex items-center p-0.5 bg-base-200 rounded-md">
+      {locales.map((value) => (
+        <button
+          key={value}
+          type="submit"
+          name="locale"
+          value={value}
+          title={dictionaries[value].langName}
+          aria-label={dictionaries[value].langName}
+          className={`flex-1 flex items-center justify-center py-1 rounded text-xs transition-colors ${
+            current === value
+              ? 'bg-surface text-base-content shadow-sm'
+              : 'text-base-content/60 hover:text-base-content'
+          }`}
+        >
+          {dictionaries[value].langName}
+        </button>
+      ))}
+    </Form>
+  )
+}
+
 function UserPanel({
   user,
   theme,
@@ -199,9 +230,12 @@ function UserPanel({
   user: { email: string; role: string }
   theme: Theme
 }) {
+  const t = useDict()
+  const locale = useLocale()
   return (
     <div className="flex flex-col gap-2 p-3 border-t border-border">
       <ThemeToggle current={theme} />
+      <LocaleToggle current={locale} />
       <div className="flex items-center gap-2.5">
         <UserAvatar email={user.email} size="sm" />
         <div className="min-w-0 flex-1">
@@ -212,8 +246,8 @@ function UserPanel({
           <button
             type="submit"
             className="p-1.5 rounded text-base-content/40 hover:text-error hover:bg-error/10 transition-colors"
-            title="ログアウト"
-            aria-label="ログアウト"
+            title={t.nav.logout}
+            aria-label={t.nav.logout}
           >
             <LogOutIcon size={16} />
           </button>
@@ -224,6 +258,7 @@ function UserPanel({
 }
 
 function SearchTrigger() {
+  const t = useDict()
   const openPalette = () => {
     window.dispatchEvent(new CustomEvent('open-command-palette'))
   }
@@ -234,7 +269,7 @@ function SearchTrigger() {
       className="w-full flex items-center gap-2 px-3 py-2 rounded-md border border-border bg-surface text-sm text-base-content/60 hover:border-border-strong transition-colors"
     >
       <SearchIcon size={14} />
-      <span className="flex-1 text-left">検索…</span>
+      <span className="flex-1 text-left">{t.nav.searchPlaceholder}</span>
       <kbd className="flex items-center gap-0.5 text-[10px] text-base-content/40 bg-base-200 px-1.5 py-0.5 rounded font-mono">
         <CommandIcon size={10} />K
       </kbd>
@@ -243,11 +278,12 @@ function SearchTrigger() {
 }
 
 function NewChatActions({ canEdit }: { canEdit: boolean }) {
+  const t = useDict()
   if (!canEdit) return null
   return (
     <a href="/chat/new" className="btn btn-primary btn-sm gap-2 w-full justify-start">
       <PlusIcon size={14} />
-      新規チャット
+      {t.nav.newChat}
     </a>
   )
 }
@@ -263,8 +299,9 @@ function SidebarContent({
   currentPath: string
   approvals: Approvals
 }) {
+  const t = useDict()
   const canEdit = user.role !== 'viewer'
-  const approvalGroup = buildApprovalGroup(user.role, approvals)
+  const approvalGroup = buildApprovalGroup(user.role, approvals, t)
   return (
     <div className="flex flex-col h-full">
       <div className="p-4 flex items-center gap-2">
@@ -278,12 +315,14 @@ function SidebarContent({
         <NewChatActions canEdit={canEdit} />
       </div>
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-5">
-        {MAIN_GROUPS.map((g) => (
+        {buildMainGroups(t).map((g) => (
           <NavGroupBlock key={g.heading} group={g} currentPath={currentPath} />
         ))}
         {approvalGroup && <NavGroupBlock group={approvalGroup} currentPath={currentPath} />}
-        {canEdit && <NavGroupBlock group={EDITOR_GROUP} currentPath={currentPath} />}
-        {user.role === 'admin' && <NavGroupBlock group={ADMIN_GROUP} currentPath={currentPath} />}
+        {canEdit && <NavGroupBlock group={buildEditorGroup(t)} currentPath={currentPath} />}
+        {user.role === 'admin' && (
+          <NavGroupBlock group={buildAdminGroup(t)} currentPath={currentPath} />
+        )}
       </div>
       <UserPanel user={user} theme={theme} />
     </div>
@@ -303,6 +342,7 @@ export function Sidebar({
   theme: Theme
   approvals: Approvals
 }) {
+  const t = useDict()
   const location = useLocation()
   const currentPath = location.pathname
   const [open, setOpen] = useState(false)
@@ -332,7 +372,7 @@ export function Sidebar({
           type="button"
           onClick={() => setOpen(true)}
           className="p-1.5 rounded hover:bg-base-200"
-          aria-label="メニューを開く"
+          aria-label={t.nav.openMenu}
         >
           <MenuIcon size={18} />
         </button>
@@ -346,7 +386,7 @@ export function Sidebar({
           type="button"
           onClick={() => window.dispatchEvent(new CustomEvent('open-command-palette'))}
           className="p-1.5 rounded hover:bg-base-200"
-          aria-label="検索"
+          aria-label={t.nav.search}
         >
           <SearchIcon size={18} />
         </button>
@@ -364,7 +404,7 @@ export function Sidebar({
             type="button"
             className="lg:hidden fixed inset-0 bg-black/40 z-40"
             onClick={() => setOpen(false)}
-            aria-label="メニューを閉じる"
+            aria-label={t.nav.closeMenu}
           />
           <aside className="lg:hidden fixed top-0 left-0 bottom-0 w-72 bg-surface border-r border-border z-50 flex flex-col">
             <div className="flex items-center justify-end p-2 border-b border-border">
@@ -372,7 +412,7 @@ export function Sidebar({
                 type="button"
                 onClick={() => setOpen(false)}
                 className="p-1.5 rounded hover:bg-base-200"
-                aria-label="閉じる"
+                aria-label={t.common.close}
               >
                 <XIcon size={18} />
               </button>

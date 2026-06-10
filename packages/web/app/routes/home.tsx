@@ -1,6 +1,7 @@
 import type { HeatmapDay, HeatmapHour } from '../components/maintenance-heatmap.tsx'
 import { MaintenanceHeatmap } from '../components/maintenance-heatmap.tsx'
 import { FreshnessBadge } from '../components/ui/freshness-badge.tsx'
+import { useDict } from '../i18n/index.ts'
 import { getAgentProfile, relativeTime } from '../lib/agent-profiles.ts'
 import { articleHref } from '../lib/article-link.ts'
 import { requireUser } from '../lib/auth.ts'
@@ -104,13 +105,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
   } = loaderData
 
   const tz = useTimezone()
+  const t = useDict()
 
   const greeting = (() => {
     const h = localHour(tz)
-    if (h < 5) return 'こんばんは'
-    if (h < 11) return 'おはようございます'
-    if (h < 18) return 'こんにちは'
-    return 'こんばんは'
+    if (h < 5) return t.home.greetingEvening
+    if (h < 11) return t.home.greetingMorning
+    if (h < 18) return t.home.greetingAfternoon
+    return t.home.greetingEvening
   })()
 
   const now = new Date()
@@ -122,13 +124,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <header className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">
-            {greeting}、{user.email.split('@')[0]} さん
+            {t.home.greetingTo(greeting, user.email.split('@')[0] ?? '')}
           </h1>
-          <p className="text-sm text-base-content/50 mt-1">ナレッジベースの概況</p>
+          <p className="text-sm text-base-content/50 mt-1">{t.home.subtitle}</p>
         </div>
         {user.role !== 'viewer' && (
           <a href="/chat/new" className="btn btn-primary btn-sm gap-1.5 shrink-0">
-            新規チャット
+            {t.home.newChat}
           </a>
         )}
       </header>
@@ -140,9 +142,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           className="flex items-center justify-between gap-4 bg-warning/10 border border-warning/30 rounded-xl px-4 py-3 hover:bg-warning/15 transition-colors"
         >
           <span className="text-sm font-medium text-warning">
-            {pendingReviews} 件のレビューが承認を待っています
+            {t.home.pendingBanner(pendingReviews)}
           </span>
-          <span className="text-xs text-warning/70 shrink-0">確認する →</span>
+          <span className="text-xs text-warning/70 shrink-0">{t.home.pendingBannerCta}</span>
         </a>
       )}
 
@@ -150,31 +152,43 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {user.role !== 'viewer' && (
           <ActionCard
-            label="承認待ちレビュー"
+            label={t.home.cardPendingReviews}
             value={pendingReviews}
-            sub="件"
+            sub={t.common.countUnit}
             href="/reviews"
             highlight={pendingReviews > 0}
           />
         )}
         {user.role !== 'viewer' && (
-          <ActionCard label="進行中タスク" value={activeTasks} sub="件" href="/tasks" />
+          <ActionCard
+            label={t.home.cardActiveTasks}
+            value={activeTasks}
+            sub={t.common.countUnit}
+            href="/tasks"
+          />
         )}
         <ActionCard
-          label="要更新の記事"
+          label={t.home.cardStaleArticles}
           value={staleCount}
-          sub="件"
+          sub={t.common.countUnit}
           href="/articles"
           highlight={staleCount > 0}
         />
-        <ActionCard label="直近 24h 更新" value={recentCount} sub="件" href="/articles" />
+        <ActionCard
+          label={t.home.cardRecentUpdates}
+          value={recentCount}
+          sub={t.common.countUnit}
+          href="/articles"
+        />
       </section>
 
       {/* メンテナンスヒートマップ */}
       <section>
         <div className="flex items-baseline justify-between mb-3">
-          <h2 className="text-base font-semibold">メンテナンス状況</h2>
-          <span className="text-xs text-base-content/40">過去 {HEATMAP_DAYS} 日間</span>
+          <h2 className="text-base font-semibold">{t.home.maintenanceTitle}</h2>
+          <span className="text-xs text-base-content/40">
+            {t.home.maintenanceRange(HEATMAP_DAYS)}
+          </span>
         </div>
         <div className="bg-surface border border-border rounded-xl p-4">
           <MaintenanceHeatmap days={heatmapDays} timezone={tz} />
@@ -187,15 +201,15 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         {recentActivity.length > 0 && (
           <div>
             <div className="flex items-baseline justify-between mb-3">
-              <h2 className="text-base font-semibold">エージェント稼働</h2>
+              <h2 className="text-base font-semibold">{t.home.agentActivityTitle}</h2>
               <a href="/monitor" className="text-xs text-primary hover:underline">
-                モニターを開く →
+                {t.home.openMonitor}
               </a>
             </div>
             <div className="bg-surface border border-border rounded-xl overflow-hidden">
               <ul className="divide-y divide-border">
                 {recentActivity.map((e) => {
-                  const profile = getAgentProfile(e.agent_name ?? e.actor)
+                  const profile = getAgentProfile(e.agent_name ?? e.actor, t)
                   return (
                     <li key={e.id} className="flex items-center gap-3 px-4 py-3">
                       <span className="text-base shrink-0">{profile.emoji}</span>
@@ -207,7 +221,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         {e.detail ? ` · ${e.detail}` : ''}
                       </span>
                       <span className="text-xs text-base-content/40 ml-auto tabular-nums shrink-0">
-                        {relativeTime(e.timestamp, now, tz)}
+                        {relativeTime(e.timestamp, t, now, tz)}
                       </span>
                     </li>
                   )
@@ -220,13 +234,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         {/* 最近更新された記事 */}
         <div>
           <div className="flex items-baseline justify-between mb-3">
-            <h2 className="text-base font-semibold">最近更新された記事</h2>
+            <h2 className="text-base font-semibold">{t.home.recentArticlesTitle}</h2>
             <a href="/articles" className="text-xs text-primary hover:underline">
-              すべて見る →
+              {t.home.viewAll}
             </a>
           </div>
           {recentArticles.length === 0 ? (
-            <p className="text-sm text-base-content/50 py-2">まだ記事がありません</p>
+            <p className="text-sm text-base-content/50 py-2">{t.home.noArticles}</p>
           ) : (
             <ul className="space-y-2">
               {recentArticles.map((a) => (
@@ -244,7 +258,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     <FreshnessBadge rank={a.freshness_rank} />
                     {a.status === 'pending_approval' && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-warning/20 text-warning font-medium">
-                        レビュー中
+                        {t.common.inReview}
                       </span>
                     )}
                   </div>

@@ -1,9 +1,11 @@
 // モニター画面用のエージェント人格カタログ。
-// 既知のエージェント (hermes/skills/*) ごとに、表示名・絵文字・グラデーション・役割を持つ。
-// エージェントを追加するときは core/src/schema/index.ts の AgentNameSchema にも追加すること。
-// AgentName 型で型付けしているため、片方が漏れるとコンパイルエラーになる。
+// 既知のエージェント (hermes/skills/*) ごとに、絵文字・グラデーション・アイコンを持つ。
+// 表示名・役割の文言は i18n 辞書 (app/i18n/locales/*) 側で管理する。
+// エージェントを追加するときは core/src/schema/index.ts の AgentNameSchema と
+// 各言語辞書の agents.profiles にも追加すること(型レベルで同期される)。
 
 import type { AgentName } from '@minakata/core'
+import type { Dict } from '../i18n/index.ts'
 
 export type AgentProfile = {
   /** audit_log.agent_name の素の値 */
@@ -16,130 +18,115 @@ export type AgentProfile = {
   ring?: string
 }
 
-/** AgentName 全種のプロファイル。AgentNameSchema と型レベルで同期される */
-const PROFILES: Record<AgentName, AgentProfile> = {
+type AgentVisual = Omit<AgentProfile, 'displayName' | 'role'>
+
+/** AgentName 全種の見た目情報。AgentNameSchema と型レベルで同期される */
+const VISUALS: Record<AgentName, AgentVisual> = {
   dialogue: {
     key: 'dialogue',
     emoji: '💬',
-    displayName: 'ミミー',
-    role: '対話担当：ユーザーとのチャットに応えます',
     ring: 'ring-fuchsia-400',
     avatar: '/agents/mimy.png',
   },
   researcher: {
     key: 'researcher',
     emoji: '🔎',
-    displayName: 'リズ',
-    role: 'リサーチ担当：Webを調査して記事を書きます',
     avatar: '/agents/lyz.png',
     ring: 'ring-sky-400',
   },
   daily_research: {
     key: 'daily_research',
     emoji: '🌅',
-    displayName: 'ヨナ',
-    role: '日次調査：夜中に飛び回って新しい話題を集めてきます',
     avatar: '/agents/yona.png',
     ring: 'ring-amber-900',
   },
   freshness_checker: {
     key: 'freshness_checker',
     emoji: '🍃',
-    displayName: 'セン',
-    role: '記事の鮮度管理：記事の鮮度を見守ります',
     avatar: '/agents/sen.png',
     ring: 'ring-emerald-400',
   },
   changelog_writer: {
     key: 'changelog_writer',
     emoji: '📝',
-    displayName: 'チロ',
-    role: 'ChangeLog担当：日々の出来事をまとめます',
     avatar: '/agents/chiro.png',
     ring: 'ring-yellow-400',
   },
   synthesizer: {
     key: 'synthesizer',
     emoji: '🔮',
-    displayName: 'トーゴ',
-    role: '体系化担当：類似記事を統合して上位概念の記事を生成します',
     avatar: '/agents/togo.png',
     ring: 'ring-violet-400',
   },
   gap_detector: {
     key: 'gap_detector',
     emoji: '🕳️',
-    displayName: 'ガプ',
-    role: 'ギャップ検出：知識の穴を見つけて調査タスクを投入します',
     avatar: '/agents/gap.png',
     ring: 'ring-orange-400',
   },
   taxonomy_builder: {
     key: 'taxonomy_builder',
     emoji: '📂',
-    displayName: 'ケイト',
-    role: '分類整理：タグ・カテゴリ体系を整備します',
     avatar: '/agents/kate.png',
     ring: 'ring-teal-400',
   },
   feedback_analyst: {
     key: 'feedback_analyst',
     emoji: '💗',
-    displayName: 'リッカ',
-    role: 'フィードバック分析：いいねの傾向を読み解き執筆方針を磨きます',
     avatar: '/agents/licca.png',
     ring: 'ring-rose-400',
   },
   backup_agent: {
     key: 'backup_agent',
     emoji: '🗄️',
-    displayName: 'クララ',
-    role: 'バックアップ担当：記事とデータを安全な場所へ保管します',
     avatar: '/agents/clara.png',
     ring: 'ring-indigo-400',
   },
   reviser: {
     key: 'reviser',
     emoji: '🖊️',
-    displayName: 'ノエル',
-    role: '校訂担当：既存記事の軽微な修正を手早く仕上げます',
     avatar: '/agents/noel.png',
     ring: 'ring-lime-400',
   },
   hermes: {
     key: 'hermes',
     emoji: '🛰️',
-    displayName: 'Hermes',
-    role: 'エージェントハーネス本体',
     ring: 'ring-blue-400',
   },
   system: {
     key: 'system',
     emoji: '⚙️',
-    displayName: 'Q',
-    role: 'システムによる自動処理',
     avatar: '/agents/q.png',
     ring: 'ring-slate-400',
   },
 }
 
-export const SYSTEM_PROFILE: AgentProfile = PROFILES.system
+/** 監査ログ(システム操作)を表す actor キー */
+export const SYSTEM_KEY: AgentName = 'system'
+
+function buildProfile(name: AgentName, t: Dict): AgentProfile {
+  const text = t.agents.profiles[name]
+  return { ...VISUALS[name], displayName: text.name, role: text.role }
+}
+
+export function getSystemProfile(t: Dict): AgentProfile {
+  return buildProfile('system', t)
+}
 
 /**
  * agent_name / actor から表示用プロフィールを得る。
  * 未登録エージェントにはフォールバックプロファイルを返す。
  */
-export function getAgentProfile(agentName: string | null | undefined): AgentProfile {
-  if (!agentName || agentName.startsWith('hermes')) return PROFILES.hermes
-  return (
-    (PROFILES as Record<string, AgentProfile>)[agentName] ?? {
-      key: agentName,
-      emoji: '✨',
-      displayName: agentName,
-      role: '稼働中のエージェント',
-      ring: 'ring-slate-400',
-    }
-  )
+export function getAgentProfile(agentName: string | null | undefined, t: Dict): AgentProfile {
+  if (!agentName || agentName.startsWith('hermes')) return buildProfile('hermes', t)
+  if (agentName in VISUALS) return buildProfile(agentName as AgentName, t)
+  return {
+    key: agentName,
+    emoji: '✨',
+    displayName: agentName,
+    role: t.agents.fallbackRole,
+    ring: 'ring-slate-400',
+  }
 }
 
 // ─── ツール名 → 自然文/カテゴリ ──────────────────────────────────────────
@@ -203,94 +190,75 @@ const CATEGORY_STYLE: Record<ToolCategory, { bg: string; text: string; icon: str
   },
 }
 
-const TOOL_DICT: Record<string, { phrase: string; category: ToolCategory }> = {
-  'minakata.read_article': { phrase: '記事を読み込みました', category: 'read' },
-  'minakata.list_articles': { phrase: '記事一覧を確認しました', category: 'read' },
-  'minakata.fulltext_search': { phrase: 'ナレッジを検索しました', category: 'read' },
-  'minakata.by_tag': { phrase: 'タグから記事を探しました', category: 'read' },
-  'minakata.similar_articles': { phrase: '関連する記事を探しました', category: 'read' },
-  'minakata.list_tags': { phrase: 'タグ一覧を確認しました', category: 'read' },
-  'minakata.list_article_comments': { phrase: 'コメントを確認しました', category: 'read' },
-  'minakata.list_archive_proposals': {
-    phrase: 'アーカイブ提案を確認しました',
-    category: 'read',
-  },
-  'minakata.list_pending_reviews': {
-    phrase: '保留中のレビューを確認しました',
-    category: 'read',
-  },
-  'minakata.list_skill_proposals': { phrase: 'スキル提案を確認しました', category: 'read' },
-  'minakata.get_research_policy': { phrase: 'リサーチ方針を確認しました', category: 'read' },
-
-  'minakata.create_article': { phrase: '新しい記事を書きました', category: 'write' },
-  'minakata.update_article': { phrase: '記事を更新しました', category: 'write' },
-  'minakata.propose_update': { phrase: '更新案を提案しました', category: 'write' },
-  'minakata.add_article_comment': { phrase: '記事にコメントを残しました', category: 'write' },
-  'minakata.add_review_comment': { phrase: 'レビューにコメントしました', category: 'write' },
-  'minakata.propose_skill': { phrase: '新しいスキルを提案しました', category: 'write' },
-
-  'minakata.archive_article': { phrase: 'アーカイブに送りました', category: 'archive' },
-  'minakata.unarchive_article': { phrase: 'アーカイブから戻しました', category: 'archive' },
-
-  'minakata.approve_archive': { phrase: 'アーカイブを承認しました', category: 'approve' },
-  'minakata.approve_review': { phrase: 'レビューを承認しました', category: 'approve' },
-  'minakata.approve_skill': { phrase: 'スキルを承認しました', category: 'approve' },
-  'minakata.resolve_article_comment': {
-    phrase: 'コメントを解決しました',
-    category: 'approve',
-  },
-
-  'minakata.reject_archive': { phrase: 'アーカイブを差し戻しました', category: 'reject' },
-  'minakata.reject_review': { phrase: 'レビューを差し戻しました', category: 'reject' },
-  'minakata.reject_skill': { phrase: 'スキル提案を却下しました', category: 'reject' },
-
-  'minakata.enqueue_task': { phrase: 'タスクをキューに追加しました', category: 'task' },
-  'minakata.poll_tasks': { phrase: 'タスクを取りに行きました', category: 'task' },
-  'minakata.complete_task': { phrase: 'タスクを完了しました', category: 'task' },
-  'minakata.fail_task': { phrase: 'タスクでつまずきました', category: 'task' },
-
-  'minakata.poll_messages': { phrase: '新着メッセージを確認しました', category: 'message' },
-  'minakata.claim_message': { phrase: 'メッセージを受け取りました', category: 'message' },
-  'minakata.post_agent_response': { phrase: 'お返事を投稿しました', category: 'message' },
-  'minakata.report_progress': { phrase: '近況を報告しました', category: 'message' },
-
-  'minakata.update_research_policy': {
-    phrase: 'リサーチ方針を更新しました',
-    category: 'policy',
-  },
-  'minakata.recompute_freshness': { phrase: '鮮度を計算し直しました', category: 'policy' },
-  'minakata.get_feedback_signals': { phrase: 'いいねの傾向を集計しました', category: 'read' },
-  'minakata.get_feedback_insights': { phrase: '執筆インサイトを確認しました', category: 'read' },
-  'minakata.update_feedback_insights': {
-    phrase: '執筆インサイトを更新しました',
-    category: 'policy',
-  },
-  'minakata.snapshot_db': { phrase: 'DB をバックアップしました', category: 'system' },
-  'minakata.backup': { phrase: '記事とデータをバックアップしました', category: 'system' },
-
-  'web.archive_article': { phrase: 'アーカイブを申請しました', category: 'archive' },
-  'web.approve_archive': { phrase: 'アーカイブを承認しました', category: 'approve' },
-  'web.reject_archive': { phrase: 'アーカイブを差し戻しました', category: 'reject' },
-  'web.unarchive_article': { phrase: 'アーカイブから戻しました', category: 'archive' },
-  'web.approve_review': { phrase: 'レビューを承認しました', category: 'approve' },
-  'web.reject_review': { phrase: 'レビューを差し戻しました', category: 'reject' },
-  'web.approve_skill': { phrase: 'スキルを承認しました', category: 'approve' },
-  'web.reject_skill': { phrase: 'スキル提案を却下しました', category: 'reject' },
-  'web.update_role': { phrase: 'ユーザー権限を変更しました', category: 'policy' },
+/** ツール名 → カテゴリ。表示フレーズは辞書 (tools.phrases) 側で管理する */
+const TOOL_CATEGORIES: Record<string, ToolCategory> = {
+  'minakata.read_article': 'read',
+  'minakata.list_articles': 'read',
+  'minakata.fulltext_search': 'read',
+  'minakata.by_tag': 'read',
+  'minakata.similar_articles': 'read',
+  'minakata.list_tags': 'read',
+  'minakata.list_article_comments': 'read',
+  'minakata.list_archive_proposals': 'read',
+  'minakata.list_pending_reviews': 'read',
+  'minakata.list_skill_proposals': 'read',
+  'minakata.get_research_policy': 'read',
+  'minakata.create_article': 'write',
+  'minakata.update_article': 'write',
+  'minakata.propose_update': 'write',
+  'minakata.add_article_comment': 'write',
+  'minakata.add_review_comment': 'write',
+  'minakata.propose_skill': 'write',
+  'minakata.archive_article': 'archive',
+  'minakata.unarchive_article': 'archive',
+  'minakata.approve_archive': 'approve',
+  'minakata.approve_review': 'approve',
+  'minakata.approve_skill': 'approve',
+  'minakata.resolve_article_comment': 'approve',
+  'minakata.reject_archive': 'reject',
+  'minakata.reject_review': 'reject',
+  'minakata.reject_skill': 'reject',
+  'minakata.enqueue_task': 'task',
+  'minakata.poll_tasks': 'task',
+  'minakata.complete_task': 'task',
+  'minakata.fail_task': 'task',
+  'minakata.poll_messages': 'message',
+  'minakata.claim_message': 'message',
+  'minakata.post_agent_response': 'message',
+  'minakata.report_progress': 'message',
+  'minakata.update_research_policy': 'policy',
+  'minakata.recompute_freshness': 'policy',
+  'minakata.get_feedback_signals': 'read',
+  'minakata.get_feedback_insights': 'read',
+  'minakata.update_feedback_insights': 'policy',
+  'minakata.snapshot_db': 'system',
+  'minakata.backup': 'system',
+  'web.archive_article': 'archive',
+  'web.approve_archive': 'approve',
+  'web.reject_archive': 'reject',
+  'web.unarchive_article': 'archive',
+  'web.approve_review': 'approve',
+  'web.reject_review': 'reject',
+  'web.approve_skill': 'approve',
+  'web.reject_skill': 'reject',
+  'web.update_role': 'policy',
 }
 
-export function describeTool(toolName: string): {
+export function describeTool(
+  toolName: string,
+  t: Dict,
+): {
   phrase: string
   category: ToolCategory
   icon: string
   bgClass: string
   textClass: string
 } {
-  const entry = TOOL_DICT[toolName]
-  const category: ToolCategory = entry?.category ?? 'system'
+  const category: ToolCategory = TOOL_CATEGORIES[toolName] ?? 'system'
   const style = CATEGORY_STYLE[category]
+  const phrase = (t.tools.phrases as Record<string, string>)[toolName]
   return {
-    phrase: entry?.phrase ?? `${toolName.replace(/^minakata\./, '')} を実行しました`,
+    phrase: phrase ?? t.tools.fallback(toolName.replace(/^minakata\./, '')),
     category,
     icon: style.icon,
     bgClass: style.bg,
@@ -301,25 +269,30 @@ export function describeTool(toolName: string): {
 /**
  * 実況 phase が「ターンの終了」を表すか判定する。
  * 完了 / 終了 / スキップ を含む phase は、エージェントがそのターンを終えた合図。
- * これにより「最終ログからの経過時間」ではなく実際の稼働状態を判定できる。
+ * phase はエージェントが日本語で報告する文字列のため、判定語は辞書化しない。
  */
 export function isPhaseTerminal(phase: string): boolean {
   return /完了|終了|スキップ/.test(phase)
 }
 
-/** ISO 8601 timestamp → "5分前" の相対表現 */
-export function relativeTime(iso: string, now: Date = new Date(), tz = 'Asia/Tokyo'): string {
-  const t = new Date(iso).getTime()
-  const diff = now.getTime() - t
-  if (diff < 0) return '少し未来'
+/** ISO 8601 timestamp → "5分前" / "5m ago" の相対表現 */
+export function relativeTime(
+  iso: string,
+  t: Dict,
+  now: Date = new Date(),
+  tz = 'Asia/Tokyo',
+): string {
+  const time = new Date(iso).getTime()
+  const diff = now.getTime() - time
+  if (diff < 0) return t.time.future
   const sec = Math.floor(diff / 1000)
-  if (sec < 5) return 'たった今'
-  if (sec < 60) return `${sec} 秒前`
+  if (sec < 5) return t.time.justNow
+  if (sec < 60) return t.time.secondsAgo(sec)
   const min = Math.floor(sec / 60)
-  if (min < 60) return `${min} 分前`
+  if (min < 60) return t.time.minutesAgo(min)
   const hr = Math.floor(min / 60)
-  if (hr < 24) return `${hr} 時間前`
+  if (hr < 24) return t.time.hoursAgo(hr)
   const day = Math.floor(hr / 24)
-  if (day < 30) return `${day} 日前`
+  if (day < 30) return t.time.daysAgo(day)
   return new Date(iso).toLocaleDateString('ja-JP', { timeZone: tz })
 }

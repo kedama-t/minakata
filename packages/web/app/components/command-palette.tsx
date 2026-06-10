@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useFetcher, useNavigate } from 'react-router'
+import { type Dict, useDict } from '../i18n/index.ts'
 import { articleHref } from '../lib/article-link.ts'
 
 type ActionItem = {
@@ -18,24 +19,38 @@ type ArticleItem = {
 }
 type Item = ActionItem | ArticleItem
 
-const STATIC_ACTIONS: ActionItem[] = [
-  {
-    kind: 'action',
-    id: 'chat-new',
-    label: '新規チャットを開始',
-    hint: '/chat/new',
-    href: '/chat/new',
-  },
-  { kind: 'action', id: 'search', label: '検索ページへ', hint: '/search', href: '/search' },
-  {
-    kind: 'action',
-    id: 'topics',
-    label: '購読トピックを編集',
-    hint: '/topics',
-    href: '/topics',
-  },
-  { kind: 'action', id: 'reviews', label: 'レビュー一覧', hint: '/reviews', href: '/reviews' },
-]
+function buildStaticActions(t: Dict): ActionItem[] {
+  return [
+    {
+      kind: 'action',
+      id: 'chat-new',
+      label: t.commandPalette.actionNewChat,
+      hint: '/chat/new',
+      href: '/chat/new',
+    },
+    {
+      kind: 'action',
+      id: 'search',
+      label: t.commandPalette.actionSearch,
+      hint: '/search',
+      href: '/search',
+    },
+    {
+      kind: 'action',
+      id: 'topics',
+      label: t.commandPalette.actionTopics,
+      hint: '/topics',
+      href: '/topics',
+    },
+    {
+      kind: 'action',
+      id: 'reviews',
+      label: t.commandPalette.actionReviews,
+      hint: '/reviews',
+      href: '/reviews',
+    },
+  ]
+}
 
 interface SearchHit {
   id: string
@@ -54,6 +69,7 @@ interface SearchPayload {
  * - Enter で最上位、↑↓ で選択移動、Esc / クリック外で閉じる
  */
 export function CommandPalette() {
+  const t = useDict()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [selectedIdx, setSelectedIdx] = useState(0)
@@ -118,19 +134,20 @@ export function CommandPalette() {
   }, [fetcher.data])
 
   const items: Item[] = useMemo(() => {
-    if (query.trim().length === 0) return STATIC_ACTIONS
+    const staticActions = buildStaticActions(t)
+    if (query.trim().length === 0) return staticActions
     const lower = query.toLowerCase()
-    const filteredStatic = STATIC_ACTIONS.filter((a) => a.label.toLowerCase().includes(lower))
+    const filteredStatic = staticActions.filter((a) => a.label.toLowerCase().includes(lower))
     // 検索クエリ実行アクションを先頭に
     const queryAction: ActionItem = {
       kind: 'action',
       id: 'run-search',
-      label: `「${query}」で検索`,
+      label: t.commandPalette.runSearch(query),
       hint: `/search?q=${query}`,
       href: `/search?q=${encodeURIComponent(query)}`,
     }
     return [queryAction, ...articleItems, ...filteredStatic]
-  }, [query, articleItems])
+  }, [query, articleItems, t])
 
   // items が変化したら selectedIdx を 0 にリセット
   // biome-ignore lint/correctness/useExhaustiveDependencies: items reference identity is recomputed each render
@@ -171,14 +188,14 @@ export function CommandPalette() {
         className="bg-surface text-base-content border border-border rounded shadow-xl w-full max-w-xl overflow-hidden static relative"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => e.stopPropagation()}
-        aria-label="コマンドパレット"
+        aria-label={t.commandPalette.label}
       >
         <input
           ref={inputRef}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={onInputKey}
-          placeholder="アクションを検索 or 記事を検索…"
+          placeholder={t.commandPalette.placeholder}
           className="w-full px-4 py-3 outline-none bg-transparent border-b border-border"
         />
         <ul className="max-h-96 overflow-y-auto">
@@ -209,7 +226,9 @@ export function CommandPalette() {
                     : 'bg-base-300 text-base-content/60'
                 }`}
               >
-                {item.kind === 'article' ? '記事' : '操作'}
+                {item.kind === 'article'
+                  ? t.commandPalette.kindArticle
+                  : t.commandPalette.kindAction}
               </span>
               <span className="flex-1 truncate text-sm">{item.label}</span>
               {item.hint && (
@@ -219,15 +238,15 @@ export function CommandPalette() {
           ))}
           {items.length === 0 && (
             <li className="px-4 py-6 text-center text-sm text-base-content/60">
-              該当する候補はありません
+              {t.commandPalette.empty}
             </li>
           )}
         </ul>
         <div className="px-4 py-2 border-t border-border text-xs text-base-content/60 flex items-center gap-3">
-          <span>↑↓ 選択</span>
-          <span>Enter 実行</span>
-          <span>Esc 閉じる</span>
-          <span className="ml-auto">⌘K で再オープン</span>
+          <span>{t.commandPalette.hintMove}</span>
+          <span>{t.commandPalette.hintRun}</span>
+          <span>{t.commandPalette.hintClose}</span>
+          <span className="ml-auto">{t.commandPalette.hintReopen}</span>
         </div>
       </dialog>
     </div>

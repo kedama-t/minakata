@@ -12,6 +12,7 @@ import type { Route } from './+types/root.ts'
 import { CommandPalette } from './components/command-palette.tsx'
 import { Sidebar } from './components/sidebar.tsx'
 import { Toaster } from './components/toaster.tsx'
+import { type Locale, defaultLocale, detectLocale } from './i18n/index.ts'
 import { getCurrentUser } from './lib/auth.ts'
 import { getServices } from './lib/services.ts'
 import { type Theme, readThemeCookie, resolvedThemeAttr } from './lib/theme.ts'
@@ -38,6 +39,7 @@ export async function loader({ request }: Route.LoaderArgs) {
     user,
     approvals,
     theme: readThemeCookie(request),
+    locale: detectLocale(request),
     timezone: process.env.TIMEZONE ?? 'Asia/Tokyo',
   }
 }
@@ -47,10 +49,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
   // explicit な light/dark は属性で確定。system は属性を出さず CSS の
   // @media (prefers-color-scheme) に委ねるため、初期テーマは CSS だけで決まり
   // JS の実行タイミングに依存せず FOUC が起きない。
-  const data = useRouteLoaderData('root') as { theme?: Theme } | undefined
+  const data = useRouteLoaderData('root') as { theme?: Theme; locale?: Locale } | undefined
   const themeAttr = resolvedThemeAttr(data?.theme ?? 'system')
   return (
-    <html lang="ja" data-theme={themeAttr}>
+    <html lang={data?.locale ?? defaultLocale} data-theme={themeAttr}>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />

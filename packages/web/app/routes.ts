@@ -15,6 +15,7 @@ export default [
   route('chat/:sessionId/stream', 'routes/chat-stream.tsx'),
   route('monitor', 'routes/monitor.tsx'),
   route('theme', 'routes/theme.ts'),
+  route('locale', 'routes/locale.ts'),
   route('tasks', 'routes/tasks.tsx'),
   route('events', 'routes/events.tsx'),
   route('settings/members', 'routes/members.tsx'),

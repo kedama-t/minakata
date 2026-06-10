@@ -1,5 +1,6 @@
 import { diffLines } from 'diff'
 import { Form, redirect } from 'react-router'
+import { detectLocale, getDict, useDict } from '../i18n/index.ts'
 import { assertSameOrigin, requireEditor } from '../lib/auth.ts'
 import { formatDateTime, useTimezone } from '../lib/date.ts'
 import { getServices } from '../lib/services.ts'
@@ -15,7 +16,8 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const before = article?.body ?? ''
   const diff = diffLines(before, review.proposed_body)
   const comments = services.reviews.listComments(review.id)
-  return { review, article_title: article?.frontmatter.title ?? '(削除済み)', diff, comments }
+  const t = getDict(detectLocale(request))
+  return { review, article_title: article?.frontmatter.title ?? t.common.deleted, diff, comments }
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
@@ -29,7 +31,7 @@ export async function action({ request, params }: Route.ActionArgs) {
     await services.reviews.approve(params.reviewId, user.id)
   } else if (intent === 'reject') {
     const comment = String(form.get('comment') ?? '').trim()
-    if (!comment) return { error: '差し戻し時はコメントが必須' }
+    if (!comment) return { error: getDict(detectLocale(request)).review.errorCommentRequired }
     await services.reviews.reject(params.reviewId, user.id, comment)
   } else if (intent === 'comment') {
     const body = String(form.get('body') ?? '').trim()
@@ -40,22 +42,23 @@ export async function action({ request, params }: Route.ActionArgs) {
 }
 
 export default function ReviewPage({ loaderData, actionData }: Route.ComponentProps) {
+  const t = useDict()
   const { review, article_title, diff, comments } = loaderData
   const tz = useTimezone()
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <header>
         <a href="/reviews" className="text-primary text-sm hover:underline">
-          ← レビュー一覧
+          {t.review.backToList}
         </a>
         <h1 className="text-2xl font-bold mt-1">{article_title}</h1>
         <p className="text-xs text-base-content/60">
-          変更率: {(review.change_pct * 100).toFixed(1)}% / 状態: {review.status}
+          {t.review.meta((review.change_pct * 100).toFixed(1), review.status)}
         </p>
       </header>
 
       <section className="bg-surface border rounded p-4">
-        <h2 className="text-lg font-bold mb-2">差分</h2>
+        <h2 className="text-lg font-bold mb-2">{t.review.diff}</h2>
         <pre className="text-sm font-mono leading-tight whitespace-pre-wrap">
           {diff.map((chunk, i) => (
             <span
@@ -77,10 +80,10 @@ export default function ReviewPage({ loaderData, actionData }: Route.ComponentPr
 
       {review.status === 'pending' && (
         <section className="bg-surface border rounded p-4 space-y-3">
-          <h2 className="text-lg font-bold">判定</h2>
+          <h2 className="text-lg font-bold">{t.review.judgement}</h2>
           <Form method="post" className="flex gap-2">
             <button type="submit" name="intent" value="approve" className="btn btn-success btn-sm">
-              承認
+              {t.review.approve}
             </button>
           </Form>
           <Form method="post" className="space-y-2">
@@ -89,10 +92,10 @@ export default function ReviewPage({ loaderData, actionData }: Route.ComponentPr
               required
               rows={3}
               className="w-full px-3 py-2 border rounded text-sm"
-              placeholder="差し戻し理由(エージェントへのフィードバックになる)"
+              placeholder={t.review.rejectPlaceholder}
             />
             <button type="submit" name="intent" value="reject" className="btn btn-error btn-sm">
-              差し戻し
+              {t.review.reject}
             </button>
             {actionData?.error && <p className="text-error text-sm">{actionData.error}</p>}
           </Form>
@@ -100,7 +103,7 @@ export default function ReviewPage({ loaderData, actionData }: Route.ComponentPr
       )}
 
       <section className="bg-surface border rounded p-4">
-        <h2 className="text-lg font-bold mb-2">コメント</h2>
+        <h2 className="text-lg font-bold mb-2">{t.review.comments}</h2>
         <ul className="space-y-1 text-sm">
           {comments.map((c) => (
             <li key={c.id} className="border-b pb-1">
@@ -111,17 +114,17 @@ export default function ReviewPage({ loaderData, actionData }: Route.ComponentPr
             </li>
           ))}
           {comments.length === 0 && (
-            <p className="text-xs text-base-content/60">まだコメントはありません。</p>
+            <p className="text-xs text-base-content/60">{t.review.commentEmpty}</p>
           )}
         </ul>
         <Form method="post" className="mt-3 flex gap-2">
           <input
             name="body"
             className="flex-1 px-3 py-2 border rounded"
-            placeholder="行コメントの代わりに全体メモを残す"
+            placeholder={t.review.commentPlaceholder}
           />
           <button type="submit" name="intent" value="comment" className="btn btn-neutral btn-sm">
-            追加
+            {t.common.add}
           </button>
         </Form>
       </section>
