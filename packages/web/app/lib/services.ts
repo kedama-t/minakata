@@ -83,6 +83,7 @@ export function getServices(): Services {
     backup: new BackupService(db, {
       backupDir,
       articlesRoot,
+      documentsRoot,
       ...(runtimeSkillsDir ? { runtimeSkillsDir } : {}),
       ...(backupRemote ? { remote: backupRemote } : {}),
       ...(backupToken ? { token: backupToken } : {}),

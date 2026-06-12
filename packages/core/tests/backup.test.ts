@@ -89,6 +89,45 @@ describe('BackupService.run', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
+  test('documentsRoot 指定時はアップロード資料を取り込む', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'minakata-backup-'))
+    const articlesRoot = join(dir, 'articles')
+    const backupDir = join(dir, 'backup')
+    const documentsRoot = join(dir, 'documents')
+    setupArticles(articlesRoot)
+    mkdirSync(join(documentsRoot, 'DOC1'), { recursive: true })
+    writeFileSync(join(documentsRoot, 'DOC1', 'spec.md'), '# spec\n')
+    writeFileSync(join(documentsRoot, 'DOC1', 'extracted.md'), '# spec\n')
+    const db = openTestDb()
+    const backup = new BackupService(db, { backupDir, articlesRoot, documentsRoot })
+
+    const r = await backup.run()
+
+    expect(r.committed).toBe(true)
+    expect(existsSync(join(backupDir, 'documents', 'DOC1', 'spec.md'))).toBe(true)
+    expect(existsSync(join(backupDir, 'documents', 'DOC1', 'extracted.md'))).toBe(true)
+
+    db.close()
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  test('documentsRoot 未指定なら warn を積んで成功する', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'minakata-backup-'))
+    const articlesRoot = join(dir, 'articles')
+    const backupDir = join(dir, 'backup')
+    setupArticles(articlesRoot)
+    const db = openTestDb()
+    const backup = new BackupService(db, { backupDir, articlesRoot })
+
+    const r = await backup.run()
+
+    expect(r.committed).toBe(true)
+    expect(r.warnings.some((w) => w.includes('documents root'))).toBe(true)
+
+    db.close()
+    rmSync(dir, { recursive: true, force: true })
+  })
+
   test('runtime skills 指定時は skills/ を取り込む', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'minakata-backup-'))
     const articlesRoot = join(dir, 'articles')
