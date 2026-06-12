@@ -11,6 +11,7 @@ import {
   BackupService,
   CommentService,
   type Db,
+  DocumentService,
   EmbeddingService,
   FeedbackService,
   GitService,
@@ -44,6 +45,7 @@ export interface Services {
   skills: SkillProposalService
   archives: ArchiveProposalService
   topics: TopicService
+  documents: DocumentService
 }
 
 let cached: Services | null = null
@@ -61,6 +63,8 @@ export function getServices(): Services {
   const backupRemote = process.env.BACKUP_GIT_REMOTE
   const backupToken = process.env.BACKUP_GIT_TOKEN
   const runtimeSkillsDir = process.env.RUNTIME_SKILLS_DIR
+  // アップロード資料(raw + 抽出 Markdown)の保存先(#239)
+  const documentsRoot = process.env.DOCUMENTS_ROOT ?? './data/documents'
   const db = openDb({ path: dbPath })
   const git = new GitService(articlesRoot)
   const embedding = new EmbeddingService()
@@ -79,6 +83,7 @@ export function getServices(): Services {
     backup: new BackupService(db, {
       backupDir,
       articlesRoot,
+      documentsRoot,
       ...(runtimeSkillsDir ? { runtimeSkillsDir } : {}),
       ...(backupRemote ? { remote: backupRemote } : {}),
       ...(backupToken ? { token: backupToken } : {}),
@@ -91,6 +96,7 @@ export function getServices(): Services {
     skills: new SkillProposalService(db, skillsDir),
     archives: new ArchiveProposalService(db, articles),
     topics: new TopicService(db),
+    documents: new DocumentService(db, documentsRoot),
   }
   return cached
 }

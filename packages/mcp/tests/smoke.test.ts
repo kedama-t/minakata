@@ -9,6 +9,7 @@ import {
   AuditService,
   BackupService,
   CommentService,
+  DocumentService,
   FeedbackService,
   GitService,
   MaintenanceService,
@@ -46,6 +47,7 @@ function buildServices(): { services: McpServices; cleanup: () => void } {
     skills: new SkillProposalService(db, join(dir, 'skills')),
     archives: new ArchiveProposalService(db, articles),
     topics: new TopicService(db),
+    documents: new DocumentService(db, join(dir, 'documents')),
   }
   return { services, cleanup: () => rmSync(dir, { recursive: true, force: true }) }
 }

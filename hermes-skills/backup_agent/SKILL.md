@@ -12,7 +12,7 @@ metadata:
 
 # backup_agent
 
-記事 Markdown・DB スナップショット・runtime skills をオフサイト(GitHub private repo)へ日次でバックアップする。
+記事 Markdown・DB スナップショット・runtime skills・アップロード資料(documents)をオフサイト(GitHub private repo)へ日次でバックアップする。
 実際のバックアップ処理(git commit / push)は Minakata 側の `minakata.backup` MCP ツールが行う。
 このエージェントはツールを 1 回呼んで結果を確認するだけ。
 

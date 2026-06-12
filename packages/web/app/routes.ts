@@ -18,6 +18,8 @@ export default [
   route('theme', 'routes/theme.ts'),
   route('locale', 'routes/locale.ts'),
   route('tasks', 'routes/tasks.tsx'),
+  route('documents', 'routes/documents.tsx'),
+  route('documents/:id', 'routes/document.tsx'),
   route('events', 'routes/events.tsx'),
   route('settings/members', 'routes/members.tsx'),
   route('reviews', 'routes/reviews.tsx'),

@@ -114,6 +114,12 @@ function typeMeta(type: string, t: Dict): { icon: string; label: string; tint: s
         label: t.tasks.typeResearchFollowup,
         tint: 'bg-fuchsia-500/15 text-fuchsia-600',
       }
+    case 'document_write':
+      return {
+        icon: '📎',
+        label: t.tasks.typeDocumentWrite,
+        tint: 'bg-orange-500/15 text-orange-600',
+      }
     default:
       return { icon: '📋', label: type, tint: 'bg-base-200 text-base-content/70' }
   }

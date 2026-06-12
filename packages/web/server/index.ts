@@ -110,6 +110,7 @@ export default createHonoServer({
         skills: services.skills,
         archives: services.archives,
         topics: services.topics,
+        documents: services.documents,
       },
       allowedHosts: process.env.MCP_ALLOWED_HOSTS?.split(',').filter(Boolean) ?? [],
     })

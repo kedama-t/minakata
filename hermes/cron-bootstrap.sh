@@ -171,7 +171,7 @@ ensure_cron "minakata-researcher" "every 5m" "researcher" \
     "Poll Minakata's research task queue and process one pending task. Follow the researcher skill's rules."
 
 ensure_cron "minakata-reviser" "every 2m" "reviser" \
-    "Poll Minakata's edit task queue and apply light fixes to existing articles without external research. Follow the reviser skill's rules."
+    "Poll Minakata's edit and document_write task queues. Apply light fixes to existing articles, or write new articles from uploaded documents, without external research. Follow the reviser skill's rules."
 
 ensure_cron "minakata-daily-research" "$(local_cron_to_utc '0 3 * * *')" "daily_research" \
     "Enqueue research tasks for all active subscription topics. Follow the daily_research skill's rules."
@@ -196,6 +196,6 @@ ensure_cron "minakata-taxonomy-builder" "$(local_cron_to_utc '0 5 * * 1')" "taxo
 
 # gap-detector が 04:00 を使うため衝突回避で 04:30 に置く
 ensure_cron "minakata-backup" "$(local_cron_to_utc '30 4 * * *')" "backup_agent" \
-    "Run the daily backup of articles, DB and runtime skills to the GitHub private repo. Follow the backup_agent skill's rules."
+    "Run the daily backup of articles, DB, runtime skills and uploaded documents to the GitHub private repo. Follow the backup_agent skill's rules."
 
 echo "[minakata-cron] done"

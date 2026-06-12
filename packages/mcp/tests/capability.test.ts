@@ -9,6 +9,7 @@ import {
   AuditService,
   BackupService,
   CommentService,
+  DocumentService,
   FeedbackService,
   GitService,
   MaintenanceService,
@@ -47,6 +48,7 @@ function buildServices(): { services: McpServices; cleanup: () => void } {
     skills: new SkillProposalService(db, join(dir, 'skills')),
     archives: new ArchiveProposalService(db, articles),
     topics: new TopicService(db),
+    documents: new DocumentService(db, join(dir, 'documents')),
   }
   return { services, cleanup: () => rmSync(dir, { recursive: true, force: true }) }
 }
@@ -82,15 +84,18 @@ describe('capability 分離 (#208)', () => {
     expect(isToolAllowed('backup_agent', 'minakata.backup')).toBe(true)
   })
 
-  test('isToolAllowed: reviser は読み取り + 軽微修正のみ許可', () => {
+  test('isToolAllowed: reviser は読み取り + 修正 + 資料執筆のみ許可', () => {
     // 許可: 読み取り + update_article + タスク + コメント返信
     expect(isToolAllowed('reviser', 'minakata.read_article')).toBe(true)
     expect(isToolAllowed('reviser', 'minakata.update_article')).toBe(true)
     expect(isToolAllowed('reviser', 'minakata.poll_tasks')).toBe(true)
     expect(isToolAllowed('reviser', 'minakata.enqueue_task')).toBe(true)
     expect(isToolAllowed('reviser', 'minakata.reply_article_comment')).toBe(true)
-    // 不許可: 新規作成・破壊的操作・スキル・保守
-    expect(isToolAllowed('reviser', 'minakata.create_article')).toBe(false)
+    // 許可: 資料執筆(document_write, #239)に必要なツール
+    expect(isToolAllowed('reviser', 'minakata.create_article')).toBe(true)
+    expect(isToolAllowed('reviser', 'minakata.list_documents')).toBe(true)
+    expect(isToolAllowed('reviser', 'minakata.read_document')).toBe(true)
+    // 不許可: 破壊的操作・スキル・保守
     expect(isToolAllowed('reviser', 'minakata.archive_article')).toBe(false)
     expect(isToolAllowed('reviser', 'minakata.propose_skill')).toBe(false)
     expect(isToolAllowed('reviser', 'minakata.backup')).toBe(false)
@@ -128,8 +133,9 @@ describe('capability 分離 (#208)', () => {
     expect(names).toContain('minakata.read_article')
     expect(names).toContain('minakata.update_article')
     expect(names).toContain('minakata.poll_tasks')
+    expect(names).toContain('minakata.create_article')
+    expect(names).toContain('minakata.read_document')
     // 制限ツールは公開されない
-    expect(names).not.toContain('minakata.create_article')
     expect(names).not.toContain('minakata.archive_article')
     expect(names).not.toContain('minakata.propose_skill')
     expect(names).not.toContain('minakata.backup')

@@ -24,6 +24,7 @@ services:
       MCP_TOKEN_REVISER: "${MCP_TOKEN_REVISER:-}"
       DATABASE_URL: "file:/app/data/minakata.db"
       ARTICLES_ROOT: "/app/data/articles"
+      DOCUMENTS_ROOT: "/app/data/documents"
       HF_HOME: "/app/.cache/huggingface"
       PORT: "3000"
       TIMEZONE: "${TIMEZONE:-Asia/Tokyo}"

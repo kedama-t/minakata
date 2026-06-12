@@ -11,6 +11,8 @@ export interface BackupOptions {
   articlesRoot: string
   /** Hermes runtime skills のディレクトリ。読めない場合は warn-skip */
   runtimeSkillsDir?: string
+  /** アップロード資料のルート(data/documents)。未設定・無ければ warn-skip */
+  documentsRoot?: string
   /** push 先 GitHub repo の URL(https://github.com/owner/repo.git)。無ければ commit のみ */
   remote?: string
   /** GitHub PAT。remote URL に x-access-token として注入する。ログには出さない */
@@ -27,7 +29,7 @@ export interface BackupResult {
 }
 
 /**
- * 記事・DB・runtime skills を専用 git リポジトリに集約し、GitHub private repo へ
+ * 記事・DB・runtime skills・アップロード資料を専用 git リポジトリに集約し、GitHub private repo へ
  * push する定期バックアップ。Hermes の backup_agent skill が MCP 経由で起動する。
  * - 記事 Markdown は行差分が効くため git 管理が有効
  * - DB は VACUUM INTO で一貫スナップショットを丸ごと退避
@@ -38,6 +40,7 @@ export class BackupService {
   private readonly backupDir: string
   private readonly articlesRoot: string
   private readonly runtimeSkillsDir: string | undefined
+  private readonly documentsRoot: string | undefined
   private readonly remote: string | undefined
   private readonly token: string | undefined
 
@@ -48,6 +51,7 @@ export class BackupService {
     this.backupDir = opts.backupDir
     this.articlesRoot = opts.articlesRoot
     this.runtimeSkillsDir = opts.runtimeSkillsDir
+    this.documentsRoot = opts.documentsRoot
     this.remote = opts.remote
     this.token = opts.token
     if (!existsSync(this.backupDir)) mkdirSync(this.backupDir, { recursive: true })
@@ -126,7 +130,14 @@ export class BackupService {
       warnings.push('runtime skills dir not set or missing, skipped')
     }
 
-    // 4. commit(変更が無ければスキップ)
+    // 4. アップロード資料(raw + 抽出 Markdown、#239)
+    if (this.documentsRoot && existsSync(this.documentsRoot)) {
+      this.syncDir(this.documentsRoot, join(this.backupDir, 'documents'))
+    } else {
+      warnings.push('documents root not set or missing, skipped')
+    }
+
+    // 5. commit(変更が無ければスキップ)
     await this.git.add('-A')
     const status = await this.git.status()
     if (status.files.length === 0) {
@@ -135,7 +146,7 @@ export class BackupService {
     const message = opts?.message ?? `backup: ${now()}`
     const commit = await this.git.commit(message)
 
-    // 5. push(remote 指定時のみ)
+    // 6. push(remote 指定時のみ)
     let pushed = false
     let error: string | undefined
     if (this.remote) {
