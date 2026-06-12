@@ -44,6 +44,7 @@ export const TaskTypeSchema = z.enum([
   'daily_research',
   'research_followup',
   'edit',
+  'document_write',
 ])
 export type TaskType = z.infer<typeof TaskTypeSchema>
 

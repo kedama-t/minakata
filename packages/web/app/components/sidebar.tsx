@@ -17,6 +17,7 @@ import {
   MenuIcon,
   MonitorIcon,
   MoonIcon,
+  PaperclipIcon,
   PlusIcon,
   SearchIcon,
   SettingsIcon,
@@ -63,6 +64,12 @@ function buildMainGroups(t: Dict): NavGroup[] {
         },
         { to: '/liked', label: t.nav.liked, icon: HeartIcon, matchPrefixes: ['/liked'] },
         { to: '/topics', label: t.nav.topics, icon: BookmarkIcon },
+        {
+          to: '/documents',
+          label: t.nav.documents,
+          icon: PaperclipIcon,
+          matchPrefixes: ['/documents'],
+        },
       ],
     },
     {

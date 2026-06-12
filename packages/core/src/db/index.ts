@@ -16,6 +16,7 @@ import init0009 from './migrations/0009_tasks_collab.sql?raw'
 import init0010 from './migrations/0010_articles_source_check.sql?raw'
 import init0011 from './migrations/0011_sessions_token_hash.sql?raw'
 import init0012 from './migrations/0012_feedback.sql?raw'
+import init0013 from './migrations/0013_documents.sql?raw'
 
 export type Db = Database
 
@@ -40,6 +41,7 @@ const MIGRATIONS: { name: string; sql: string }[] = [
   { name: '0010_articles_source_check.sql', sql: init0010 },
   { name: '0011_sessions_token_hash.sql', sql: init0011 },
   { name: '0012_feedback.sql', sql: init0012 },
+  { name: '0013_documents.sql', sql: init0013 },
 ]
 
 /**

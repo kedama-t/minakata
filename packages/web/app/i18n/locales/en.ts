@@ -44,6 +44,7 @@ export const en: Dict = {
     chats: 'Chat History',
     monitor: 'Monitor',
     tasks: 'Tasks',
+    documents: 'Documents',
     reviews: 'Reviews',
     archives: 'Archive Approval',
     insights: 'Writing Insights',
@@ -224,6 +225,7 @@ export const en: Dict = {
     typeRefresh: 'Refresh',
     typeDailyResearch: 'Daily research',
     typeResearchFollowup: 'Follow-up',
+    typeDocumentWrite: 'Doc Writing',
     priorityUrgent: 'Urgent',
     priorityInteractive: 'Interactive',
     priorityScheduled: 'Scheduled',
@@ -243,6 +245,32 @@ export const en: Dict = {
     openArticle: 'Open article →',
     empty: 'No matching tasks',
     emptyHint: ' (request follow-up research from an article page and it will appear here)',
+  },
+
+  documents: {
+    title: 'Documents',
+    uploadTitle: 'Write an Article from Documents',
+    uploadHint:
+      'Upload pdf / md / pptx files with writing instructions and the agent will draft an article. Leave the instructions empty to just upload.',
+    filesLabel: 'Files',
+    instructionsLabel: 'Writing instructions',
+    instructionsPlaceholder:
+      'e.g. Based on these documents, write a technical article for our internal blog…',
+    submit: 'Upload & Request',
+    listTitle: 'Uploaded Documents',
+    uploadedBy: 'Uploaded by',
+    uploadedAt: 'Uploaded at',
+    download: 'Download',
+    confirmDelete: 'Delete this document? (The stored files will also be removed.)',
+    empty: 'No documents uploaded yet',
+    preview: 'Extracted text',
+    notFound: 'Document not found',
+    uploaded: (n: number) => `Uploaded ${n} document(s)`,
+    taskSubmitted: 'Writing task submitted. Check the task history for progress.',
+    errorNoFiles: 'Please choose at least one file',
+    errorUnsupported: (name: string) => `${name} has an unsupported format (pdf / md / pptx only)`,
+    errorTooLarge: (name: string) => `${name} exceeds the 20MB size limit`,
+    errorExtraction: (name: string) => `Failed to extract text from ${name}`,
   },
 
   monitor: {

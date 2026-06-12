@@ -5,6 +5,7 @@ import type {
   AuditService,
   BackupService,
   CommentService,
+  DocumentService,
   FeedbackService,
   MaintenanceService,
   MessageService,
@@ -36,4 +37,5 @@ export interface McpServices {
   skills: SkillProposalService
   archives: ArchiveProposalService
   topics: TopicService
+  documents: DocumentService
 }
