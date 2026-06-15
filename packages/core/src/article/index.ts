@@ -29,11 +29,18 @@ export interface ArticleListItem {
   source: ArticleSourceKind
   tags: string[]
   freshness_rank: string
+  created_at: string
   updated_at: string
+  /** 最終調査日時。一度も調査されていなければ null */
+  last_researched_at: string | null
   /** 最終アクセス日時(US-7.2 のアーカイブ判定に使う)。一度も触られていなければ null */
   last_accessed_at: string | null
   summary: string
 }
+
+/** 記事一覧の並べ替えキー */
+export type ArticleSortKey = 'created_at' | 'updated_at' | 'last_researched_at'
+export type SortOrder = 'asc' | 'desc'
 
 export interface CreateArticleInput {
   title: string
@@ -103,19 +110,24 @@ export class ArticleService {
       tag?: string | undefined
       limit?: number | undefined
       offset?: number | undefined
+      /** 並べ替えキー(デフォルト updated_at) */
+      sortBy?: ArticleSortKey | undefined
+      /** 並び順(デフォルト desc) */
+      order?: SortOrder | undefined
     } = {},
   ): ArticleListItem[] {
     const limit = opts.limit ?? 50
     const offset = opts.offset ?? 0
     const status = opts.status
     const excludeArchived = !status && (opts.excludeArchived ?? false)
+    const orderBy = buildOrderBy(opts.sortBy, opts.order)
     // tag 絞り込みは tags_json(JSON 配列)を JS 側で評価。全件取得後にページング(MVP 規模)
     if (opts.tag) {
       const sql = status
-        ? `SELECT ${LIST_COLS} FROM articles WHERE status = ? ORDER BY updated_at DESC`
+        ? `SELECT ${LIST_COLS} FROM articles WHERE status = ? ${orderBy}`
         : excludeArchived
-          ? `SELECT ${LIST_COLS} FROM articles WHERE status != 'archived' ORDER BY updated_at DESC`
-          : `SELECT ${LIST_COLS} FROM articles ORDER BY updated_at DESC`
+          ? `SELECT ${LIST_COLS} FROM articles WHERE status != 'archived' ${orderBy}`
+          : `SELECT ${LIST_COLS} FROM articles ${orderBy}`
       const rows = status
         ? this.db.query<RawListRow, [string]>(sql).all(status)
         : this.db.query<RawListRow, []>(sql).all()
@@ -125,10 +137,10 @@ export class ArticleService {
         .slice(offset, offset + limit)
     }
     const sql = status
-      ? `SELECT ${LIST_COLS} FROM articles WHERE status = ? ORDER BY updated_at DESC LIMIT ? OFFSET ?`
+      ? `SELECT ${LIST_COLS} FROM articles WHERE status = ? ${orderBy} LIMIT ? OFFSET ?`
       : excludeArchived
-        ? `SELECT ${LIST_COLS} FROM articles WHERE status != 'archived' ORDER BY updated_at DESC LIMIT ? OFFSET ?`
-        : `SELECT ${LIST_COLS} FROM articles ORDER BY updated_at DESC LIMIT ? OFFSET ?`
+        ? `SELECT ${LIST_COLS} FROM articles WHERE status != 'archived' ${orderBy} LIMIT ? OFFSET ?`
+        : `SELECT ${LIST_COLS} FROM articles ${orderBy} LIMIT ? OFFSET ?`
     const rows = status
       ? this.db.query<RawListRow, [string, number, number]>(sql).all(status, limit, offset)
       : this.db.query<RawListRow, [number, number]>(sql).all(limit, offset)
@@ -391,8 +403,23 @@ export class ArticleService {
 }
 
 /** list 系クエリで共通利用する SELECT カラム列 */
-const LIST_COLS = `id, slug, title, status, source, tags_json, freshness_rank, updated_at,
-                last_accessed_at, summary`
+const LIST_COLS = `id, slug, title, status, source, tags_json, freshness_rank,
+                created_at, updated_at, last_researched_at, last_accessed_at, summary`
+
+const SORT_COLS: Record<ArticleSortKey, string> = {
+  created_at: 'created_at',
+  updated_at: 'updated_at',
+  last_researched_at: 'last_researched_at',
+}
+
+/** ソートキー/順序を検証して ORDER BY 句を組み立てる(SQL インジェクション防止のためホワイトリスト経由) */
+function buildOrderBy(sortBy?: ArticleSortKey, order?: SortOrder): string {
+  const col = SORT_COLS[sortBy ?? 'updated_at'] ?? 'updated_at'
+  const dir = order === 'asc' ? 'ASC' : 'DESC'
+  // last_researched_at は NULL を含むため常に末尾へ
+  const nulls = col === 'last_researched_at' ? ' NULLS LAST' : ''
+  return `ORDER BY ${col} ${dir}${nulls}`
+}
 
 interface RawListRow {
   id: string
@@ -402,7 +429,9 @@ interface RawListRow {
   source: ArticleSourceKind
   tags_json: string
   freshness_rank: string
+  created_at: string
   updated_at: string
+  last_researched_at: string | null
   last_accessed_at: string | null
   summary: string
 }
@@ -416,7 +445,9 @@ function toListItem(r: RawListRow): ArticleListItem {
     source: r.source,
     tags: JSON.parse(r.tags_json) as string[],
     freshness_rank: r.freshness_rank,
+    created_at: r.created_at,
     updated_at: r.updated_at,
+    last_researched_at: r.last_researched_at,
     last_accessed_at: r.last_accessed_at,
     summary: r.summary,
   }

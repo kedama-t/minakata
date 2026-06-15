@@ -172,6 +172,51 @@ describe('ArticleService', () => {
     cleanup()
   })
 
+  test('list は sortBy / order で並べ替えできる(デフォルトは updated_at 降順)', async () => {
+    const { db, articles, cleanup } = setup()
+    const a = await articles.create({
+      title: 'A',
+      slug: 'a',
+      body: 'b',
+      author: 'agent:researcher',
+    })
+    await Bun.sleep(5)
+    const b = await articles.create({
+      title: 'B',
+      slug: 'b',
+      body: 'b',
+      author: 'agent:researcher',
+    })
+    await Bun.sleep(5)
+    const c = await articles.create({
+      title: 'C',
+      slug: 'c',
+      body: 'b',
+      author: 'agent:researcher',
+    })
+
+    // 作成順は a < b < c
+    expect(articles.list({ sortBy: 'created_at', order: 'asc' }).map((x) => x.id)).toEqual([
+      a.frontmatter.id,
+      b.frontmatter.id,
+      c.frontmatter.id,
+    ])
+
+    // a を更新すると最終更新が最新 → デフォルト(updated_at 降順)で先頭
+    await Bun.sleep(5)
+    await articles.update({ id: a.frontmatter.id, body: 'b2', author: 'user:editor' })
+    expect(articles.list()[0]?.id).toBe(a.frontmatter.id)
+
+    // last_researched_at 昇順
+    expect(articles.list({ sortBy: 'last_researched_at', order: 'asc' }).map((x) => x.id)).toEqual([
+      a.frontmatter.id,
+      b.frontmatter.id,
+      c.frontmatter.id,
+    ])
+    db.close()
+    cleanup()
+  })
+
   test('listTags はタグ件数を降順集計し、list({ tag }) で絞り込める', async () => {
     const { db, articles, cleanup } = setup()
     await articles.create({

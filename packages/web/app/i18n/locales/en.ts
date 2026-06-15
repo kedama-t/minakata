@@ -121,6 +121,12 @@ export const en: Dict = {
     empty: 'No articles yet',
     collapse: 'Collapse',
     moreTags: (n: number) => `+${n} more`,
+    sortLabel: 'Sort by',
+    sortUpdated: 'Last updated',
+    sortCreated: 'Created',
+    sortResearched: 'Last researched',
+    orderDesc: 'Descending',
+    orderAsc: 'Ascending',
   },
 
   liked: {
