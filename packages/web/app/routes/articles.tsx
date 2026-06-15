@@ -1,4 +1,6 @@
+import type { ArticleSortKey, SortOrder } from '@minakata/core'
 import { useState } from 'react'
+import { Form, useSubmit } from 'react-router'
 import { FreshnessBadge } from '../components/ui/freshness-badge.tsx'
 import { useDict } from '../i18n/index.ts'
 import { articleHref } from '../lib/article-link.ts'
@@ -8,16 +10,34 @@ import type { Route } from './+types/articles.ts'
 
 const PAGE_SIZE = 100
 
+const SORT_KEYS: ArticleSortKey[] = ['updated_at', 'created_at', 'last_researched_at']
+
+function parseSort(v: string | null): ArticleSortKey {
+  return SORT_KEYS.includes(v as ArticleSortKey) ? (v as ArticleSortKey) : 'updated_at'
+}
+
+function parseOrder(v: string | null): SortOrder {
+  return v === 'asc' ? 'asc' : 'desc'
+}
+
 export async function loader({ request }: Route.LoaderArgs) {
   requireUser(request)
   const services = getServices()
   const url = new URL(request.url)
   const tag = url.searchParams.get('tag') || undefined
+  const sortBy = parseSort(url.searchParams.get('sort'))
+  const order = parseOrder(url.searchParams.get('order'))
   // archived 以外を全て表示(pending_approval も含む)
-  const articles = services.articles.list({ excludeArchived: true, tag, limit: PAGE_SIZE })
+  const articles = services.articles.list({
+    excludeArchived: true,
+    tag,
+    limit: PAGE_SIZE,
+    sortBy,
+    order,
+  })
   const tags = services.articles.listTags({ excludeArchived: true })
   const likeCounts = services.feedback.countsFor(articles.map((a) => a.id))
-  return { articles, tags, tag: tag ?? '', likeCounts }
+  return { articles, tags, tag: tag ?? '', likeCounts, sortBy, order }
 }
 
 function PendingBadge({ status }: { status: string }) {
@@ -79,16 +99,52 @@ function TagCloud({
   )
 }
 
+// 並べ替え UI。select 変更で即時送信し、tag 絞り込みは hidden で引き継ぐ
+function SortControl({
+  tag,
+  sortBy,
+  order,
+}: { tag: string; sortBy: ArticleSortKey; order: SortOrder }) {
+  const t = useDict()
+  const submit = useSubmit()
+  const selectClass =
+    'text-xs px-2 py-1 rounded bg-base-200 text-base-content/80 hover:bg-base-300 transition-colors'
+  return (
+    <Form
+      method="get"
+      className="flex items-center gap-2"
+      onChange={(e) => submit(e.currentTarget)}
+    >
+      {tag && <input type="hidden" name="tag" value={tag} />}
+      <span className="text-xs text-base-content/50">{t.articles.sortLabel}</span>
+      <select name="sort" defaultValue={sortBy} className={selectClass}>
+        <option value="updated_at">{t.articles.sortUpdated}</option>
+        <option value="created_at">{t.articles.sortCreated}</option>
+        <option value="last_researched_at">{t.articles.sortResearched}</option>
+      </select>
+      <select name="order" defaultValue={order} className={selectClass}>
+        <option value="desc">{t.articles.orderDesc}</option>
+        <option value="asc">{t.articles.orderAsc}</option>
+      </select>
+    </Form>
+  )
+}
+
 export default function Articles({ loaderData }: Route.ComponentProps) {
   const t = useDict()
-  const { articles, tags, tag, likeCounts } = loaderData
+  const { articles, tags, tag, likeCounts, sortBy, order } = loaderData
   return (
     <div className="max-w-6xl mx-auto px-4 lg:px-8 py-6 lg:py-10 space-y-6">
-      <header>
-        <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">{t.articles.title}</h1>
-        <p className="text-sm text-base-content/60 mt-1">
-          {tag ? t.articles.countByTag(tag, articles.length) : t.articles.countAll(articles.length)}
-        </p>
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">{t.articles.title}</h1>
+          <p className="text-sm text-base-content/60 mt-1">
+            {tag
+              ? t.articles.countByTag(tag, articles.length)
+              : t.articles.countAll(articles.length)}
+          </p>
+        </div>
+        <SortControl tag={tag} sortBy={sortBy} order={order} />
       </header>
 
       {tags.length > 0 && <TagCloud tags={tags} currentTag={tag} />}

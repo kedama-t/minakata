@@ -121,6 +121,12 @@ export const ja = {
     empty: 'まだ記事がありません',
     collapse: '閉じる',
     moreTags: (n: number) => `+${n}件`,
+    sortLabel: '並べ替え',
+    sortUpdated: '最終更新日',
+    sortCreated: '作成日',
+    sortResearched: '最終調査日',
+    orderDesc: '降順',
+    orderAsc: '昇順',
   },
 
   liked: {
