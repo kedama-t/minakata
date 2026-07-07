@@ -577,7 +577,7 @@ services:
 - Host header 検証(`MCP_ALLOWED_HOSTS` で許可ホストを限定し DNS rebinding を防ぐ。`packages/mcp/src/hono.ts`)
 - Bearer Token 認証(`MCP_TOKEN`)
 - コンテナネットワーク内で閉じる(searxng は `expose` のみで外部非公開)
-- Tool 入力は Zod で厳格バリデーション
+- Tool 入力は Zod でバリデーション。破壊系・特権ツール(archive_article / propose_skill / backup / snapshot_db / expire_ephemeral_articles)は `.strict()` で未知キーを拒否する
 
 ### 8.3 シークレット管理
 

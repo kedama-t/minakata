@@ -325,11 +325,13 @@ export function registerArticleTools(
     {
       description:
         'アーカイブを「提案」する(§6 承認ゲート)。即時 archive は行わず、admin が approve_archive で承認したときに反映する。同じ記事に既に proposed がある場合は既存提案 ID を返す',
-      inputSchema: {
-        id: z.string(),
-        author: z.string().default('freshness_checker'),
-        reason: z.string().optional(),
-      },
+      inputSchema: z
+        .object({
+          id: z.string(),
+          author: z.string().default('freshness_checker'),
+          reason: z.string().optional(),
+        })
+        .strict(),
     },
     async (args) => {
       const proposal = s.archives.propose({
@@ -698,7 +700,7 @@ export function registerMaintenanceTools(
     {
       description:
         'SQLite を VACUUM INTO でサーバ固定ディレクトリ配下に退避する。filename は小文字英数字・ハイフン・アンダースコアのみ使用可能で .sqlite 拡張子必須',
-      inputSchema: { filename: z.string().regex(/^[a-z0-9_-]+\.sqlite$/) },
+      inputSchema: z.object({ filename: z.string().regex(/^[a-z0-9_-]+\.sqlite$/) }).strict(),
     },
     async ({ filename }) => ok(s.maintenance.snapshot(filename)),
   )
@@ -728,11 +730,13 @@ export function registerMaintenanceTools(
     {
       description:
         '一過性記事(changelog / daily 等)を created_at 基準で強制アーカイブする(#192)。§6 承認ゲートを通さず即時 archived 化する例外経路。対象は kinds の source に限定される',
-      inputSchema: {
-        kinds: z.array(z.string()).default(['agent_changelog', 'agent_daily']),
-        max_age_days: z.number().positive().default(7),
-        author: z.string().default('freshness_checker'),
-      },
+      inputSchema: z
+        .object({
+          kinds: z.array(z.string()).default(['agent_changelog', 'agent_daily']),
+          max_age_days: z.number().positive().default(7),
+          author: z.string().default('freshness_checker'),
+        })
+        .strict(),
     },
     async (args) => {
       const actor = ctx.agent ?? args.author
@@ -758,7 +762,7 @@ export function registerMaintenanceTools(
     {
       description:
         '記事 Markdown・DB スナップショット・runtime skills を専用 git リポジトリに集約し、設定があれば GitHub private repo へ push する。Hermes の backup_agent から日次で呼ぶ',
-      inputSchema: { message: z.string().max(200).optional() },
+      inputSchema: z.object({ message: z.string().max(200).optional() }).strict(),
     },
     async (args) => {
       const r = await s.backup.run(args.message !== undefined ? { message: args.message } : {})
@@ -926,14 +930,16 @@ export function registerSkillTools(server: McpServer, s: McpServices, ctx: CallC
     'minakata.propose_skill',
     {
       description: 'スキル化の提案。admin が承認するとファイルとして書き出される(US-8.1)',
-      inputSchema: {
-        name: z
-          .string()
-          .min(1)
-          .regex(/^[a-z][a-z0-9_-]*$/, '英小文字・数字・ハイフン・アンダースコアのみ'),
-        description: z.string().min(1),
-        code: z.string().min(1),
-      },
+      inputSchema: z
+        .object({
+          name: z
+            .string()
+            .min(1)
+            .regex(/^[a-z][a-z0-9_-]*$/, '英小文字・数字・ハイフン・アンダースコアのみ'),
+          description: z.string().min(1),
+          code: z.string().min(1),
+        })
+        .strict(),
     },
     async (args) => {
       const id = s.skills.propose(args)
