@@ -312,7 +312,7 @@ Git 操作(commit / diff / history / push)は記事リポジトリ用 `article/g
 - `changelog_writer` — 前日のエージェント活動を ChangeLog 日報化
 - `backup_agent` — 記事・DB・runtime skills を GitHub private repo へバックアップ
 
-Capability 分離(セクション 8)は subagent ごとに呼べる MCP ツールを限定する設計だが、MVP では全ツール登録のまま(Issue #208 で追跡中)。
+Capability 分離(セクション 8)は subagent ごとに呼べる MCP ツールを allowlist で限定する設計。機構は #224 で実装済み(Minakata 側の allowlist Proxy + per-agent token)だが、enforcement は既定で無効(単一 `MCP_TOKEN` 共有=全ツール許可)。Hermes の per-skill MCP 制限(上流 #492)が入るまで Minakata 側 allowlist は defense-in-depth として温存(Issue #208 で継続追跡)。
 
 **重要な非採用事項**:
 
@@ -362,7 +362,7 @@ Hermes は `web_search` / `web_extract` / `browser_*` を組み込みツール�
 **自前スクレイパの構成**:
 
 - HTML 取得 → [`linkedom`](https://github.com/WebReflection/linkedom) でパース → [`@mozilla/readability`](https://github.com/mozilla/readability) で本文抽出 → [`turndown`](https://github.com/mixmark-io/turndown) で Markdown 化
-- **SSRF 対策**: スキーム検証 + DNS 解決後の IP チェックで private / loopback / link-local / 予約 IP 宛を拒否(`scraper.ts:isPrivateIp`)
+- **SSRF 対策**(`scraper.ts`): スキーム検証 + DNS 解決後の IP チェックで private / loopback / link-local / 予約 IP 宛を拒否(`isPrivateIp` / `assertSafeUrl`)。IPv6 リテラル(`[::1]` 等)・IPv4-mapped IPv6(`::ffff:127.0.0.1`)も判定。リダイレクトは手動追従し各ホップを再検証、検証済み IP に接続を固定(独自 `lookup`)して DNS リバインディング / TOCTOU を封じる
 
 **選定理由**:
 
@@ -560,10 +560,10 @@ services:
 
 | パターン                        | 実装                                                                                                         |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| **Capability 分離**             | Hermes の subagent 機構で役割(dialogue / researcher / synthesizer 等)を分離し、各 subagent が呼べる MCP ツールを限定する設計。**MVP では未実装(全ツール無条件登録、Issue #208 で追跡)** |
-| **コンテンツフェンシング**      | 外部取得テキストは `<untrusted_content>` タグで囲んで synthesizer に渡す                                     |
-| **ドメイン API による行動制限** | エージェントが触れるのは Minakata MCP ツールのみ。`shell_exec` / 任意外部 HTTP は許可しない                  |
-| **承認ゲート**                  | 破壊的操作は WebUI レビュー(セクション 6)                                                                    |
+| **Capability 分離**             | 各 subagent が呼べる MCP ツールを allowlist で限定する。**機構は #224 で実装済み**(`tools.ts` の `CAPABILITIES` + `registerTool` を gate する Proxy、per-agent token)。ただし **enforcement は既定 OFF**: 既定は単一 `MCP_TOKEN` 共有で agent 未特定=全ツール許可。per-agent token を効かせるには Hermes の per-skill MCP 制限(上流 #492)待ち。Minakata 側 allowlist は defense-in-depth として温存。継続追跡 Issue #208 |
+| **コンテンツフェンシング**      | 外部取得テキストは `<untrusted_content>` タグで囲む。`web_extract`(`/v1/scrape`)と `read_document` は**サーバ側で自動フェンス**(偽閉じタグもエスケープ)。**`web_search`(Hermes 内蔵→SearXNG)のスニペットはフェンス対象外**で SKILL のプロンプト制約に依存 |
+| **ドメイン API による行動制限** | エージェントが触れるのは Minakata MCP ツールのみ。`shell_exec` / 任意外部 HTTP は許可しない。`web_extract`(`/v1/scrape`)は SSRF 対策(スキーム/IP 検証・リダイレクト再検証・DNS ピン留め・IPv6/IPv4-mapped 判定)を経る |
+| **承認ゲート**                  | 破壊的操作は WebUI レビュー(セクション 6)。エージェント経由の `update_article` は `status` 直変更を拒否し archived はアーカイブ提案へ回す |
 | **監査・ロールバック**          | 全変更を git に記録                                                                                          |
 
 参考:
@@ -732,3 +732,4 @@ services:
 | --------- | ---------- | ---- |
 | 0.1.0-mvp | 2026-05-21 | 初版 |
 | 0.1.0-mvp | 2026-06-09 | 実装に合わせ更新: コンテナランタイムを Podman に統一 / Web 抽出を Minakata 自前 `/v1/scrape`(Readability)へ置換 / subagent 一覧を hermes-skills 正本に同期 / MCP ツール表を実際の登録 41 ツールへ更新 / core サービス一覧を追補 / compose 例を実ファイルに整合 / Capability 分離の MVP 未実装(#208)を明記 |
+| 0.1.0-mvp | 2026-07-07 | プロンプトインジェクション監査の是正: Capability 分離を「機構実装済み・既定 OFF(#492 待ち)」へ記述更新 / コンテンツフェンシングの `web_search` 非対象を明記 / SSRF 対策にリダイレクト再検証・DNS ピン留め・IPv6 判定を追記 / `update_article` の status 直変更ゲートを明記 |

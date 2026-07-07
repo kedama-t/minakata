@@ -76,9 +76,9 @@ packages/
 
 仕様の中核。実装時に絶対に外してはいけない:
 
-- **Capability 分離**: Hermes の subagent ごとに呼べる MCP ツールを限定する設計(**MVP では未実装・全ツール無条件登録。Issue #208 で追跡中**)
-- **コンテンツフェンシング**: 外部取得テキストは `<untrusted_content>` タグで囲んで synthesizer に渡す
-- **行動制限**: エージェントが触れるのは Minakata MCP ツールのみ。任意の外部 HTTP / `shell_exec` は許可しない
+- **Capability 分離**: Hermes の subagent ごとに呼べる MCP ツールを限定する設計。**機構は #224 で実装済み**(`packages/mcp/src/tools.ts` の `CAPABILITIES` allowlist + `registerTool` を gate する Proxy、per-agent token)。ただし **enforcement は既定 OFF**: 既定は単一 `MCP_TOKEN` 共有で agent 未特定=全ツール許可(後方互換)。per-agent token を効かせるには Hermes 側の per-skill MCP ツール制限(上流 #492)が必要で、それまでは Minakata 側 allowlist を defense-in-depth として温存。継続追跡は **Issue #208**
+- **コンテンツフェンシング**: 外部取得テキストは `<untrusted_content>` タグで囲む。`web_extract`(自前 `/v1/scrape`)と `read_document` は**サーバ側で自動フェンス**する。一方 **`web_search`(Hermes 内蔵→SearXNG)のスニペットはフェンス対象外**で、扱いは SKILL のプロンプト制約に依存(researcher / daily_research の「プロンプトインジェクション対策」節)
+- **行動制限**: エージェントが触れるのは Minakata MCP ツールのみ。任意の外部 HTTP / `shell_exec` は許可しない。`web_extract`(`/v1/scrape`)は SSRF 対策(スキーム/IP 検証・リダイレクト再検証・DNS ピン留め)を経る
 - **承認ゲート**: アーカイブ・削除・大幅書き換え・スキル追加は WebUI 経由で human-in-the-loop
 - **MCP 保護**: Host header 検証、Bearer Token 認証、Zod による厳格な入力バリデーション
 
