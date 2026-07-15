@@ -24,6 +24,12 @@ const ok = (data: unknown) => ({
   structuredContent: data as Record<string, unknown>,
 })
 
+/** ツール呼び出しをエラーとして返す(MCP isError)。呼び出し側の LLM に拒否理由を伝える */
+const err = (message: string) => ({
+  content: [{ type: 'text' as const, text: message }],
+  isError: true as const,
+})
+
 // ─── Capability 分離 (#208) ──────────────────────────────────────────────
 // subagent ごとに呼べる MCP ツールを限定する。tech-stack.md §8.1。
 // 読み取り専用ツールは injection リスクが低いため全 subagent 共通許可とし、
@@ -192,7 +198,7 @@ export function registerArticleTools(
     'minakata.update_article',
     {
       description:
-        '既存記事を更新する。body を渡した場合は ReviewService.proposeUpdate を経由し、変更率がしきい値(既定 30%)を超えると pending_approval で保留される(US-6.2)。body 以外のフィールド(タイトル等メタデータと add_sources)は直接反映する。出典(US-5.1)は add_sources で追記する',
+        '既存記事を更新する。body を渡した場合は ReviewService.proposeUpdate を経由し、変更率がしきい値(既定 30%)を超えると pending_approval で保留される(US-6.2)。title/tags/summary/last_researched_at/add_sources は直接反映する。status は承認ゲート回避防止のためエージェントからの直接変更を許可しない: archived を渡すとアーカイブ提案(§6)に変換され、それ以外の status 値は拒否される。アーカイブは archive_article を使う',
       inputSchema: {
         id: z.string(),
         body: z.string().max(500_000).optional(),
@@ -209,6 +215,38 @@ export function registerArticleTools(
     },
     async (args) => {
       const before = s.articles.read(args.id)
+      // status の直接変更は承認ゲート(§6)を回避しうるため制限する。
+      // - archived: 即時反映せずアーカイブ提案に変換(admin 承認待ち)
+      // - それ以外(published/draft/pending_approval): エージェントには許可しない
+      //   (公開/差し戻しは create 既定や WebUI レビューが担う)
+      if (args.status !== undefined) {
+        if (args.status !== 'archived') {
+          return err(
+            `status='${args.status}' はエージェントから直接設定できません。アーカイブは archive_article を、公開/レビュー承認は WebUI を使ってください`,
+          )
+        }
+        const proposal = s.archives.propose({
+          article_id: args.id,
+          proposed_by: ctx.agent ?? args.author,
+        })
+        s.audit.log({
+          actor: ctx.agent ?? args.author,
+          tool_name: 'minakata.update_article',
+          target_article_id: args.id,
+          before_hash: before?.content_hash ?? null,
+          metadata: {
+            result: 'pending_approval',
+            proposal_id: proposal.id,
+            via: 'status=archived',
+          },
+        })
+        return ok({
+          id: args.id,
+          status: 'pending_approval',
+          proposal_id: proposal.id,
+          proposed_at: proposal.created_at,
+        })
+      }
       // body 提案は ReviewService 経由で 30% ゲートを通す
       if (args.body !== undefined) {
         const proposal = await s.reviews.proposeUpdate({
@@ -249,10 +287,10 @@ export function registerArticleTools(
         }
         // applied:本文の反映は完了済。残りのメタデータがあれば追加で更新する
       }
+      // status はここに到達する時点で undefined(上のガードで消化済み)
       const hasMeta =
         args.title !== undefined ||
         args.tags !== undefined ||
-        args.status !== undefined ||
         args.summary !== undefined ||
         args.last_researched_at !== undefined ||
         (args.add_sources?.length ?? 0) > 0
@@ -262,7 +300,6 @@ export function registerArticleTools(
               id: args.id,
               title: args.title,
               tags: args.tags,
-              status: args.status,
               summary: args.summary,
               last_researched_at: args.last_researched_at,
               cost_usd: args.body === undefined ? args.cost_usd : undefined,
@@ -288,11 +325,13 @@ export function registerArticleTools(
     {
       description:
         'アーカイブを「提案」する(§6 承認ゲート)。即時 archive は行わず、admin が approve_archive で承認したときに反映する。同じ記事に既に proposed がある場合は既存提案 ID を返す',
-      inputSchema: {
-        id: z.string(),
-        author: z.string().default('freshness_checker'),
-        reason: z.string().optional(),
-      },
+      inputSchema: z
+        .object({
+          id: z.string(),
+          author: z.string().default('freshness_checker'),
+          reason: z.string().optional(),
+        })
+        .strict(),
     },
     async (args) => {
       const proposal = s.archives.propose({
@@ -661,7 +700,7 @@ export function registerMaintenanceTools(
     {
       description:
         'SQLite を VACUUM INTO でサーバ固定ディレクトリ配下に退避する。filename は小文字英数字・ハイフン・アンダースコアのみ使用可能で .sqlite 拡張子必須',
-      inputSchema: { filename: z.string().regex(/^[a-z0-9_-]+\.sqlite$/) },
+      inputSchema: z.object({ filename: z.string().regex(/^[a-z0-9_-]+\.sqlite$/) }).strict(),
     },
     async ({ filename }) => ok(s.maintenance.snapshot(filename)),
   )
@@ -691,11 +730,13 @@ export function registerMaintenanceTools(
     {
       description:
         '一過性記事(changelog / daily 等)を created_at 基準で強制アーカイブする(#192)。§6 承認ゲートを通さず即時 archived 化する例外経路。対象は kinds の source に限定される',
-      inputSchema: {
-        kinds: z.array(z.string()).default(['agent_changelog', 'agent_daily']),
-        max_age_days: z.number().positive().default(7),
-        author: z.string().default('freshness_checker'),
-      },
+      inputSchema: z
+        .object({
+          kinds: z.array(z.string()).default(['agent_changelog', 'agent_daily']),
+          max_age_days: z.number().positive().default(7),
+          author: z.string().default('freshness_checker'),
+        })
+        .strict(),
     },
     async (args) => {
       const actor = ctx.agent ?? args.author
@@ -721,7 +762,7 @@ export function registerMaintenanceTools(
     {
       description:
         '記事 Markdown・DB スナップショット・runtime skills を専用 git リポジトリに集約し、設定があれば GitHub private repo へ push する。Hermes の backup_agent から日次で呼ぶ',
-      inputSchema: { message: z.string().max(200).optional() },
+      inputSchema: z.object({ message: z.string().max(200).optional() }).strict(),
     },
     async (args) => {
       const r = await s.backup.run(args.message !== undefined ? { message: args.message } : {})
@@ -889,14 +930,16 @@ export function registerSkillTools(server: McpServer, s: McpServices, ctx: CallC
     'minakata.propose_skill',
     {
       description: 'スキル化の提案。admin が承認するとファイルとして書き出される(US-8.1)',
-      inputSchema: {
-        name: z
-          .string()
-          .min(1)
-          .regex(/^[a-z][a-z0-9_-]*$/, '英小文字・数字・ハイフン・アンダースコアのみ'),
-        description: z.string().min(1),
-        code: z.string().min(1),
-      },
+      inputSchema: z
+        .object({
+          name: z
+            .string()
+            .min(1)
+            .regex(/^[a-z][a-z0-9_-]*$/, '英小文字・数字・ハイフン・アンダースコアのみ'),
+          description: z.string().min(1),
+          code: z.string().min(1),
+        })
+        .strict(),
     },
     async (args) => {
       const id = s.skills.propose(args)
