@@ -7,6 +7,12 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.minakata
     image: minakata:dev
+    networks:
+      default:
+        # 固定 IP。OOM 等で minakata だけ再起動しても IP が変わらず、
+        # Hermes 側の MCP クライアントが再接続できる(IP 変化時は永久に
+        # unreachable になる Hermes gateway の挙動への緩和策)。
+        ipv4_address: 10.89.0.100
     ports:
       - "${MINAKATA_BIND:-127.0.0.1}:3000:3000"
     volumes:
@@ -124,3 +130,11 @@ services:
     expose:
       - "8080"
     restart: unless-stopped
+
+networks:
+  default:
+    ipam:
+      config:
+        # 既存の minakata_default と同じサブネットを明示(ipv4_address 指定に必要)
+        - subnet: 10.89.0.0/24
+          gateway: 10.89.0.1
