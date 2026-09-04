@@ -61,6 +61,21 @@
 /kanban.db
 /kanban.db-*
 
+# --- 0.21.0 で追加された生成物 (#246) ---
+/.config/
+/kanban/
+/lazy-packages/
+/state/
+/install_id
+/.install_id.lock
+/.mcp-discovery.lock
+/kanban.db.dispatch.lock
+/state.db.auto-maintenance.lock
+/response_store.db
+/response_store.db-*
+/runs_idempotency.db
+/runs_idempotency.db-*
+
 # --- gateway HERMES_HOME=/opt/data 修正前に作られた退避ディレクトリ ---
 /.hermes.bak.*/
 
