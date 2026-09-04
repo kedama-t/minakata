@@ -57,6 +57,11 @@ services:
   hermes:
     # 公式 image (Docker Hub: nousresearch/hermes-agent)。`:main` で固定。
     # `bun run compose:up:agent` (--profile agent) で起動する。
+    #
+    # **0.21.0 以上が必要**(#246)。0.16.0 の opencode_model_api_mode() は
+    # provider=opencode-go の GPT 系を chat_completions に流すが、OpenCode Go
+    # 上の gpt-* は Responses API 専用のため全リクエストが HTTP 500 になる。
+    # 0.21.0 で `gpt-` / `grok-` / `muse-spark` → codex_responses が追加された。
     image: nousresearch/hermes-agent:main
     profiles: ["agent"]
     # default の CMD は bare `hermes`(TUI)。container には TTY が無いので
@@ -83,11 +88,6 @@ services:
       # cron job の登録は cont-init.d hook で自動化。本体 (main-hermes)
       # 起動前に s6 init が走らせるので、別コンテナ・別プロセスを増やさず済む。
       - ../hermes/cron-bootstrap.sh:/etc/cont-init.d/99-minakata-cron:ro
-      # 上流 main-wrapper.sh は #!/bin/sh で container env を読まないため、
-      # gateway が HERMES_HOME=/opt/data を受け取れず /opt/data/.hermes に
-      # フォールバックする。with-contenv シバン版で上書きして CLI と gateway
-      # の HERMES_HOME を一致させる。
-      - ../hermes/main-wrapper.sh:/opt/hermes/docker/main-wrapper.sh:ro
     environment:
       # podman rootless では UID マッピングを揃えないと /opt/data の chown
       # が無視され、後段で PermissionError になる(#42)。ホスト側で

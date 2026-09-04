@@ -6,7 +6,7 @@
 model:
   # OpenCode Go 内のモデル。実モデル一覧は
   # https://opencode.ai/zen/go/v1/models で確認。
-  default: "deepseek-v4-flash"
+  default: "gpt-5.6-luna"
   # plugin-registered provider 名(canonical)を直接指定。
   provider: "opencode-go"
 
