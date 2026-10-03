@@ -19,7 +19,7 @@ export async function action({ request }: Route.ActionArgs) {
   const id = String(form.get('id') ?? '')
   const intent = String(form.get('intent') ?? '')
   if (intent === 'approve') {
-    const r = services.skills.approve(id, admin.id)
+    const r = await services.skills.approve(id, admin.id)
     return { approved: r.written_to }
   }
   if (intent === 'reject') {
